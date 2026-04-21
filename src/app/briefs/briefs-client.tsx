@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { BriefCard } from "@/components/brief-card";
 import type { BriefWithClaims, BriefCategory, BriefFormat } from "@/types/database";
@@ -32,11 +33,19 @@ const priceRanges = [
 
 interface BriefsClientProps {
   briefs: BriefWithClaims[];
+  initialCategory?: BriefCategory;
+  initialFormat?: BriefFormat;
 }
 
-export function BriefsClient({ briefs }: BriefsClientProps) {
-  const [categoryFilter, setCategoryFilter] = useState<BriefCategory | "all">("all");
-  const [formatFilter, setFormatFilter] = useState<BriefFormat | "all">("all");
+export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Server-side filters (via URL)
+  const categoryFilter = initialCategory || "all";
+  const formatFilter = initialFormat || "all";
+
+  // Client-side filters (local state)
   const [priceFilter, setPriceFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("");
 
@@ -45,10 +54,20 @@ export function BriefsClient({ briefs }: BriefsClientProps) {
     return Array.from(uniqueGyms) as string[];
   }, [briefs]);
 
+  // Update URL for server-side filters
+  function updateFilter(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all" || value === "") {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    router.push(`/briefs${params.toString() ? `?${params.toString()}` : ""}`);
+  }
+
+  // Client-side filtering for price and gym
   const filteredBriefs = useMemo(() => {
     return briefs.filter((brief) => {
-      if (categoryFilter !== "all" && brief.category !== categoryFilter) return false;
-      if (formatFilter !== "all" && brief.format !== formatFilter) return false;
       if (gymFilter && brief.gym !== gymFilter) return false;
 
       if (priceFilter !== "all") {
@@ -59,7 +78,7 @@ export function BriefsClient({ briefs }: BriefsClientProps) {
 
       return true;
     });
-  }, [briefs, categoryFilter, formatFilter, priceFilter, gymFilter]);
+  }, [briefs, priceFilter, gymFilter]);
 
   return (
     <>
@@ -77,7 +96,7 @@ export function BriefsClient({ briefs }: BriefsClientProps) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as BriefCategory | "all")}
+              onChange={(e) => updateFilter("category", e.target.value)}
               className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
             >
               {categories.map((cat) => (
@@ -89,7 +108,7 @@ export function BriefsClient({ briefs }: BriefsClientProps) {
 
             <select
               value={formatFilter}
-              onChange={(e) => setFormatFilter(e.target.value as BriefFormat | "all")}
+              onChange={(e) => updateFilter("format", e.target.value)}
               className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
             >
               {formats.map((fmt) => (

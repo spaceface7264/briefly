@@ -162,7 +162,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
               )}
 
               {/* Reference URLs */}
-              {brief.reference_urls.length > 0 && (
+              {brief.reference_urls && brief.reference_urls.length > 0 && (
                 <section>
                   <h2 className="text-lg font-semibold mb-3">References</h2>
                   <ul className="space-y-2">

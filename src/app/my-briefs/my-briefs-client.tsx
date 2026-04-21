@@ -34,26 +34,26 @@ const statusGroups: { status: ClaimStatus; title: string; description: string }[
   },
 ];
 
-function claimStatusLabel(status: ClaimStatus): string {
-  const labels: Record<ClaimStatus, string> = {
+function claimStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
     active: "In Progress",
     submitted: "Submitted",
     approved: "Approved",
     paid: "Paid",
     cancelled: "Cancelled",
   };
-  return labels[status];
+  return labels[status] || status;
 }
 
-function claimStatusColor(status: ClaimStatus): string {
-  const colors: Record<ClaimStatus, string> = {
+function claimStatusColor(status: string): string {
+  const colors: Record<string, string> = {
     active: "bg-accent-muted text-accent",
     submitted: "bg-warning/20 text-warning",
     approved: "bg-success/20 text-success",
     paid: "bg-muted/20 text-muted",
     cancelled: "bg-error/20 text-error",
   };
-  return colors[status];
+  return colors[status] || "bg-muted/20 text-muted";
 }
 
 interface Props {
