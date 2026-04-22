@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Nav } from "@/components/nav";
+import { ContentTips } from "@/components/content-tips";
 import { createClient } from "@/lib/supabase/client";
 import type { Brief, Claim } from "@/types/database";
 import {
@@ -193,8 +194,9 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
             </div>
 
             {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-8 bg-surface border border-border rounded-xl p-6">
+            <div className="lg:col-span-1 space-y-4">
+              <div className="sticky top-8 space-y-4">
+              <div className="bg-surface border border-border rounded-xl p-6">
                 {/* Slots info */}
                 <div className="mb-4 pb-4 border-b border-border">
                   <p className="text-sm text-muted mb-1">Availability</p>
@@ -262,6 +264,10 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* Content Tips */}
+              <ContentTips category={brief.category} isAdIntended={brief.is_ad_intended} />
               </div>
             </div>
           </div>
@@ -462,6 +468,9 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
             />
           </div>
 
+          {/* Submission Checklist */}
+          <SubmissionChecklist />
+
           {error && (
             <p className="text-error text-sm">{error}</p>
           )}
@@ -506,6 +515,79 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
             </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function SubmissionChecklist() {
+  const [checks, setChecks] = useState({
+    hook: false,
+    subtitles: false,
+    length: false,
+    branding: false,
+  });
+
+  const allChecked = Object.values(checks).every(Boolean);
+
+  return (
+    <div className="bg-background border border-border rounded-lg p-3">
+      <p className="text-xs font-medium text-muted uppercase tracking-wider mb-3">
+        Pre-submission checklist
+      </p>
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checks.hook}
+            onChange={(e) => setChecks({ ...checks, hook: e.target.checked })}
+            className="w-4 h-4 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
+          />
+          <span className="text-sm text-muted">
+            Stærk hook i første 2-3 sek
+          </span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checks.subtitles}
+            onChange={(e) => setChecks({ ...checks, subtitles: e.target.checked })}
+            className="w-4 h-4 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
+          />
+          <span className="text-sm text-muted">
+            Undertekster tilføjet (centreret)
+          </span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checks.length}
+            onChange={(e) => setChecks({ ...checks, length: e.target.checked })}
+            className="w-4 h-4 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
+          />
+          <span className="text-sm text-muted">
+            Passende længde (8-30 sek)
+          </span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checks.branding}
+            onChange={(e) => setChecks({ ...checks, branding: e.target.checked })}
+            className="w-4 h-4 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
+          />
+          <span className="text-sm text-muted">
+            Boulders branding synlig
+          </span>
+        </label>
+      </div>
+      {allChecked && (
+        <p className="text-xs text-success mt-2 flex items-center gap-1">
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          Klar til at indsende!
+        </p>
       )}
     </div>
   );
