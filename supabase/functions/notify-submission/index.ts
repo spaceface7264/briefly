@@ -1,0 +1,103 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+interface WebhookPayload {
+  type: "UPDATE";
+  table: "claims";
+  record: {
+    id: string;
+    brief_id: string;
+    creator_id: string;
+    status: string;
+    submission_url: string;
+    submission_notes: string | null;
+    submitted_at: string;
+  };
+  old_record: {
+    status: string;
+  };
+}
+
+serve(async (req) => {
+  try {
+    const payload: WebhookPayload = await req.json();
+
+    // Only proceed if status changed to "submitted"
+    if (
+      payload.old_record.status !== "submitted" &&
+      payload.record.status === "submitted"
+    ) {
+      const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+      // Get brief details
+      const { data: brief } = await supabase
+        .from("briefs")
+        .select("title")
+        .eq("id", payload.record.brief_id)
+        .single();
+
+      // Get creator details
+      const { data: creator } = await supabase
+        .from("profiles")
+        .select("name, email")
+        .eq("id", payload.record.creator_id)
+        .single();
+
+      // Get all admin emails
+      const { data: admins } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("role", "admin");
+
+      if (!admins || admins.length === 0 || !RESEND_API_KEY) {
+        return new Response(JSON.stringify({ message: "No admins or API key" }), {
+          status: 200,
+        });
+      }
+
+      const adminEmails = admins.map((a) => a.email).filter(Boolean);
+
+      // Send email via Resend
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: "Boulders Creators <notifications@boulders.dk>",
+          to: adminEmails,
+          subject: `New Submission: ${brief?.title || "Brief"}`,
+          html: `
+            <h2>New Content Submission</h2>
+            <p><strong>Brief:</strong> ${brief?.title || "Unknown"}</p>
+            <p><strong>Creator:</strong> ${creator?.name || creator?.email || "Unknown"}</p>
+            <p><strong>Submission URL:</strong> <a href="${payload.record.submission_url}">${payload.record.submission_url}</a></p>
+            ${payload.record.submission_notes ? `<p><strong>Notes:</strong> ${payload.record.submission_notes}</p>` : ""}
+            <p><a href="https://creators.boulders.dk/admin/claims">Review in Admin</a></p>
+          `,
+        }),
+      });
+
+      const resendData = await res.json();
+      console.log("Resend response:", resendData);
+
+      return new Response(JSON.stringify({ success: true, resend: resendData }), {
+        status: 200,
+      });
+    }
+
+    return new Response(JSON.stringify({ message: "Not a submission event" }), {
+      status: 200,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+    });
+  }
+});
