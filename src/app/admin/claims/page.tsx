@@ -13,7 +13,7 @@ export default async function AdminClaimsPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled)")
+    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled), payments:payments(id, invoice_number, status)")
     .order("claimed_at", { ascending: false });
 
   if (statusFilter) {
@@ -113,7 +113,14 @@ export default async function AdminClaimsPage({
                       {new Date(claim.expires_at).toLocaleDateString("en-GB")}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <ClaimActions claim={claim} />
+                      <ClaimActions
+                        claim={claim}
+                        paidInvoice={
+                          (claim.payments || []).find(
+                            (p: any) => p.status === "succeeded"
+                          ) || null
+                        }
+                      />
                     </td>
                   </tr>
                 );

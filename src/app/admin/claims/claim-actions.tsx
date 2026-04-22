@@ -20,9 +20,13 @@ interface ClaimActionsProps {
       stripe_payouts_enabled?: boolean;
     };
   };
+  paidInvoice?: {
+    id: string;
+    invoice_number: string | null;
+  } | null;
 }
 
-export function ClaimActions({ claim }: ClaimActionsProps) {
+export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showSubmission, setShowSubmission] = useState(false);
@@ -135,6 +139,19 @@ export function ClaimActions({ claim }: ClaimActionsProps) {
   if (claim.status === "active") {
     return (
       <span className="text-muted text-sm">Awaiting submission</span>
+    );
+  }
+
+  if (claim.status === "paid" && paidInvoice) {
+    return (
+      <a
+        href={`/api/invoices/${paidInvoice.id}/pdf`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-3 py-1.5 text-sm text-accent hover:bg-accent-muted rounded-lg transition-colors inline-block"
+      >
+        Invoice {paidInvoice.invoice_number}
+      </a>
     );
   }
 

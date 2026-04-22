@@ -3,7 +3,15 @@ import { redirect } from "next/navigation";
 import { MyBriefsClient } from "./my-briefs-client";
 import type { Brief, Claim } from "@/types/database";
 
-export type ClaimWithBrief = Claim & { brief: Brief };
+export type ClaimInvoice = {
+  id: string;
+  invoice_number: string | null;
+};
+
+export type ClaimWithBrief = Claim & {
+  brief: Brief;
+  invoice?: ClaimInvoice | null;
+};
 
 export default async function MyBriefsPage() {
   const supabase = await createClient();
@@ -14,11 +22,11 @@ export default async function MyBriefsPage() {
     redirect("/login");
   }
 
-  // Fetch user's claims with brief details
+  // Fetch user's claims with brief details + any succeeded invoice
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: claims, error } = await (supabase
     .from("claims") as any)
-    .select("*, brief:briefs(*)")
+    .select("*, brief:briefs(*), payments:payments(id, invoice_number, status)")
     .eq("user_id", user.id)
     .order("claimed_at", { ascending: false });
 
@@ -30,10 +38,17 @@ export default async function MyBriefsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const claimsWithBriefs: ClaimWithBrief[] = ((claims || []) as any[])
     .filter((claim) => claim.brief !== null)
-    .map((claim) => ({
-      ...claim,
-      brief: claim.brief as Brief,
-    }));
+    .map((claim) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const succeeded = (claim.payments || []).find((p: any) => p.status === "succeeded");
+      return {
+        ...claim,
+        brief: claim.brief as Brief,
+        invoice: succeeded
+          ? { id: succeeded.id, invoice_number: succeeded.invoice_number }
+          : null,
+      };
+    });
 
   return <MyBriefsClient claims={claimsWithBriefs} />;
 }

@@ -102,12 +102,16 @@ export function MyBriefsClient({ claims }: Props) {
 
                     <div className="space-y-4">
                       {group.claims.map((claim) => (
-                        <Link
+                        <div
                           key={claim.id}
-                          href={`/briefs/${claim.brief_id}`}
-                          className="block bg-surface border border-border rounded-xl p-5 hover:border-accent/50 hover:bg-surface-hover transition-all"
+                          className="relative bg-surface border border-border rounded-xl p-5 hover:border-accent/50 hover:bg-surface-hover transition-all"
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                          <Link
+                            href={`/briefs/${claim.brief_id}`}
+                            className="absolute inset-0"
+                            aria-label={claim.brief.title}
+                          />
+                          <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="font-semibold text-lg">
@@ -143,6 +147,17 @@ export function MyBriefsClient({ claims }: Props) {
                                   </span>
                                 </p>
                               )}
+
+                              {claim.status === "paid" && claim.invoice && (
+                                <a
+                                  href={`/api/invoices/${claim.invoice.id}/pdf`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="relative inline-block text-sm text-accent hover:underline"
+                                >
+                                  Download invoice {claim.invoice.invoice_number}
+                                </a>
+                              )}
                             </div>
 
                             <div className="text-right">
@@ -156,7 +171,7 @@ export function MyBriefsClient({ claims }: Props) {
                               )}
                             </div>
                           </div>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   </section>
