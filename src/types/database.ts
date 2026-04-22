@@ -29,6 +29,7 @@ export type Database = {
           format: Database["public"]["Enums"]["brief_format"]
           gym: string | null
           id: string
+          is_ad_intended: boolean
           price_dkk: number
           reference_urls: string[] | null
           status: Database["public"]["Enums"]["brief_status"]
@@ -50,6 +51,7 @@ export type Database = {
           format: Database["public"]["Enums"]["brief_format"]
           gym?: string | null
           id?: string
+          is_ad_intended?: boolean
           price_dkk: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
@@ -71,6 +73,7 @@ export type Database = {
           format?: Database["public"]["Enums"]["brief_format"]
           gym?: string | null
           id?: string
+          is_ad_intended?: boolean
           price_dkk?: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]

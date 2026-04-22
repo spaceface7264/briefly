@@ -42,6 +42,7 @@ export function BriefForm({ brief }: BriefFormProps) {
   const [specsJson, setSpecsJson] = useState(
     brief?.deliverable_specs ? JSON.stringify(brief.deliverable_specs, null, 2) : ""
   );
+  const [isAdIntended, setIsAdIntended] = useState(brief?.is_ad_intended ?? false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -83,6 +84,7 @@ export function BriefForm({ brief }: BriefFormProps) {
       reference_urls: referenceUrls.split("\n").map((u) => u.trim()).filter(Boolean),
       usage_rights: usageRights || null,
       deliverable_specs: deliverableSpecs,
+      is_ad_intended: isAdIntended,
       created_by: user.id,
     };
 
@@ -286,6 +288,25 @@ export function BriefForm({ brief }: BriefFormProps) {
           className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors resize-none"
           placeholder="Perpetual usage rights across all Boulders social channels"
         />
+      </div>
+
+      {/* Ad Intended */}
+      <div className="flex items-start gap-3 p-4 bg-surface border border-border rounded-lg">
+        <input
+          id="isAdIntended"
+          type="checkbox"
+          checked={isAdIntended}
+          onChange={(e) => setIsAdIntended(e.target.checked)}
+          className="mt-0.5 w-5 h-5 rounded border-border bg-background text-accent focus:ring-accent focus:ring-offset-0"
+        />
+        <div>
+          <label htmlFor="isAdIntended" className="block text-sm font-medium cursor-pointer">
+            Intended for Ads
+          </label>
+          <p className="text-muted text-sm mt-0.5">
+            This content will likely be used as paid advertising. Creators will see a badge on this brief.
+          </p>
+        </div>
       </div>
 
       {error && <p className="text-error text-sm">{error}</p>}
