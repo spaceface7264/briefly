@@ -41,6 +41,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# cloudflare / opennext
+.open-next/
+.wrangler/
+cloudflare-env.d.ts
+
 # claude
 .claude/
 
