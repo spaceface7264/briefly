@@ -263,9 +263,14 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
 }
 
 function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () => void }) {
+  const router = useRouter();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [submissionUrl, setSubmissionUrl] = useState("");
+  const [submissionNotes, setSubmissionNotes] = useState("");
 
   async function handleCancel() {
     setCancelling(true);
@@ -273,9 +278,8 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
 
     const supabase = createClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (supabase
-      .from("claims") as any)
+    const { error: updateError } = await supabase
+      .from("claims")
       .update({ status: "cancelled" })
       .eq("id", claim.id);
 
@@ -289,34 +293,191 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
     onCancelled();
   }
 
-  return (
-    <div className="text-center">
-      <p className="text-accent font-medium mb-2">You claimed this brief</p>
-      <p className="text-muted text-sm mb-4">
-        Expires: {formatDeadline(claim.expires_at)}
-      </p>
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!submissionUrl.trim()) {
+      setError("Please enter a submission URL");
+      return;
+    }
 
-      {error && (
-        <p className="text-error text-sm mb-4">{error}</p>
+    setSubmitting(true);
+    setError("");
+
+    const supabase = createClient();
+
+    const { error: updateError } = await (supabase as any)
+      .from("claims")
+      .update({
+        status: "submitted",
+        submission_url: submissionUrl.trim(),
+        submission_notes: submissionNotes.trim() || null,
+        submitted_at: new Date().toISOString(),
+      })
+      .eq("id", claim.id);
+
+    if (updateError) {
+      console.error("Submit error:", updateError);
+      setError("Failed to submit");
+      setSubmitting(false);
+      return;
+    }
+
+    router.refresh();
+  }
+
+  // Already submitted
+  if (claim.status === "submitted") {
+    return (
+      <div className="text-center">
+        <div className="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="text-warning font-medium mb-2">Under Review</p>
+        <p className="text-muted text-sm mb-4">
+          Your submission is being reviewed by the team
+        </p>
+        <Link
+          href="/my-briefs"
+          className="block w-full py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
+        >
+          View in My Briefs
+        </Link>
+      </div>
+    );
+  }
+
+  // Approved
+  if (claim.status === "approved") {
+    return (
+      <div className="text-center">
+        <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p className="text-success font-medium mb-2">Approved</p>
+        <p className="text-muted text-sm mb-4">
+          Your submission has been approved. Payment coming soon.
+        </p>
+        <Link
+          href="/my-briefs"
+          className="block w-full py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
+        >
+          View in My Briefs
+        </Link>
+      </div>
+    );
+  }
+
+  // Paid
+  if (claim.status === "paid") {
+    return (
+      <div className="text-center">
+        <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="text-success font-medium mb-2">Completed</p>
+        <p className="text-muted text-sm">Payment has been sent</p>
+      </div>
+    );
+  }
+
+  // Active - can submit or cancel
+  return (
+    <div>
+      {!showSubmitForm && !showCancelConfirm && (
+        <>
+          <p className="text-accent font-medium mb-2 text-center">You claimed this brief</p>
+          <p className="text-muted text-sm mb-4 text-center">
+            Expires: {formatDeadline(claim.expires_at)}
+          </p>
+
+          {error && (
+            <p className="text-error text-sm mb-4 text-center">{error}</p>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={() => setShowSubmitForm(true)}
+              className="w-full py-2.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors"
+            >
+              Submit Work
+            </button>
+            <Link
+              href="/my-briefs"
+              className="block w-full py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
+            >
+              View in My Briefs
+            </Link>
+            <button
+              onClick={() => setShowCancelConfirm(true)}
+              className="w-full py-2.5 text-muted hover:text-error text-sm transition-colors"
+            >
+              Cancel Claim
+            </button>
+          </div>
+        </>
       )}
 
-      {!showCancelConfirm ? (
-        <div className="space-y-3">
-          <Link
-            href="/my-briefs"
-            className="block w-full py-2.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors text-center"
-          >
-            View in My Briefs
-          </Link>
-          <button
-            onClick={() => setShowCancelConfirm(true)}
-            className="w-full py-2.5 border border-border hover:border-error hover:text-error text-muted text-sm font-medium rounded-lg transition-colors"
-          >
-            Cancel Claim
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
+      {showSubmitForm && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="submissionUrl" className="block text-sm font-medium mb-2">
+              Submission URL <span className="text-error">*</span>
+            </label>
+            <input
+              id="submissionUrl"
+              type="url"
+              value={submissionUrl}
+              onChange={(e) => setSubmissionUrl(e.target.value)}
+              placeholder="https://instagram.com/reel/..."
+              required
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+            />
+          </div>
+          <div>
+            <label htmlFor="submissionNotes" className="block text-sm font-medium mb-2">
+              Notes (optional)
+            </label>
+            <textarea
+              id="submissionNotes"
+              value={submissionNotes}
+              onChange={(e) => setSubmissionNotes(e.target.value)}
+              placeholder="Any additional context..."
+              rows={3}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+            />
+          </div>
+
+          {error && (
+            <p className="text-error text-sm">{error}</p>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowSubmitForm(false)}
+              className="flex-1 py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+            >
+              Back
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 py-2.5 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-lg transition-colors"
+            >
+              {submitting ? "Submitting..." : "Submit"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {showCancelConfirm && (
+        <div className="space-y-3 text-center">
           <p className="text-sm text-warning">
             Are you sure you want to release this brief?
           </p>
