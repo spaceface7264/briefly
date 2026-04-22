@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -57,8 +58,15 @@ export function AdminNav() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
       <div className="p-6 border-b border-border">
-        <Link href="/admin" className="font-bold text-lg">
-          Boulders <span className="text-accent">Admin</span>
+        <Link href="/admin" className="flex items-center gap-2">
+          <Image
+            src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
+            alt="Boulders"
+            width={100}
+            height={28}
+            className="h-7 w-auto"
+          />
+          <span className="text-xs font-medium text-accent uppercase tracking-wider">Admin</span>
         </Link>
       </div>
 

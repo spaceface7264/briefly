@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -95,9 +96,14 @@ export default function LoginPage() {
     <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Boulders <span className="text-accent">Creators</span>
-          </h1>
+          <Image
+            src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
+            alt="Boulders"
+            width={180}
+            height={48}
+            className="h-12 w-auto mx-auto mb-4"
+            priority
+          />
           <p className="text-muted">
             {mode === "login" ? "Sign in to access your briefs" : "Create your account"}
           </p>

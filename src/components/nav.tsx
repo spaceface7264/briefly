@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -36,8 +37,15 @@ export function Nav() {
     <header className="border-b border-border bg-surface">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/briefs" className="font-bold text-lg">
-            Boulders <span className="text-accent">Creators</span>
+          <Link href="/briefs" className="flex items-center">
+            <Image
+              src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
+              alt="Boulders"
+              width={120}
+              height={32}
+              className="h-8 w-auto"
+              priority
+            />
           </Link>
 
           <nav className="flex items-center gap-1">
