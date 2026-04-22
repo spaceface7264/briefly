@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { createClient } from "@/lib/supabase/client";
+import { startStripeOnboarding } from "./stripe-actions";
 import type { Profile } from "@/types/database";
 
 interface Props {
@@ -68,6 +69,10 @@ export function ProfileClient({ profile, userEmail }: Props) {
     router.push("/login");
     router.refresh();
   }
+
+  const payoutsEnabled = profile?.stripe_payouts_enabled ?? false;
+  const hasStripeAccount = Boolean(profile?.stripe_account_id);
+  const detailsSubmitted = profile?.stripe_details_submitted ?? false;
 
   return (
     <>
@@ -187,6 +192,19 @@ export function ProfileClient({ profile, userEmail }: Props) {
             </div>
           </form>
 
+          {/* Payouts */}
+          <div className="mt-12 pt-8 border-t border-border">
+            <h2 className="text-xl font-bold mb-2">Payouts</h2>
+            <p className="text-muted text-sm mb-4">
+              Connect a Stripe payout account to receive payment for approved submissions.
+            </p>
+            <StripeConnectSection
+              hasAccount={hasStripeAccount}
+              detailsSubmitted={detailsSubmitted}
+              payoutsEnabled={payoutsEnabled}
+            />
+          </div>
+
           {/* Logout */}
           <div className="mt-12 pt-8 border-t border-border">
             <button
@@ -199,5 +217,59 @@ export function ProfileClient({ profile, userEmail }: Props) {
         </div>
       </main>
     </>
+  );
+}
+
+function StripeConnectSection({
+  hasAccount,
+  detailsSubmitted,
+  payoutsEnabled,
+}: {
+  hasAccount: boolean;
+  detailsSubmitted: boolean;
+  payoutsEnabled: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  function handleConnect() {
+    startTransition(async () => {
+      await startStripeOnboarding();
+    });
+  }
+
+  let statusLabel = "Not connected";
+  let statusClass = "bg-muted/20 text-muted";
+  let ctaLabel = "Connect payout account";
+
+  if (payoutsEnabled) {
+    statusLabel = "Payouts enabled";
+    statusClass = "bg-success/20 text-success";
+    ctaLabel = "Update payout details";
+  } else if (hasAccount && detailsSubmitted) {
+    statusLabel = "Under review";
+    statusClass = "bg-warning/20 text-warning";
+    ctaLabel = "Update payout details";
+  } else if (hasAccount) {
+    statusLabel = "Onboarding incomplete";
+    statusClass = "bg-warning/20 text-warning";
+    ctaLabel = "Continue onboarding";
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <span
+        className={`px-2.5 py-1 text-xs font-medium rounded-full ${statusClass}`}
+      >
+        {statusLabel}
+      </span>
+      <button
+        type="button"
+        onClick={handleConnect}
+        disabled={pending}
+        className="px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background font-semibold rounded-lg transition-colors text-sm"
+      >
+        {pending ? "Redirecting..." : ctaLabel}
+      </button>
+    </div>
   );
 }

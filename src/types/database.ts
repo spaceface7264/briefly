@@ -157,6 +157,9 @@ export type Database = {
           instagram_handle: string | null
           name: string | null
           role: Database["public"]["Enums"]["user_role"]
+          stripe_account_id: string | null
+          stripe_details_submitted: boolean
+          stripe_payouts_enabled: boolean
           tags: string[] | null
           updated_at: string
         }
@@ -167,6 +170,9 @@ export type Database = {
           instagram_handle?: string | null
           name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          stripe_account_id?: string | null
+          stripe_details_submitted?: boolean
+          stripe_payouts_enabled?: boolean
           tags?: string[] | null
           updated_at?: string
         }
@@ -177,10 +183,77 @@ export type Database = {
           instagram_handle?: string | null
           name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          stripe_account_id?: string | null
+          stripe_details_submitted?: boolean
+          stripe_payouts_enabled?: boolean
           tags?: string[] | null
           updated_at?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_dkk: number
+          claim_id: string
+          created_at: string
+          creator_id: string
+          error_message: string | null
+          id: string
+          paid_by: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          stripe_account_id: string
+          stripe_transfer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_dkk: number
+          claim_id: string
+          created_at?: string
+          creator_id: string
+          error_message?: string | null
+          id?: string
+          paid_by?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          stripe_account_id: string
+          stripe_transfer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_dkk?: number
+          claim_id?: string
+          created_at?: string
+          creator_id?: string
+          error_message?: string | null
+          id?: string
+          paid_by?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          stripe_account_id?: string
+          stripe_transfer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -201,6 +274,7 @@ export type Database = {
         | "approved"
         | "paid"
         | "archived"
+      payment_status: "pending" | "succeeded" | "failed"
       user_role: "creator" | "admin"
     }
     CompositeTypes: {
@@ -339,6 +413,7 @@ export const Constants = {
         "paid",
         "archived",
       ],
+      payment_status: ["pending", "succeeded", "failed"],
       user_role: ["creator", "admin"],
     },
   },
@@ -348,10 +423,12 @@ export const Constants = {
 export type Profile = Tables<"profiles">;
 export type Brief = Tables<"briefs">;
 export type Claim = Tables<"claims">;
+export type Payment = Tables<"payments">;
 
 export type BriefCategory = Enums<"brief_category">;
 export type BriefFormat = Enums<"brief_format">;
 export type BriefStatus = Enums<"brief_status">;
+export type PaymentStatus = Enums<"payment_status">;
 export type UserRole = Enums<"user_role">;
 export type ClaimStatus = "active" | "submitted" | "approved" | "paid" | "cancelled";
 

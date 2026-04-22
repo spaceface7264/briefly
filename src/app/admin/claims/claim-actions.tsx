@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { payClaim } from "./pay-action";
 
 interface ClaimActionsProps {
   claim: {
@@ -16,6 +17,7 @@ interface ClaimActionsProps {
     creator?: {
       name: string;
       email: string;
+      stripe_payouts_enabled?: boolean;
     };
   };
 }
@@ -24,6 +26,8 @@ export function ClaimActions({ claim }: ClaimActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showSubmission, setShowSubmission] = useState(false);
+  const [paying, startPaying] = useTransition();
+  const [payError, setPayError] = useState<string | null>(null);
 
   async function updateStatus(newStatus: string) {
     setLoading(true);
@@ -55,9 +59,17 @@ export function ClaimActions({ claim }: ClaimActionsProps) {
     await updateStatus("cancelled");
   }
 
-  async function handleMarkPaid() {
-    if (!confirm(`Mark as paid? This indicates payment has been sent to the creator.`)) return;
-    await updateStatus("paid");
+  function handlePay() {
+    if (!confirm(`Send payout to ${claim.creator?.name || claim.creator?.email} via Stripe?`)) return;
+    setPayError(null);
+    startPaying(async () => {
+      const result = await payClaim(claim.id);
+      if (!result.ok) {
+        setPayError(result.error);
+        return;
+      }
+      router.refresh();
+    });
   }
 
   if (claim.status === "submitted") {
@@ -100,14 +112,23 @@ export function ClaimActions({ claim }: ClaimActionsProps) {
   }
 
   if (claim.status === "approved") {
+    const payoutsEnabled = claim.creator?.stripe_payouts_enabled ?? false;
+
     return (
-      <button
-        onClick={handleMarkPaid}
-        disabled={loading}
-        className="px-3 py-1.5 text-sm bg-accent hover:bg-accent-hover text-background disabled:opacity-50 rounded-lg transition-colors"
-      >
-        Mark Paid
-      </button>
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={handlePay}
+          disabled={paying || !payoutsEnabled}
+          title={payoutsEnabled ? undefined : "Creator hasn't connected a payout account"}
+          className="px-3 py-1.5 text-sm bg-accent hover:bg-accent-hover text-background disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+        >
+          {paying ? "Paying..." : "Pay"}
+        </button>
+        {!payoutsEnabled && (
+          <span className="text-xs text-muted">No payout account</span>
+        )}
+        {payError && <span className="text-xs text-error">{payError}</span>}
+      </div>
     );
   }
 

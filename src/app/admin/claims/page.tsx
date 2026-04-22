@@ -13,7 +13,7 @@ export default async function AdminClaimsPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle)")
+    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled)")
     .order("claimed_at", { ascending: false });
 
   if (statusFilter) {
