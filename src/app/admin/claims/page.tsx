@@ -11,9 +11,10 @@ export default async function AdminClaimsPage({
   const { status: statusFilter, claim: highlightClaim } = await searchParams;
   const supabase = await createClient();
 
+  // Fetch claims with brief + creator info (no payments join — table may not exist yet)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled), payments:payments(id, invoice_number, status)")
+    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle)")
     .order("claimed_at", { ascending: false });
 
   if (statusFilter) {
@@ -21,6 +22,30 @@ export default async function AdminClaimsPage({
   }
 
   const { data: claims } = await query;
+
+  // Try to attach payment info if the payments table exists
+  if (claims && claims.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: payments } = await (supabase.from("payments") as any)
+      .select("id, claim_id, invoice_number, status")
+      .in("claim_id", claims.map((c: any) => c.id));
+
+    if (payments) {
+      const paymentsByClaimId = new Map<string, any[]>();
+      for (const p of payments) {
+        const arr = paymentsByClaimId.get(p.claim_id) || [];
+        arr.push(p);
+        paymentsByClaimId.set(p.claim_id, arr);
+      }
+      for (const claim of claims) {
+        claim.payments = paymentsByClaimId.get(claim.id) || [];
+      }
+    } else {
+      for (const claim of claims) {
+        claim.payments = [];
+      }
+    }
+  }
 
   const statusGroups = [
     { status: null, label: "All" },

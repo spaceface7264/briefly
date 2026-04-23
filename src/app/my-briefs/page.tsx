@@ -22,26 +22,13 @@ export default async function MyBriefsPage() {
     redirect("/login");
   }
 
-  // Fetch user's claims with brief details + any succeeded invoice
-  // Try with payments join first; fall back without if the table doesn't exist yet
+  // Fetch claims with brief info (no payments join — table may not exist yet)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let { data: claims, error } = await (supabase
+  const { data: claims, error } = await (supabase
     .from("claims") as any)
-    .select("*, brief:briefs(*), payments:payments(id, invoice_number, status)")
+    .select("*, brief:briefs(*)")
     .eq("user_id", user.id)
     .order("claimed_at", { ascending: false });
-
-  if (error) {
-    // payments table may not exist yet — retry without it
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fallback = await (supabase.from("claims") as any)
-      .select("*, brief:briefs(*)")
-      .eq("user_id", user.id)
-      .order("claimed_at", { ascending: false });
-
-    claims = fallback.data;
-    error = fallback.error;
-  }
 
   if (error) {
     console.error("Error fetching claims:", {
@@ -50,6 +37,30 @@ export default async function MyBriefsPage() {
       details: error.details,
       hint: error.hint,
     });
+  }
+
+  // Try to attach payment info if the payments table exists
+  if (claims && claims.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: payments } = await (supabase.from("payments") as any)
+      .select("id, claim_id, invoice_number, status")
+      .in("claim_id", claims.map((c: any) => c.id));
+
+    if (payments) {
+      const paymentsByClaimId = new Map<string, any[]>();
+      for (const p of payments) {
+        const arr = paymentsByClaimId.get(p.claim_id) || [];
+        arr.push(p);
+        paymentsByClaimId.set(p.claim_id, arr);
+      }
+      for (const claim of claims) {
+        claim.payments = paymentsByClaimId.get(claim.id) || [];
+      }
+    } else {
+      for (const claim of claims) {
+        claim.payments = [];
+      }
+    }
   }
 
   // Transform the data to match our expected type
