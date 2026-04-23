@@ -8,56 +8,43 @@ interface ContentTipsProps {
 
 export function ContentTips({ category, isAdIntended }: ContentTipsProps) {
   return (
-    <div className="bg-surface-raised border border-border rounded-xl p-5 space-y-4">
+    <div className="bg-surface border border-border rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Content tips</h3>
-        <Link href="/guide" className="text-xs text-accent hover:underline">
-          Full guide →
+        <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Tips</h3>
+        <Link href="/guide" className="text-[0.65rem] text-brand hover:text-brand-hover transition-colors">
+          Guide →
         </Link>
       </div>
 
-      {/* Ad-specific tips - shown when is_ad_intended */}
       {isAdIntended && (
-        <div className="space-y-3 pb-4 border-b border-border">
-          <p className="text-xs font-medium text-warning uppercase tracking-wider">For Ads</p>
-          <ul className="space-y-2 text-sm">
-            <li className="flex items-start gap-2">
-              <span className="text-warning mt-0.5">•</span>
-              <span className="text-muted">
-                <span className="text-foreground">Hook:</span> Fang seeren i de første 2-3 sek
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-warning mt-0.5">•</span>
-              <span className="text-muted">
-                <span className="text-foreground">Længde:</span> 8-15 sek ideelt, max 30 sek
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-warning mt-0.5">•</span>
-              <span className="text-muted">
-                <span className="text-foreground">Undertekster:</span> Placeret i midten
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-warning mt-0.5">•</span>
-              <span className="text-muted">
-                <span className="text-foreground">Branding:</span> Vis Boulders logo tydeligt
-              </span>
-            </li>
+        <div className="space-y-2 pb-3 border-b border-border">
+          <p className="text-[0.65rem] font-medium text-warning uppercase tracking-wider">For Ads</p>
+          <ul className="space-y-1">
+            {[
+              ["Hook:", "Fang seeren i de første 2-3 sek"],
+              ["Længde:", "8-15 sek ideelt, max 30 sek"],
+              ["Undertekster:", "Placeret i midten"],
+              ["Branding:", "Vis Boulders logo tydeligt"],
+            ].map(([label, desc], i) => (
+              <li key={i} className="flex items-start gap-1.5 text-xs">
+                <span className="text-warning mt-px">·</span>
+                <span className="text-muted">
+                  <span className="text-text-secondary">{label}</span> {desc}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
       )}
 
-      {/* Category-specific tips */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium text-accent uppercase tracking-wider">
+      <div className="space-y-2">
+        <p className="text-[0.65rem] font-medium text-brand uppercase tracking-wider">
           {getCategoryTipLabel(category)}
         </p>
-        <ul className="space-y-2 text-sm">
+        <ul className="space-y-1">
           {getCategoryTips(category).map((tip, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className="text-accent mt-0.5">•</span>
+            <li key={i} className="flex items-start gap-1.5 text-xs">
+              <span className="text-brand mt-px">·</span>
               <span className="text-muted">{tip}</span>
             </li>
           ))}

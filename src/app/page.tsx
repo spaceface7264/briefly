@@ -21,7 +21,7 @@ const steps = [
 export default function Home() {
   return (
     <main className="flex-1 relative overflow-hidden">
-      {/* Ambient accent glow */}
+      {/* Ambient brand glow */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-accent/6 blur-[140px]"
@@ -34,7 +34,7 @@ export default function Home() {
             Invite-only
           </p>
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
-            Boulders <span className="text-accent">Creators</span>
+            Boulders <span className="text-brand-pure">Creators</span>
           </h1>
           <p className="text-lg text-muted max-w-lg mx-auto leading-relaxed">
             Get paid to make content for Boulders climbing gyms. Reels, TikToks,

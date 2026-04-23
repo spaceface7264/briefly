@@ -7,7 +7,7 @@ import { BriefCard } from "@/components/brief-card";
 import type { BriefWithClaims, BriefCategory, BriefFormat } from "@/types/database";
 
 const categories: { value: BriefCategory | "all"; label: string }[] = [
-  { value: "all", label: "All Categories" },
+  { value: "all", label: "All" },
   { value: "entertaining", label: "Entertaining" },
   { value: "ad", label: "Ad" },
   { value: "guide", label: "Guide" },
@@ -16,27 +16,20 @@ const categories: { value: BriefCategory | "all"; label: string }[] = [
 ];
 
 const formats: { value: BriefFormat | "all"; label: string }[] = [
-  { value: "all", label: "All Formats" },
+  { value: "all", label: "All" },
   { value: "reel", label: "Reel" },
   { value: "tiktok", label: "TikTok" },
-  { value: "youtube_short", label: "YouTube Short" },
+  { value: "youtube_short", label: "YT Short" },
   { value: "long_form", label: "Long Form" },
   { value: "photo", label: "Photo" },
 ];
 
 const priceRanges = [
-  { value: "all", label: "Any Price" },
-  { value: "0-2000", label: "Under 2,000 DKK" },
-  { value: "2000-3000", label: "2,000 - 3,000 DKK" },
-  { value: "3000+", label: "Over 3,000 DKK" },
+  { value: "all", label: "Any" },
+  { value: "0-2000", label: "<2k" },
+  { value: "2000-3000", label: "2-3k" },
+  { value: "3000+", label: "3k+" },
 ];
-
-function labelFor<T extends { value: string; label: string }>(
-  options: T[],
-  value: string
-): string {
-  return options.find((o) => o.value === value)?.label ?? value;
-}
 
 interface BriefsClientProps {
   briefs: BriefWithClaims[];
@@ -89,37 +82,11 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     });
   }, [briefs, priceFilter, gymFilter]);
 
-  const activeFilters: { key: string; label: string; clear: () => void }[] = [];
-  if (categoryFilter !== "all") {
-    activeFilters.push({
-      key: "category",
-      label: labelFor(categories, categoryFilter),
-      clear: () => updateFilter("category", "all"),
-    });
-  }
-  if (formatFilter !== "all") {
-    activeFilters.push({
-      key: "format",
-      label: labelFor(formats, formatFilter),
-      clear: () => updateFilter("format", "all"),
-    });
-  }
-  if (priceFilter !== "all") {
-    activeFilters.push({
-      key: "price",
-      label: labelFor(priceRanges, priceFilter),
-      clear: () => setPriceFilter("all"),
-    });
-  }
-  if (gymFilter) {
-    activeFilters.push({
-      key: "gym",
-      label: gymFilter,
-      clear: () => setGymFilter(""),
-    });
-  }
-
-  const hasActiveFilters = activeFilters.length > 0;
+  const hasActiveFilters =
+    categoryFilter !== "all" ||
+    formatFilter !== "all" ||
+    priceFilter !== "all" ||
+    gymFilter !== "";
   const totalCount = briefs.length;
   const shownCount = filteredBriefs.length;
 
@@ -127,124 +94,99 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     <>
       <Nav />
       <main className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Available Briefs</h1>
-            <p className="text-muted">
-              Browse open briefs and claim one to get started
-            </p>
-          </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10">
+          {/* Header row — title + count + filters inline */}
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <div className="flex items-baseline gap-3">
+                <h1 className="text-2xl font-bold tracking-tight">Briefs</h1>
+                <span className="value-text text-sm text-muted">
+                  {hasActiveFilters ? `${shownCount}/${totalCount}` : totalCount}
+                </span>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-xs text-muted hover:text-foreground transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
 
-          {/* Filters */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-            <select
-              value={categoryFilter}
-              onChange={(e) => updateFilter("category", e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-            >
-              {categories.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
+            {/* Filter bar — compact pill-style toggles */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {/* Category pills */}
+              <FilterGroup
+                options={categories}
+                value={categoryFilter}
+                onChange={(v) => updateFilter("category", v)}
+              />
 
-            <select
-              value={formatFilter}
-              onChange={(e) => updateFilter("format", e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-            >
-              {formats.map((fmt) => (
-                <option key={fmt.value} value={fmt.value}>
-                  {fmt.label}
-                </option>
-              ))}
-            </select>
+              <span className="hidden sm:block w-px h-4 bg-border" />
 
-            <select
-              value={priceFilter}
-              onChange={(e) => setPriceFilter(e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-            >
-              {priceRanges.map((range) => (
-                <option key={range.value} value={range.value}>
-                  {range.label}
-                </option>
-              ))}
-            </select>
+              {/* Format pills */}
+              <FilterGroup
+                options={formats}
+                value={formatFilter}
+                onChange={(v) => updateFilter("format", v)}
+              />
 
-            <select
-              value={gymFilter}
-              onChange={(e) => setGymFilter(e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-            >
-              <option value="">All Gyms</option>
-              {gyms.map((gym) => (
-                <option key={gym} value={gym}>
-                  {gym}
-                </option>
-              ))}
-            </select>
-          </div>
+              <span className="hidden sm:block w-px h-4 bg-border" />
 
-          {/* Result summary + active filter chips */}
-          <div className="flex flex-wrap items-center gap-2 mb-6 min-h-8">
-            <p className="text-sm text-muted font-mono">
-              {hasActiveFilters
-                ? `${shownCount} of ${totalCount} briefs`
-                : `${totalCount} brief${totalCount !== 1 ? "s" : ""}`}
-            </p>
-            {activeFilters.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={f.clear}
-                aria-label={`Remove filter: ${f.label}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-md border border-accent/20 hover:bg-accent hover:text-background hover:border-accent transition-colors"
-              >
-                {f.label}
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            ))}
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-xs text-muted hover:text-foreground underline underline-offset-2"
-              >
-                Clear all
-              </button>
-            )}
+              {/* Price pills */}
+              <FilterGroup
+                options={priceRanges}
+                value={priceFilter}
+                onChange={(v) => setPriceFilter(v)}
+              />
+
+              {/* Gym select — only if multiple gyms */}
+              {gyms.length > 1 && (
+                <>
+                  <span className="hidden sm:block w-px h-4 bg-border" />
+                  <select
+                    value={gymFilter}
+                    onChange={(e) => setGymFilter(e.target.value)}
+                    className="no-global-focus-ring px-2.5 py-1 bg-transparent border border-border rounded-md text-xs text-muted hover:text-foreground hover:border-border-strong focus-visible:outline-none focus:border-accent transition-colors cursor-pointer"
+                  >
+                    <option value="">Gym</option>
+                    {gyms.map((gym) => (
+                      <option key={gym} value={gym}>
+                        {gym}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Brief Grid */}
           {filteredBriefs.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
               {filteredBriefs.map((brief) => (
                 <BriefCard key={brief.id} brief={brief} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 bg-surface border border-dashed border-border rounded-xl">
+            <div className="text-center py-20 border border-dashed border-border rounded-lg">
               {totalCount === 0 ? (
                 <>
-                  <p className="font-medium mb-1">No open briefs right now</p>
-                  <p className="text-muted text-sm">
-                    Check back soon — new briefs go live regularly.
-                  </p>
+                  <p className="font-medium text-sm mb-1">No open briefs</p>
+                  <p className="text-muted text-xs">Check back soon.</p>
                 </>
               ) : (
                 <>
-                  <p className="font-medium mb-1">No briefs match your filters</p>
-                  <p className="text-muted text-sm mb-5">
-                    Try removing a filter or clearing all of them.
+                  <p className="font-medium text-sm mb-1">No matches</p>
+                  <p className="text-muted text-xs mb-4">
+                    Try removing a filter.
                   </p>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+                    className="inline-flex px-3 py-1.5 border border-border-strong hover:bg-surface-hover text-xs font-medium rounded-md transition-colors"
                   >
                     Clear filters
                   </button>
@@ -255,5 +197,35 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
         </div>
       </main>
     </>
+  );
+}
+
+function FilterGroup({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={[
+            "px-2 py-1 text-xs rounded-md transition-all duration-100",
+            value === opt.value
+              ? "bg-surface-raised text-foreground font-medium border border-border-strong"
+              : "text-muted hover:text-text-secondary border border-transparent",
+          ].join(" ")}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
   );
 }

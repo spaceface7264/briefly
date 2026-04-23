@@ -27,7 +27,7 @@ export function ProfileNav() {
             href={tab.href}
             className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors -mb-px ${
               isActive
-                ? "border-accent text-accent"
+                ? "border-brand text-brand"
                 : "border-transparent text-muted hover:text-foreground"
             }`}
           >

@@ -91,7 +91,7 @@ export function Nav() {
                   href={item.href}
                   className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
-                      ? "text-accent"
+                      ? "text-brand"
                       : "text-muted hover:text-foreground"
                   }`}
                 >
@@ -104,7 +104,7 @@ export function Nav() {
               <DropdownMenuTrigger
                 className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1 cursor-pointer ${
                   isProfileActive
-                    ? "text-accent"
+                    ? "text-brand"
                     : "text-muted hover:text-foreground"
                 }`}
               >
@@ -124,7 +124,7 @@ export function Nav() {
                   return (
                     <DropdownMenuItem
                       key={item.href}
-                      className={isActive ? "text-accent" : ""}
+                      className={isActive ? "text-brand" : ""}
                       onClick={() => router.push(item.href)}
                     >
                       {item.label}

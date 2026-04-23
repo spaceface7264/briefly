@@ -72,7 +72,7 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
     <>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Profile</h1>
-        <p className="text-muted">Update your creator information</p>
+        <p className="text-text-secondary">Update your creator information</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -143,7 +143,7 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
                 .map((tag, i) => (
                   <span
                     key={i}
-                    className="px-3 py-1.5 bg-accent-muted text-accent text-sm font-medium rounded-full"
+                    className="px-3 py-1.5 bg-brand-muted text-brand text-sm font-medium rounded-full"
                   >
                     {tag}
                   </span>
@@ -158,7 +158,7 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
+            className="px-6 py-3 bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>

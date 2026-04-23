@@ -72,8 +72,8 @@ export default async function AdminClaimsPage({
               href={group.status ? `/admin/claims?status=${group.status}` : "/admin/claims"}
               className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-accent text-background border-accent"
-                  : "bg-surface border-border hover:border-accent/50"
+                  ? "bg-surface-raised text-foreground border-border-strong"
+                  : "bg-surface border-border hover:border-brand/40"
               }`}
             >
               {group.label} ({count})
@@ -163,9 +163,9 @@ export default async function AdminClaimsPage({
 function ClaimStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     active: "bg-accent-muted text-accent",
-    submitted: "bg-warning/20 text-warning",
+    submitted: "bg-info-muted text-info",
     approved: "bg-success/20 text-success",
-    paid: "bg-muted/20 text-muted",
+    paid: "bg-success-muted text-success",
     cancelled: "bg-error/20 text-error",
   };
 

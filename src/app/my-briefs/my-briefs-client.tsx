@@ -28,19 +28,19 @@ const statusGroups: {
     status: "submitted",
     title: "Under Review",
     description: "Waiting for admin approval",
-    tone: "warning",
+    tone: "info",
   },
   {
     status: "approved",
     title: "Approved",
     description: "Ready for payment",
-    tone: "success",
+    tone: "brand",
   },
   {
     status: "paid",
     title: "Completed",
     description: "Paid and closed",
-    tone: "neutral",
+    tone: "success",
   },
 ];
 
@@ -58,9 +58,9 @@ function claimStatusLabel(status: string): string {
 function claimStatusTone(status: string): StatusTone {
   const tones: Record<string, StatusTone> = {
     active: "brand",
-    submitted: "warning",
-    approved: "success",
-    paid: "neutral",
+    submitted: "info",
+    approved: "brand",
+    paid: "success",
     cancelled: "danger",
   };
   return tones[status] || "neutral";
@@ -85,7 +85,7 @@ export function MyBriefsClient({ claims }: Props) {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">My Briefs</h1>
-            <p className="text-muted">Track your claimed briefs and submissions</p>
+            <p className="text-text-secondary">Track your claimed briefs and submissions</p>
           </div>
 
           {!hasAnyClaims ? (
@@ -93,7 +93,7 @@ export function MyBriefsClient({ claims }: Props) {
               <h2 className="text-xl font-semibold mb-2">
                 Nothing here yet
               </h2>
-              <p className="text-muted max-w-md mx-auto mb-6">
+              <p className="text-text-secondary max-w-md mx-auto mb-6">
                 Claim a brief, submit your work within 7 days, and get paid in
                 DKK once it&apos;s approved.
               </p>
@@ -121,7 +121,7 @@ export function MyBriefsClient({ claims }: Props) {
                       }`}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <p className={`font-mono text-2xl font-bold ${isEmpty ? "text-muted" : ""}`}>
+                        <p className={`value-text text-2xl font-bold ${isEmpty ? "text-muted" : ""}`}>
                           {count}
                         </p>
                         <span
@@ -152,17 +152,17 @@ export function MyBriefsClient({ claims }: Props) {
                   <section key={group.status}>
                     <div className="flex items-baseline gap-3 mb-4">
                       <h2 className="text-xl font-semibold">{group.title}</h2>
-                      <span className="text-muted text-sm font-mono">
+                      <span className="value-text text-muted text-sm">
                         {group.claims.length}
                       </span>
                     </div>
-                    <p className="text-muted text-sm mb-4 -mt-3">
+                    <p className="text-text-secondary text-sm mb-4 -mt-3">
                       {group.description}
                     </p>
 
                     {group.claims.length === 0 ? (
                       <div className="bg-surface/40 border border-dashed border-border rounded-xl p-6 text-center">
-                        <p className="text-muted text-sm">
+                        <p className="text-text-secondary text-sm">
                           Nothing in this stage
                         </p>
                       </div>
@@ -171,7 +171,7 @@ export function MyBriefsClient({ claims }: Props) {
                         {group.claims.map((claim) => (
                           <div
                             key={claim.id}
-                            className="relative bg-surface border border-border rounded-xl p-5 hover:border-accent/60 hover:bg-surface-hover transition-all"
+                            className="relative bg-surface border border-border rounded-xl p-5 hover:border-border-strong hover:bg-surface-hover transition-all"
                           >
                             <Link
                               href={`/briefs/${claim.brief_id}`}
@@ -190,14 +190,14 @@ export function MyBriefsClient({ claims }: Props) {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                                  <span className="px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full">
+                                  <span className="px-2.5 py-1 bg-surface-raised text-foreground text-xs font-medium rounded-full border border-border">
                                     {categoryLabel(claim.brief.category)}
                                   </span>
-                                  <span className="px-2.5 py-1 bg-surface-raised text-muted text-xs font-mono rounded-full border border-border">
+                                  <span className="px-2.5 py-1 bg-surface-raised text-text-secondary text-xs font-mono rounded-full border border-border">
                                     {formatLabel(claim.brief.format)}
                                   </span>
                                   {claim.brief.gym && (
-                                    <span className="px-2.5 py-1 bg-surface-raised text-muted text-xs rounded-full border border-border">
+                                    <span className="px-2.5 py-1 bg-surface-raised text-text-secondary text-xs rounded-full border border-border">
                                       {claim.brief.gym}
                                     </span>
                                   )}
@@ -225,11 +225,11 @@ export function MyBriefsClient({ claims }: Props) {
                               </div>
 
                               <div className="text-left sm:text-right shrink-0">
-                                <p className="font-mono text-xl text-accent font-bold">
+                                <p className="value-text text-xl text-accent font-bold">
                                   {formatPrice(claim.brief.price_dkk)}
                                 </p>
                                 {claim.brief.deadline && (
-                                  <p className="text-muted text-sm mt-1 font-mono">
+                                  <p className="value-text text-muted text-sm mt-1">
                                     Due {formatDeadline(claim.brief.deadline)}
                                   </p>
                                 )}
