@@ -5,25 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-export async function setEmailNotificationsEnabled(
-  enabled: boolean
-): Promise<ActionResult> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return { ok: false, error: gate.error };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (gate.supabase.from("profiles") as any)
-    .update({ email_notifications_enabled: enabled })
-    .eq("id", gate.userId);
-
-  if (error) {
-    return { ok: false, error: `Failed to save preference: ${error.message}` };
-  }
-
-  revalidatePath("/admin/settings");
-  return { ok: true };
-}
-
 async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

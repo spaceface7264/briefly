@@ -11,7 +11,7 @@ interface TeamMember {
   name: string | null;
   email: string | null;
   created_at: string;
-  email_notifications_enabled?: boolean;
+  notify_submissions?: boolean;
 }
 
 interface AdminTeamProps {
@@ -106,7 +106,7 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
                 Admin
               </th>
               <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
-                Notifications
+                Submissions
               </th>
               <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
                 Since
@@ -119,7 +119,7 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
           <tbody>
             {admins.map((admin) => {
               const isSelf = admin.id === currentUserId;
-              const notified = admin.email_notifications_enabled ?? true;
+              const notified = admin.notify_submissions ?? true;
               return (
                 <tr
                   key={admin.id}

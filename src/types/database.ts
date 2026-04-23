@@ -159,10 +159,11 @@ export type Database = {
           created_at: string
           cvr_number: string | null
           email: string | null
-          email_notifications_enabled: boolean
           id: string
           instagram_handle: string | null
           name: string | null
+          notify_new_briefs: boolean
+          notify_submissions: boolean
           role: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at: string | null
           self_billing_agreement_version: string | null
@@ -183,10 +184,11 @@ export type Database = {
           created_at?: string
           cvr_number?: string | null
           email?: string | null
-          email_notifications_enabled?: boolean
           id: string
           instagram_handle?: string | null
           name?: string | null
+          notify_new_briefs?: boolean
+          notify_submissions?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null
@@ -207,10 +209,11 @@ export type Database = {
           created_at?: string
           cvr_number?: string | null
           email?: string | null
-          email_notifications_enabled?: boolean
           id?: string
           instagram_handle?: string | null
           name?: string | null
+          notify_new_briefs?: boolean
+          notify_submissions?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null

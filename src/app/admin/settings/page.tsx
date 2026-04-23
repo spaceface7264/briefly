@@ -5,9 +5,10 @@ import {
   SELF_BILLING_AGREEMENT_VERSION,
 } from "@/lib/invoicing/platform";
 import { DK_STANDARD_VAT_RATE_BP } from "@/lib/invoicing/vat";
+import { NotificationsPanel } from "@/components/notifications-panel";
 import { StatusPill } from "@/components/status-pill";
+import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
-import { NotificationsToggle } from "./notifications-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function AdminSettingsPage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("id, name, email, created_at, email_notifications_enabled")
+        .select("id, name, email, created_at, notify_submissions")
         .eq("role", "admin")
         .order("created_at", { ascending: true }),
       supabase
@@ -33,15 +34,27 @@ export default async function AdminSettingsPage() {
         .order("name", { ascending: true }),
       supabase
         .from("profiles")
-        .select("email_notifications_enabled")
+        .select("notify_submissions, notify_new_briefs")
         .eq("id", user.id)
         .single(),
     ]);
 
-  const myNotificationsEnabled = me?.email_notifications_enabled ?? true;
-  const notifiedAdminCount = (admins ?? []).filter(
-    (a) => a.email_notifications_enabled
+  const myPreferences = preferencesFromProfile(me ?? {});
+
+  // Coverage: how many admins *other than* the signed-in user currently
+  // have submission alerts enabled? If this drops to zero and the user
+  // is about to turn theirs off, warn them — no one would be notified.
+  const otherAdminsWithSubmissionAlerts = (admins ?? []).filter(
+    (a) => a.id !== user.id && a.notify_submissions
   ).length;
+
+  const submissionsWarning =
+    otherAdminsWithSubmissionAlerts === 0 && (admins?.length ?? 0) > 0 ? (
+      <>
+        You&apos;re the only admin receiving submission alerts. If you turn
+        this off, no one will be notified when creators submit work.
+      </>
+    ) : undefined;
 
   const platform = platformDetails();
   const contactEmail =
@@ -131,10 +144,10 @@ export default async function AdminSettingsPage() {
           currentUserId={user.id}
         />
 
-        <NotificationsToggle
-          enabled={myNotificationsEnabled}
-          notifiedAdminCount={notifiedAdminCount}
-          totalAdminCount={admins?.length ?? 0}
+        <NotificationsPanel
+          role="admin"
+          preferences={myPreferences}
+          warningsByType={{ submissions: submissionsWarning }}
         />
 
         <section className="space-y-4">

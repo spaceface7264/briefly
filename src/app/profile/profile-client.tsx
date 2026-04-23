@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
+import { NotificationsPanel } from "@/components/notifications-panel";
 import { StatusPill, type StatusTone } from "@/components/status-pill";
 import { createClient } from "@/lib/supabase/client";
+import { preferencesFromProfile } from "@/lib/notifications";
 import { startStripeOnboarding } from "./stripe-actions";
 import { saveBillingDetails, type BillingDetailsInput } from "./billing-actions";
 import { COUNTRY_LABELS, EU_COUNTRIES } from "@/lib/invoicing/vat";
@@ -203,6 +205,14 @@ export function ProfileClient({ profile, userEmail }: Props) {
               )}
             </div>
           </form>
+
+          {/* Notifications */}
+          <div className="mt-12 pt-8 border-t border-border">
+            <NotificationsPanel
+              role="creator"
+              preferences={preferencesFromProfile(profile ?? {})}
+            />
+          </div>
 
           {/* Payouts */}
           <div className="mt-12 pt-8 border-t border-border">
