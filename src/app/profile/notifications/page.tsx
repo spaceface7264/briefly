@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ProfileInfoClient } from "./profile-info-client";
+import { NotificationsClient } from "./notifications-client";
+import { preferencesFromProfile } from "@/lib/notifications";
 
-export default async function ProfilePage() {
+export default async function NotificationsPage() {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -21,5 +22,7 @@ export default async function ProfilePage() {
     console.error("Error fetching profile:", error);
   }
 
-  return <ProfileInfoClient profile={profile} userEmail={user.email || ""} />;
+  const preferences = preferencesFromProfile(profile ?? {});
+
+  return <NotificationsClient preferences={preferences} />;
 }

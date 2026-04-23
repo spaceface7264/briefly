@@ -2,19 +2,33 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { href: "/briefs", label: "Briefs" },
   { href: "/my-briefs", label: "My Briefs" },
   { href: "/guide", label: "Guide" },
-  { href: "/profile", label: "Profile" },
+];
+
+const profileItems = [
+  { href: "/profile", label: "Profile Info" },
+  { href: "/profile/payouts", label: "Payouts" },
+  { href: "/profile/invoices", label: "Invoices" },
+  { href: "/profile/notifications", label: "Notifications" },
 ];
 
 export function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
 
@@ -38,6 +52,15 @@ export function Nav() {
     }
     checkAdmin();
   }, []);
+
+  const isProfileActive = pathname.startsWith("/profile");
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
@@ -76,6 +99,48 @@ export function Nav() {
                 </Link>
               );
             })}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1 cursor-pointer ${
+                  isProfileActive
+                    ? "text-accent"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                Profile
+                <svg
+                  className="w-3.5 h-3.5 opacity-60"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-surface border-border">
+                {profileItems.map((item) => {
+                  const isActive = pathname === item.href || (item.href !== "/profile" && pathname.startsWith(item.href));
+                  return (
+                    <DropdownMenuItem
+                      key={item.href}
+                      className={isActive ? "text-accent" : ""}
+                      onClick={() => router.push(item.href)}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-muted focus:text-error"
+                >
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {isAdmin && (
               <Link
                 href="/admin"
