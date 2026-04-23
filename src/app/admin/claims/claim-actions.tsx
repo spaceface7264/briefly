@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Modal, ConfirmDialog } from "@/components/modal";
 import { payClaim } from "./pay-action";
 
 interface ClaimActionsProps {
@@ -26,15 +27,22 @@ interface ClaimActionsProps {
   } | null;
 }
 
+type PendingAction = null | "approve" | "reject" | "pay";
+
 export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showSubmission, setShowSubmission] = useState(false);
+  const [pending, setPending] = useState<PendingAction>(null);
   const [paying, startPaying] = useTransition();
   const [payError, setPayError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const creatorLabel = claim.creator?.name || claim.creator?.email || "this creator";
 
   async function updateStatus(newStatus: string) {
     setLoading(true);
+    setActionError(null);
     const supabase = createClient();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,34 +52,35 @@ export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
 
     if (error) {
       console.error("Update error:", error);
-      alert("Failed to update claim status");
+      setActionError("Failed to update claim status");
       setLoading(false);
       return;
     }
 
-    router.refresh();
     setLoading(false);
+    setPending(null);
+    setShowSubmission(false);
+    router.refresh();
   }
 
   async function handleApprove() {
-    if (!confirm(`Approve submission from ${claim.creator?.name || claim.creator?.email}?`)) return;
     await updateStatus("approved");
   }
 
   async function handleReject() {
-    if (!confirm(`Reject and cancel this claim? The creator will need to reclaim the brief.`)) return;
     await updateStatus("cancelled");
   }
 
   function handlePay() {
-    if (!confirm(`Send payout to ${claim.creator?.name || claim.creator?.email} via Stripe?`)) return;
     setPayError(null);
     startPaying(async () => {
       const result = await payClaim(claim.id);
       if (!result.ok) {
         setPayError(result.error);
+        setPending(null);
         return;
       }
+      setPending(null);
       router.refresh();
     });
   }
@@ -88,28 +97,58 @@ export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
           </button>
         )}
         <button
-          onClick={handleApprove}
+          onClick={() => setPending("approve")}
           disabled={loading}
-          className="px-3 py-1.5 text-sm bg-success/20 text-success hover:bg-success/30 disabled:opacity-50 rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm bg-success-muted text-success hover:bg-success/25 disabled:opacity-50 rounded-lg transition-colors"
         >
           Approve
         </button>
         <button
-          onClick={handleReject}
+          onClick={() => setPending("reject")}
           disabled={loading}
-          className="px-3 py-1.5 text-sm bg-error/20 text-error hover:bg-error/30 disabled:opacity-50 rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm bg-error-muted text-error hover:bg-error/25 disabled:opacity-50 rounded-lg transition-colors"
         >
           Reject
         </button>
 
-        {showSubmission && (
-          <SubmissionModal
-            claim={claim}
-            onClose={() => setShowSubmission(false)}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            loading={loading}
-          />
+        <SubmissionModal
+          open={showSubmission}
+          onClose={() => setShowSubmission(false)}
+          claim={claim}
+          onApprove={() => {
+            setShowSubmission(false);
+            setPending("approve");
+          }}
+          onReject={() => {
+            setShowSubmission(false);
+            setPending("reject");
+          }}
+        />
+
+        <ConfirmDialog
+          open={pending === "approve"}
+          onClose={() => !loading && setPending(null)}
+          onConfirm={handleApprove}
+          title="Approve submission?"
+          description={`Approve the submission from ${creatorLabel}. The claim will move to "Approved" and be ready for payout.`}
+          confirmLabel="Approve"
+          tone="success"
+          loading={loading}
+        />
+
+        <ConfirmDialog
+          open={pending === "reject"}
+          onClose={() => !loading && setPending(null)}
+          onConfirm={handleReject}
+          title="Reject this claim?"
+          description={`The claim will be cancelled and ${creatorLabel} will need to reclaim the brief to try again.`}
+          confirmLabel="Reject claim"
+          tone="danger"
+          loading={loading}
+        />
+
+        {actionError && (
+          <span className="text-xs text-error">{actionError}</span>
         )}
       </div>
     );
@@ -121,7 +160,7 @@ export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
     return (
       <div className="flex flex-col items-end gap-1">
         <button
-          onClick={handlePay}
+          onClick={() => setPending("pay")}
           disabled={paying || !payoutsEnabled}
           title={payoutsEnabled ? undefined : "Creator hasn't connected a payout account"}
           className="px-3 py-1.5 text-sm bg-accent hover:bg-accent-hover text-background disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
@@ -132,6 +171,17 @@ export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
           <span className="text-xs text-muted">No payout account</span>
         )}
         {payError && <span className="text-xs text-error">{payError}</span>}
+
+        <ConfirmDialog
+          open={pending === "pay"}
+          onClose={() => !paying && setPending(null)}
+          onConfirm={handlePay}
+          title="Send payout?"
+          description={`Pay out to ${creatorLabel} via Stripe. This triggers a real transfer and cannot be reversed from the dashboard.`}
+          confirmLabel="Send payout"
+          tone="brand"
+          loading={paying}
+        />
       </div>
     );
   }
@@ -159,80 +209,90 @@ export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
 }
 
 function SubmissionModal({
-  claim,
+  open,
   onClose,
+  claim,
   onApprove,
   onReject,
-  loading,
 }: {
-  claim: ClaimActionsProps["claim"];
+  open: boolean;
   onClose: () => void;
+  claim: ClaimActionsProps["claim"];
   onApprove: () => void;
   onReject: () => void;
-  loading: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-surface border border-border rounded-xl p-6 max-w-lg w-full max-h-[80vh] overflow-auto">
-        <h2 className="text-xl font-bold mb-4">Review Submission</h2>
-
-        <div className="space-y-4 mb-6">
-          <div>
-            <p className="text-muted text-sm mb-1">Brief</p>
-            <p className="font-medium">{claim.brief?.title}</p>
-          </div>
-
-          <div>
-            <p className="text-muted text-sm mb-1">Creator</p>
-            <p className="font-medium">{claim.creator?.name || claim.creator?.email}</p>
-          </div>
-
-          {claim.submission_url && (
-            <div>
-              <p className="text-muted text-sm mb-1">Submission URL</p>
-              <a
-                href={claim.submission_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline break-all"
-              >
-                {claim.submission_url}
-              </a>
-            </div>
-          )}
-
-          {claim.submission_notes && (
-            <div>
-              <p className="text-muted text-sm mb-1">Notes from Creator</p>
-              <p className="text-foreground whitespace-pre-wrap">{claim.submission_notes}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-3">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Review submission"
+      description={claim.brief?.title}
+      size="lg"
+      footer={
+        <>
           <button
-            onClick={onApprove}
-            disabled={loading}
-            className="flex-1 px-4 py-2.5 bg-success/20 text-success hover:bg-success/30 disabled:opacity-50 font-medium rounded-lg transition-colors"
+            onClick={onClose}
+            className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
           >
-            Approve
+            Close
           </button>
           <button
             onClick={onReject}
-            disabled={loading}
-            className="flex-1 px-4 py-2.5 bg-error/20 text-error hover:bg-error/30 disabled:opacity-50 font-medium rounded-lg transition-colors"
+            className="px-4 py-2 bg-error-muted text-error hover:bg-error/25 text-sm font-semibold rounded-lg transition-colors"
           >
             Reject
           </button>
           <button
-            onClick={onClose}
-            className="px-4 py-2.5 border border-border hover:bg-surface-hover font-medium rounded-lg transition-colors"
+            onClick={onApprove}
+            className="px-4 py-2 bg-success hover:bg-success/80 text-background text-sm font-semibold rounded-lg transition-colors"
           >
-            Close
+            Approve
           </button>
+        </>
+      }
+    >
+      <dl className="space-y-5">
+        <div>
+          <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+            Creator
+          </dt>
+          <dd className="font-medium">
+            {claim.creator?.name || claim.creator?.email}
+          </dd>
         </div>
-      </div>
-    </div>
+
+        {claim.submission_url && (
+          <div>
+            <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+              Submission URL
+            </dt>
+            <dd>
+              <a
+                href={claim.submission_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-accent hover:underline break-all font-mono text-sm"
+              >
+                {claim.submission_url}
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </dd>
+          </div>
+        )}
+
+        {claim.submission_notes && (
+          <div>
+            <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+              Notes from creator
+            </dt>
+            <dd className="bg-surface border border-border rounded-lg p-3 text-sm whitespace-pre-wrap">
+              {claim.submission_notes}
+            </dd>
+          </div>
+        )}
+      </dl>
+    </Modal>
   );
 }

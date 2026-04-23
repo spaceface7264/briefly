@@ -157,6 +157,49 @@ body {
 .animate-stagger-in > *:nth-child(6) { animation-delay: 250ms; }
 .animate-stagger-in > *:nth-child(n+7) { animation-delay: 300ms; }
 
+/* Modal dialog */
+dialog {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+}
+
+dialog:not([open]) {
+  display: none;
+}
+
+dialog::backdrop {
+  background: rgba(10, 10, 13, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+dialog[open] > [data-modal-panel] {
+  animation: modal-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+dialog[open]::backdrop {
+  animation: backdrop-in 0.15s ease-out;
+}
+
 /* Subtle pulsing dot for live/active status */
 @keyframes status-pulse {
   0%, 100% {
@@ -189,6 +232,11 @@ body {
   }
 
   .animate-status-pulse {
+    animation: none;
+  }
+
+  dialog[open] > [data-modal-panel],
+  dialog[open]::backdrop {
     animation: none;
   }
 
