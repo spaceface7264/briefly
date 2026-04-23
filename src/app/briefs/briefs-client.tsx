@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { BriefCard } from "@/components/brief-card";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import type { BriefWithClaims, BriefCategory, BriefFormat } from "@/types/database";
 
 const categories: { value: BriefCategory | "all"; label: string }[] = [
@@ -31,6 +40,8 @@ const priceRanges = [
   { value: "3000+", label: "3k+" },
 ];
 
+const BRIEFS_PER_PAGE = 9;
+
 interface BriefsClientProps {
   briefs: BriefWithClaims[];
   initialCategory?: BriefCategory;
@@ -40,6 +51,7 @@ interface BriefsClientProps {
 export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hasMountedRef = useRef(false);
 
   const categoryFilter = initialCategory || "all";
   const formatFilter = initialFormat || "all";
@@ -59,6 +71,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     } else {
       params.set(key, value);
     }
+    params.delete("page");
     router.push(`/briefs${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
@@ -89,6 +102,50 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     gymFilter !== "";
   const totalCount = briefs.length;
   const shownCount = filteredBriefs.length;
+  const totalPages = Math.max(1, Math.ceil(shownCount / BRIEFS_PER_PAGE));
+  const rawPage = Number(searchParams.get("page") || "1");
+  const currentPage = Number.isFinite(rawPage) ? Math.min(Math.max(rawPage, 1), totalPages) : 1;
+  const pageStart = (currentPage - 1) * BRIEFS_PER_PAGE;
+  const paginatedBriefs = filteredBriefs.slice(pageStart, pageStart + BRIEFS_PER_PAGE);
+  const showingStart = shownCount === 0 ? 0 : pageStart + 1;
+  const showingEnd = shownCount === 0 ? 0 : pageStart + paginatedBriefs.length;
+
+  function buildPageHref(page: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(page));
+    }
+    return `/briefs${params.toString() ? `?${params.toString()}` : ""}`;
+  }
+
+  const pageItems = useMemo(() => {
+    if (totalPages <= 1) return [];
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    const items: Array<number | "ellipsis"> = [1];
+    const windowStart = Math.max(2, currentPage - 1);
+    const windowEnd = Math.min(totalPages - 1, currentPage + 1);
+
+    if (windowStart > 2) items.push("ellipsis");
+    for (let page = windowStart; page <= windowEnd; page += 1) {
+      items.push(page);
+    }
+    if (windowEnd < totalPages - 1) items.push("ellipsis");
+    items.push(totalPages);
+
+    return items;
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [currentPage]);
 
   return (
     <>
@@ -165,11 +222,52 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
 
           {/* Brief Grid */}
           {filteredBriefs.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
-              {filteredBriefs.map((brief) => (
-                <BriefCard key={brief.id} brief={brief} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
+                {paginatedBriefs.map((brief) => (
+                  <BriefCard key={brief.id} brief={brief} />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <Pagination className="mt-6 flex-col items-center gap-2">
+                  <p className="value-text text-xs text-muted">
+                    Showing {showingStart}-{showingEnd} of {shownCount}
+                  </p>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href={buildPageHref(Math.max(1, currentPage - 1))}
+                        text=""
+                        aria-disabled={currentPage === 1}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+
+                    {pageItems.map((item, index) => (
+                      <PaginationItem key={`${item}-${index}`}>
+                        {item === "ellipsis" ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink href={buildPageHref(item)} isActive={item === currentPage}>
+                            {item}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        href={buildPageHref(Math.min(totalPages, currentPage + 1))}
+                        text=""
+                        aria-disabled={currentPage === totalPages}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </>
           ) : (
             <div className="text-center py-20 border border-dashed border-border rounded-lg">
               {totalCount === 0 ? (
