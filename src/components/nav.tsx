@@ -16,12 +16,16 @@ const navItems = [
 export function Nav() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
 
   useEffect(() => {
     async function checkAdmin() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setAdminChecked(true);
+        return;
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: profile } = await (supabase.from("profiles") as any)
@@ -30,6 +34,7 @@ export function Nav() {
         .single();
 
       setIsAdmin(profile?.role === "admin");
+      setAdminChecked(true);
     }
     checkAdmin();
   }, []);
@@ -71,7 +76,9 @@ export function Nav() {
             {isAdmin && (
               <Link
                 href="/admin"
-                className="ml-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-accent text-accent hover:bg-accent hover:text-background"
+                className={`ml-2 px-4 py-2 rounded-lg text-sm font-medium border border-accent text-accent hover:bg-accent hover:text-background transition-[opacity,background-color,color] duration-200 ${
+                  adminChecked ? "opacity-100" : "opacity-0"
+                }`}
               >
                 Admin
               </Link>

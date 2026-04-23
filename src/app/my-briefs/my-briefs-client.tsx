@@ -79,8 +79,14 @@ export function MyBriefsClient({ claims }: Props) {
           </div>
 
           {!hasAnyClaims ? (
-            <div className="text-center py-16 bg-surface border border-border rounded-xl">
-              <p className="text-muted mb-4">You have not claimed any briefs yet</p>
+            <div className="bg-surface border border-border rounded-xl p-8 sm:p-12 text-center">
+              <h2 className="text-xl font-semibold mb-2">
+                Nothing here yet
+              </h2>
+              <p className="text-muted max-w-md mx-auto mb-6">
+                Claim a brief, submit your work within 7 days, and get paid in
+                DKK once it&apos;s approved.
+              </p>
               <Link
                 href="/briefs"
                 className="inline-flex px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
@@ -89,95 +95,118 @@ export function MyBriefsClient({ claims }: Props) {
               </Link>
             </div>
           ) : (
-            <div className="space-y-10">
-              {groupedClaims.map((group) => {
-                if (group.claims.length === 0) return null;
+            <>
+              {/* Status summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+                {groupedClaims.map((group) => (
+                  <div
+                    key={group.status}
+                    className="bg-surface border border-border rounded-lg p-4"
+                  >
+                    <p className="font-mono text-2xl font-bold">
+                      {group.claims.length}
+                    </p>
+                    <p className="text-xs text-muted uppercase tracking-wider mt-1">
+                      {group.title}
+                    </p>
+                  </div>
+                ))}
+              </div>
 
-                return (
+              <div className="space-y-10">
+                {groupedClaims.map((group) => (
                   <section key={group.status}>
                     <div className="mb-4">
                       <h2 className="text-xl font-semibold">{group.title}</h2>
                       <p className="text-muted text-sm">{group.description}</p>
                     </div>
 
-                    <div className="space-y-4">
-                      {group.claims.map((claim) => (
-                        <div
-                          key={claim.id}
-                          className="relative bg-surface border border-border rounded-xl p-5 hover:border-accent/50 hover:bg-surface-hover transition-all"
-                        >
-                          <Link
-                            href={`/briefs/${claim.brief_id}`}
-                            className="absolute inset-0"
-                            aria-label={claim.brief.title}
-                          />
-                          <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold text-lg">
-                                  {claim.brief.title}
-                                </h3>
-                                <span
-                                  className={`px-2.5 py-1 text-xs font-medium rounded-full ${claimStatusColor(
-                                    claim.status
-                                  )}`}
-                                >
-                                  {claimStatusLabel(claim.status)}
-                                </span>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 mb-3">
-                                <span className="px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full">
-                                  {categoryLabel(claim.brief.category)}
-                                </span>
-                                <span className="px-2.5 py-1 bg-border text-muted text-xs font-mono rounded-full">
-                                  {formatLabel(claim.brief.format)}
-                                </span>
-                                {claim.brief.gym && (
-                                  <span className="px-2.5 py-1 bg-border text-muted text-xs rounded-full">
-                                    {claim.brief.gym}
+                    {group.claims.length === 0 ? (
+                      <div className="bg-surface/50 border border-dashed border-border rounded-xl p-6 text-center">
+                        <p className="text-muted text-sm">
+                          Nothing in this stage
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {group.claims.map((claim) => (
+                          <div
+                            key={claim.id}
+                            className="relative bg-surface border border-border rounded-xl p-5 hover:border-accent/50 hover:bg-surface-hover transition-all"
+                          >
+                            <Link
+                              href={`/briefs/${claim.brief_id}`}
+                              className="absolute inset-0"
+                              aria-label={claim.brief.title}
+                            />
+                            <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="font-semibold text-lg">
+                                    {claim.brief.title}
+                                  </h3>
+                                  <span
+                                    className={`px-2.5 py-1 text-xs font-medium rounded-full ${claimStatusColor(
+                                      claim.status
+                                    )}`}
+                                  >
+                                    {claimStatusLabel(claim.status)}
                                   </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                  <span className="px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full">
+                                    {categoryLabel(claim.brief.category)}
+                                  </span>
+                                  <span className="px-2.5 py-1 bg-border text-muted text-xs font-mono rounded-full">
+                                    {formatLabel(claim.brief.format)}
+                                  </span>
+                                  {claim.brief.gym && (
+                                    <span className="px-2.5 py-1 bg-border text-muted text-xs rounded-full">
+                                      {claim.brief.gym}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {claim.status === "active" && (
+                                  <p className="text-sm text-muted">
+                                    <span className="font-mono">
+                                      Expires: {formatDeadline(claim.expires_at)}
+                                    </span>
+                                  </p>
+                                )}
+
+                                {claim.status === "paid" && claim.invoice && (
+                                  <a
+                                    href={`/api/invoices/${claim.invoice.id}/pdf`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="relative inline-block text-sm text-accent hover:underline"
+                                  >
+                                    Download invoice {claim.invoice.invoice_number}
+                                  </a>
                                 )}
                               </div>
 
-                              {claim.status === "active" && (
-                                <p className="text-sm text-muted">
-                                  <span className="font-mono">
-                                    Expires: {formatDeadline(claim.expires_at)}
-                                  </span>
+                              <div className="text-right">
+                                <p className="font-mono text-xl text-accent font-bold">
+                                  {formatPrice(claim.brief.price_dkk)}
                                 </p>
-                              )}
-
-                              {claim.status === "paid" && claim.invoice && (
-                                <a
-                                  href={`/api/invoices/${claim.invoice.id}/pdf`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="relative inline-block text-sm text-accent hover:underline"
-                                >
-                                  Download invoice {claim.invoice.invoice_number}
-                                </a>
-                              )}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="font-mono text-xl text-accent font-bold">
-                                {formatPrice(claim.brief.price_dkk)}
-                              </p>
-                              {claim.brief.deadline && (
-                                <p className="text-muted text-sm mt-1 font-mono">
-                                  Due: {formatDeadline(claim.brief.deadline)}
-                                </p>
-                              )}
+                                {claim.brief.deadline && (
+                                  <p className="text-muted text-sm mt-1 font-mono">
+                                    Due: {formatDeadline(claim.brief.deadline)}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </section>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </main>

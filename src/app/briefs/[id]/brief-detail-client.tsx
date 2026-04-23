@@ -12,6 +12,7 @@ import {
   formatDeadline,
   categoryLabel,
   formatLabel,
+  humanizeKey,
 } from "@/lib/utils";
 
 interface Props {
@@ -152,8 +153,8 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                     <dl className="grid gap-3 sm:grid-cols-2">
                       {Object.entries(specs).map(([key, value]) => (
                         <div key={key}>
-                          <dt className="text-muted text-sm capitalize">
-                            {key.replace(/_/g, " ")}
+                          <dt className="text-muted text-sm">
+                            {humanizeKey(key)}
                           </dt>
                           <dd className="font-mono text-sm">{value}</dd>
                         </div>

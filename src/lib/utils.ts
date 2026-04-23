@@ -63,3 +63,9 @@ export function statusColor(status: BriefStatus): string {
 export function cn(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
 }
+
+export function humanizeKey(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
