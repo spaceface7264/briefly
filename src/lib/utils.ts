@@ -1,4 +1,10 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { BriefCategory, BriefFormat, BriefStatus } from "@/types/database";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export function formatPrice(priceDkk: number): string {
   return `${priceDkk.toLocaleString("da-DK")} DKK`;
@@ -58,10 +64,6 @@ export function statusColor(status: BriefStatus): string {
     archived: "bg-muted/20 text-muted",
   };
   return colors[status];
-}
-
-export function cn(...classes: (string | boolean | undefined)[]): string {
-  return classes.filter(Boolean).join(" ");
 }
 
 export function humanizeKey(key: string): string {
