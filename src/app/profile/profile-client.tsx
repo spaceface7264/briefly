@@ -415,7 +415,16 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
             >
               self-billing agreement
             </button>
-            . Boulders may issue invoices on my behalf for payouts delivered
+            {" "}(
+            <a
+              href="/legal/self-billing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              open in a new tab
+            </a>
+            ). Boulders may issue invoices on my behalf for payouts delivered
             through this platform.
           </span>
         </label>
