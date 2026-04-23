@@ -16,10 +16,24 @@ contents into a new query and run it.
 - [ ] `supabase/migrations/0009_notification_types.sql` — replaces the
   single column with per-type columns (`notify_submissions`,
   `notify_new_briefs`), copying any prior opt-outs into both
+- [ ] `supabase/migrations/0010_claim_auto_expiry.sql` — enables pg_cron
+  and schedules an hourly job that flips `active` claims past
+  `expires_at` to `cancelled`, releasing the slot against `claim_limit`
 
 **Order matters.** 0009 references the column added in 0008, so 0008 must
 run first. If you skip 0008 and try 0009, it will fail on the `UPDATE …
 SET … = email_notifications_enabled` line.
+
+After `0010` applies, confirm the job is registered with:
+
+```sql
+SELECT jobname, schedule FROM cron.job WHERE jobname = 'expire-stale-claims';
+```
+
+Expect one row with schedule `0 * * * *`. pg_cron is pre-installed on
+Supabase but not enabled by default — `CREATE EXTENSION IF NOT EXISTS
+pg_cron` inside the migration handles that. If the extension fails to
+create, enable it from Dashboard → Database → Extensions first.
 
 ---
 
