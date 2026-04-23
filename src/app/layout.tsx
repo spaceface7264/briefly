@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono, Geist } from "next/font/google";
 import { Footer } from "@/components/footer";
+import { ScrollToTopOnRouteChange } from "@/components/scroll-to-top-on-route-change";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
       className={cn("dark", "h-full", "antialiased", plusJakarta.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
+        <ScrollToTopOnRouteChange />
         {children}
         <Footer />
       </body>

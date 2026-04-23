@@ -1,4 +1,5 @@
 import { Nav } from "@/components/nav";
+import Link from "next/link";
 
 export default function GuidePage() {
   return (
@@ -10,6 +11,13 @@ export default function GuidePage() {
             <h1 className="text-3xl font-bold mb-2">Content Guide</h1>
             <p className="text-text-secondary">
               Tips og retningslinjer for at skabe det bedste content
+            </p>
+            <p className="text-sm text-muted mt-2">
+              Looking for claim, review, and payout process?{" "}
+              <Link href="/how-it-works" className="text-brand hover:underline">
+                See How it works
+              </Link>
+              .
             </p>
           </div>
 
@@ -180,6 +188,7 @@ export default function GuidePage() {
                 </p>
               </div>
             </section>
+
           </div>
         </div>
       </main>

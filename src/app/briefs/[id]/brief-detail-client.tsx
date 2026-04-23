@@ -30,6 +30,21 @@ const categoryDot: Record<string, string> = {
   community: "bg-brand/60",
 };
 
+const terminalClaimStatusLabel: Partial<Record<Claim["status"], string>> = {
+  submitted: "Under review",
+  approved: "Approved",
+  paid: "Paid",
+};
+
+function formatShortDate(date: string | null | undefined) {
+  if (!date) return "";
+
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
   const router = useRouter();
   const [claiming, setClaiming] = useState(false);
@@ -39,6 +54,20 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
   const claimLimit = brief.claim_limit || 1;
   const slotsAvailable = claimLimit - claimCount;
   const canClaim = brief.status === "open" && slotsAvailable > 0 && !userClaim;
+  const hasClaim = Boolean(userClaim);
+  const isActiveClaim = Boolean(
+    userClaim &&
+      userClaim.status !== "submitted" &&
+      userClaim.status !== "approved" &&
+      userClaim.status !== "paid" &&
+      userClaim.status !== "cancelled"
+  );
+  const dueLabel = brief.deadline ? ` · Due ${formatShortDate(brief.deadline)}` : "";
+  const claimStatusLabel = userClaim
+    ? isActiveClaim
+      ? `Claimed${userClaim.expires_at ? ` until ${formatShortDate(userClaim.expires_at)}` : ""}${dueLabel}`
+      : `${terminalClaimStatusLabel[userClaim.status] || "Claimed"}${dueLabel}`
+    : "";
 
   async function handleClaim() {
     setClaiming(true);
@@ -111,6 +140,18 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                   <span className="text-muted">{brief.gym}</span>
                 </>
               )}
+              {hasClaim && userClaim && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full bg-accent ${isActiveClaim ? "animate-status-pulse" : ""}`}
+                      aria-hidden="true"
+                    />
+                    {claimStatusLabel}
+                  </span>
+                </>
+              )}
               {brief.is_ad_intended && (
                 <>
                   <span className="text-border">·</span>
@@ -128,11 +169,9 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                 <p className="value-text text-2xl sm:text-3xl text-accent font-bold leading-none">
                   {formatPrice(brief.price_dkk)}
                 </p>
-                {brief.deadline && (
-                  <p className="value-text text-muted text-xs mt-1">
-                    Due {formatDeadline(brief.deadline)}
-                  </p>
-                )}
+                <p className="mt-2 text-[11px] font-medium text-info">
+                  Payout after submission approval
+                </p>
               </div>
             </div>
           </header>

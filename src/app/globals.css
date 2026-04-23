@@ -268,10 +268,23 @@ dialog[open]::backdrop {
 }
 
 @keyframes status-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
-  50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0); }
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(204, 255, 0, 0.45);
+  }
+  60% {
+    opacity: 0.9;
+    transform: scale(1.08);
+    box-shadow: 0 0 0 3px rgba(204, 255, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(204, 255, 0, 0);
+  }
 }
-.animate-status-pulse { animation: status-pulse 2s ease-in-out infinite; }
+.animate-status-pulse { animation: status-pulse 1.1s ease-out infinite; }
 
 /* Brief card text truncation with reliable multiline ellipsis */
 .brief-card-description-truncate {
