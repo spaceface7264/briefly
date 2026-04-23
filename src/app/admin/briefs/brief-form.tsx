@@ -113,7 +113,9 @@ export function BriefForm({ brief }: BriefFormProps) {
   const [deadline, setDeadline] = useState(brief?.deadline || "");
   const [gym, setGym] = useState(brief?.gym || "");
   const [claimLimit, setClaimLimit] = useState(brief?.claim_limit?.toString() || "1");
-  const [referenceUrls, setReferenceUrls] = useState(brief?.reference_urls?.join("\n") || "");
+  const [referenceUrls, setReferenceUrls] = useState<string[]>(
+    brief?.reference_urls?.length ? brief.reference_urls : [""]
+  );
   const [usageRights, setUsageRights] = useState(brief?.usage_rights || "");
   const [isAdIntended, setIsAdIntended] = useState(brief?.is_ad_intended ?? false);
 
@@ -263,7 +265,7 @@ export function BriefForm({ brief }: BriefFormProps) {
       deadline: deadline || null,
       gym: gym || null,
       claim_limit: parseInt(claimLimit) || 1,
-      reference_urls: referenceUrls.split("\n").map((u) => u.trim()).filter(Boolean),
+      reference_urls: referenceUrls.map((u) => u.trim()).filter(Boolean),
       usage_rights: usageRights || null,
       deliverable_specs: entriesToSpecs(specEntries),
       is_ad_intended: isAdIntended,
@@ -496,18 +498,45 @@ export function BriefForm({ brief }: BriefFormProps) {
 
       {/* Reference URLs */}
       <div>
-        <label htmlFor="referenceUrls" className="block text-sm font-medium mb-2">
+        <label className="block text-sm font-medium mb-2">
           Reference URLs
         </label>
-        <textarea
-          id="referenceUrls"
-          value={referenceUrls}
-          onChange={(e) => setReferenceUrls(e.target.value)}
-          rows={3}
-          className={`${inputClass} resize-none font-mono text-sm`}
-          placeholder={"https://instagram.com/reel/example1\nhttps://instagram.com/reel/example2"}
-        />
-        <p className="text-muted text-sm mt-1">One URL per line</p>
+        <div className="space-y-2">
+          {referenceUrls.map((url, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => {
+                  const updated = [...referenceUrls];
+                  updated[i] = e.target.value;
+                  setReferenceUrls(updated);
+                }}
+                className="flex-1 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm font-mono focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                placeholder="https://instagram.com/reel/..."
+              />
+              {referenceUrls.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setReferenceUrls(referenceUrls.filter((_, j) => j !== i))}
+                  className="p-2 text-muted hover:text-error transition-colors shrink-0"
+                  aria-label="Remove URL"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setReferenceUrls([...referenceUrls, ""])}
+          className="mt-2 px-2.5 py-1 text-xs font-medium text-accent border border-accent/30 rounded-md hover:bg-accent-muted transition-colors"
+        >
+          + Add URL
+        </button>
       </div>
 
       {/* Deliverable Specs */}
