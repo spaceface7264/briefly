@@ -11,24 +11,22 @@ export default async function AdminClaimsPage({
   const { status: statusFilter, claim: highlightClaim } = await searchParams;
   const supabase = await createClient();
 
-  // Fetch claims with brief + creator info (no payments join — table may not exist yet)
+  // Always fetch all claims so tab counts are accurate; filter the displayed list below
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase.from("claims") as any)
+  const { data: allClaims } = await (supabase.from("claims") as any)
     .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle)")
     .order("claimed_at", { ascending: false });
 
-  if (statusFilter) {
-    query = query.eq("status", statusFilter);
-  }
-
-  const { data: claims } = await query;
+  const claims = statusFilter
+    ? (allClaims || []).filter((c: any) => c.status === statusFilter)
+    : allClaims;
 
   // Try to attach payment info if the payments table exists
-  if (claims && claims.length > 0) {
+  if (allClaims && allClaims.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: payments } = await (supabase.from("payments") as any)
       .select("id, claim_id, invoice_number, status")
-      .in("claim_id", claims.map((c: any) => c.id));
+      .in("claim_id", allClaims.map((c: any) => c.id));
 
     if (payments) {
       const paymentsByClaimId = new Map<string, any[]>();
@@ -37,11 +35,11 @@ export default async function AdminClaimsPage({
         arr.push(p);
         paymentsByClaimId.set(p.claim_id, arr);
       }
-      for (const claim of claims) {
+      for (const claim of allClaims) {
         claim.payments = paymentsByClaimId.get(claim.id) || [];
       }
     } else {
-      for (const claim of claims) {
+      for (const claim of allClaims) {
         claim.payments = [];
       }
     }
@@ -64,8 +62,8 @@ export default async function AdminClaimsPage({
       <div className="flex flex-wrap gap-2 mb-6">
         {statusGroups.map((group) => {
           const count = group.status
-            ? (claims || []).filter((c: any) => c.status === group.status).length
-            : (claims || []).length;
+            ? (allClaims || []).filter((c: any) => c.status === group.status).length
+            : (allClaims || []).length;
           const isActive = statusFilter === group.status || (!statusFilter && !group.status);
 
           return (
