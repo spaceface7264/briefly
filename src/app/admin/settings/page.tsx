@@ -7,6 +7,7 @@ import {
 import { DK_STANDARD_VAT_RATE_BP } from "@/lib/invoicing/vat";
 import { StatusPill } from "@/components/status-pill";
 import { AdminTeam } from "./admin-team";
+import { NotificationsToggle } from "./notifications-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -18,18 +19,29 @@ export default async function AdminSettingsPage() {
 
   if (!user) redirect("/login");
 
-  const [{ data: admins }, { data: creators }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, name, email, created_at")
-      .eq("role", "admin")
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("profiles")
-      .select("id, name, email, created_at")
-      .eq("role", "creator")
-      .order("name", { ascending: true }),
-  ]);
+  const [{ data: admins }, { data: creators }, { data: me }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, name, email, created_at, email_notifications_enabled")
+        .eq("role", "admin")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("profiles")
+        .select("id, name, email, created_at")
+        .eq("role", "creator")
+        .order("name", { ascending: true }),
+      supabase
+        .from("profiles")
+        .select("email_notifications_enabled")
+        .eq("id", user.id)
+        .single(),
+    ]);
+
+  const myNotificationsEnabled = me?.email_notifications_enabled ?? true;
+  const notifiedAdminCount = (admins ?? []).filter(
+    (a) => a.email_notifications_enabled
+  ).length;
 
   const platform = platformDetails();
   const contactEmail =
@@ -107,7 +119,8 @@ export default async function AdminSettingsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
         <p className="text-muted">
-          Admin team, platform details, and system constants.
+          Admin team, email notifications, platform details, and system
+          constants.
         </p>
       </div>
 
@@ -116,6 +129,12 @@ export default async function AdminSettingsPage() {
           admins={admins ?? []}
           creators={creators ?? []}
           currentUserId={user.id}
+        />
+
+        <NotificationsToggle
+          enabled={myNotificationsEnabled}
+          notifiedAdminCount={notifiedAdminCount}
+          totalAdminCount={admins?.length ?? 0}
         />
 
         <section className="space-y-4">

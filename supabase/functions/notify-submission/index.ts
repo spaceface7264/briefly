@@ -47,11 +47,12 @@ serve(async (req) => {
         .eq("id", payload.record.creator_id)
         .single();
 
-      // Get all admin emails
+      // Get all admin emails — honour per-admin email notification preference
       const { data: admins } = await supabase
         .from("profiles")
         .select("email")
-        .eq("role", "admin");
+        .eq("role", "admin")
+        .eq("email_notifications_enabled", true);
 
       if (!admins || admins.length === 0 || !RESEND_API_KEY) {
         return new Response(JSON.stringify({ message: "No admins or API key" }), {

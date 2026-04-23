@@ -11,6 +11,7 @@ interface TeamMember {
   name: string | null;
   email: string | null;
   created_at: string;
+  email_notifications_enabled?: boolean;
 }
 
 interface AdminTeamProps {
@@ -105,6 +106,9 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
                 Admin
               </th>
               <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
+                Notifications
+              </th>
+              <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
                 Since
               </th>
               <th className="text-right text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
@@ -115,6 +119,7 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
           <tbody>
             {admins.map((admin) => {
               const isSelf = admin.id === currentUserId;
+              const notified = admin.email_notifications_enabled ?? true;
               return (
                 <tr
                   key={admin.id}
@@ -138,6 +143,13 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
                         </p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {notified ? (
+                      <StatusPill tone="success">On</StatusPill>
+                    ) : (
+                      <StatusPill tone="neutral">Off</StatusPill>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted font-mono text-sm">
                     {new Date(admin.created_at).toLocaleDateString("en-GB")}

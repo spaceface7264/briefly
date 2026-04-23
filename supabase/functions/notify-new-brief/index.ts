@@ -39,11 +39,12 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Get all active creators
+    // Get all active creators — honour per-creator email notification preference
     const { data: creators } = await supabase
       .from("profiles")
       .select("email, name")
-      .eq("role", "creator");
+      .eq("role", "creator")
+      .eq("email_notifications_enabled", true);
 
     if (!creators || creators.length === 0) {
       return new Response(JSON.stringify({ message: "No creators" }), {

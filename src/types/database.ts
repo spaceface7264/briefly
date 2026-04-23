@@ -159,6 +159,7 @@ export type Database = {
           created_at: string
           cvr_number: string | null
           email: string | null
+          email_notifications_enabled: boolean
           id: string
           instagram_handle: string | null
           name: string | null
@@ -182,6 +183,7 @@ export type Database = {
           created_at?: string
           cvr_number?: string | null
           email?: string | null
+          email_notifications_enabled?: boolean
           id: string
           instagram_handle?: string | null
           name?: string | null
@@ -205,6 +207,7 @@ export type Database = {
           created_at?: string
           cvr_number?: string | null
           email?: string | null
+          email_notifications_enabled?: boolean
           id?: string
           instagram_handle?: string | null
           name?: string | null
