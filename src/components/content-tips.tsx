@@ -8,11 +8,11 @@ interface ContentTipsProps {
 
 export function ContentTips({ category, isAdIntended }: ContentTipsProps) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-5 space-y-4">
+    <div className="bg-surface-raised border border-border rounded-xl p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Content Tips</h3>
+        <h3 className="font-semibold">Content tips</h3>
         <Link href="/guide" className="text-xs text-accent hover:underline">
-          Se fuld guide
+          Full guide →
         </Link>
       </div>
 

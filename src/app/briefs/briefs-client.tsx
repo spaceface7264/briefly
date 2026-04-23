@@ -31,6 +31,13 @@ const priceRanges = [
   { value: "3000+", label: "Over 3,000 DKK" },
 ];
 
+function labelFor<T extends { value: string; label: string }>(
+  options: T[],
+  value: string
+): string {
+  return options.find((o) => o.value === value)?.label ?? value;
+}
+
 interface BriefsClientProps {
   briefs: BriefWithClaims[];
   initialCategory?: BriefCategory;
@@ -41,11 +48,9 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Server-side filters (via URL)
   const categoryFilter = initialCategory || "all";
   const formatFilter = initialFormat || "all";
 
-  // Client-side filters (local state)
   const [priceFilter, setPriceFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("");
 
@@ -54,7 +59,6 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     return Array.from(uniqueGyms) as string[];
   }, [briefs]);
 
-  // Update URL for server-side filters
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value === "all" || value === "") {
@@ -65,7 +69,12 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     router.push(`/briefs${params.toString() ? `?${params.toString()}` : ""}`);
   }
 
-  // Client-side filtering for price and gym
+  function clearAll() {
+    setPriceFilter("all");
+    setGymFilter("");
+    router.push("/briefs");
+  }
+
   const filteredBriefs = useMemo(() => {
     return briefs.filter((brief) => {
       if (gymFilter && brief.gym !== gymFilter) return false;
@@ -80,6 +89,40 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
     });
   }, [briefs, priceFilter, gymFilter]);
 
+  const activeFilters: { key: string; label: string; clear: () => void }[] = [];
+  if (categoryFilter !== "all") {
+    activeFilters.push({
+      key: "category",
+      label: labelFor(categories, categoryFilter),
+      clear: () => updateFilter("category", "all"),
+    });
+  }
+  if (formatFilter !== "all") {
+    activeFilters.push({
+      key: "format",
+      label: labelFor(formats, formatFilter),
+      clear: () => updateFilter("format", "all"),
+    });
+  }
+  if (priceFilter !== "all") {
+    activeFilters.push({
+      key: "price",
+      label: labelFor(priceRanges, priceFilter),
+      clear: () => setPriceFilter("all"),
+    });
+  }
+  if (gymFilter) {
+    activeFilters.push({
+      key: "gym",
+      label: gymFilter,
+      clear: () => setGymFilter(""),
+    });
+  }
+
+  const hasActiveFilters = activeFilters.length > 0;
+  const totalCount = briefs.length;
+  const shownCount = filteredBriefs.length;
+
   return (
     <>
       <Nav />
@@ -93,11 +136,11 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
             <select
               value={categoryFilter}
               onChange={(e) => updateFilter("category", e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               {categories.map((cat) => (
                 <option key={cat.value} value={cat.value}>
@@ -109,7 +152,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={formatFilter}
               onChange={(e) => updateFilter("format", e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               {formats.map((fmt) => (
                 <option key={fmt.value} value={fmt.value}>
@@ -121,7 +164,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={priceFilter}
               onChange={(e) => setPriceFilter(e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               {priceRanges.map((range) => (
                 <option key={range.value} value={range.value}>
@@ -133,7 +176,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={gymFilter}
               onChange={(e) => setGymFilter(e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               <option value="">All Gyms</option>
               {gyms.map((gym) => (
@@ -144,6 +187,38 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             </select>
           </div>
 
+          {/* Result summary + active filter chips */}
+          <div className="flex flex-wrap items-center gap-2 mb-6 min-h-8">
+            <p className="text-sm text-muted font-mono">
+              {hasActiveFilters
+                ? `${shownCount} of ${totalCount} briefs`
+                : `${totalCount} brief${totalCount !== 1 ? "s" : ""}`}
+            </p>
+            {activeFilters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={f.clear}
+                aria-label={`Remove filter: ${f.label}`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-md border border-accent/20 hover:bg-accent hover:text-background hover:border-accent transition-colors"
+              >
+                {f.label}
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            ))}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="text-xs text-muted hover:text-foreground underline underline-offset-2"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
           {/* Brief Grid */}
           {filteredBriefs.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
@@ -152,8 +227,29 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted">No briefs match your filters</p>
+            <div className="text-center py-16 bg-surface border border-dashed border-border rounded-xl">
+              {totalCount === 0 ? (
+                <>
+                  <p className="font-medium mb-1">No open briefs right now</p>
+                  <p className="text-muted text-sm">
+                    Check back soon — new briefs go live regularly.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium mb-1">No briefs match your filters</p>
+                  <p className="text-muted text-sm mb-5">
+                    Try removing a filter or clearing all of them.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="inline-flex px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

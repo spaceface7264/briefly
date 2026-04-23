@@ -1,15 +1,26 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="flex-1" />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("login");
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("mode") === "signup" ? "signup" : "login"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -116,7 +127,7 @@ export default function LoginPage() {
             onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
               mode === "login"
-                ? "bg-accent text-background"
+                ? "bg-accent text-background font-bold"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -127,7 +138,7 @@ export default function LoginPage() {
             onClick={() => { setMode("signup"); setError(""); setSuccess(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
               mode === "signup"
-                ? "bg-accent text-background"
+                ? "bg-accent text-background font-bold"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -150,7 +161,7 @@ export default function LoginPage() {
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 required
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
                 placeholder="XXXX-XXXX"
               />
             </div>
@@ -170,7 +181,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
               placeholder="you@example.com"
             />
           </div>
@@ -190,17 +201,27 @@ export default function LoginPage() {
               required
               minLength={6}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
-              className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
               placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
             />
           </div>
 
           {error && (
-            <p className="text-error text-sm">{error}</p>
+            <div className="flex items-start gap-2 bg-error-muted border border-error/30 rounded-lg p-3">
+              <svg className="w-4 h-4 text-error shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+              </svg>
+              <p className="text-error text-sm">{error}</p>
+            </div>
           )}
 
           {success && (
-            <p className="text-success text-sm">{success}</p>
+            <div className="flex items-start gap-2 bg-success-muted border border-success/30 rounded-lg p-3">
+              <svg className="w-4 h-4 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <p className="text-success text-sm">{success}</p>
+            </div>
           )}
 
           <button

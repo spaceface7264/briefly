@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
+import { NotificationsPanel } from "@/components/notifications-panel";
+import { StatusPill, type StatusTone } from "@/components/status-pill";
 import { createClient } from "@/lib/supabase/client";
+import { preferencesFromProfile } from "@/lib/notifications";
 import { startStripeOnboarding } from "./stripe-actions";
 import { saveBillingDetails, type BillingDetailsInput } from "./billing-actions";
 import { COUNTRY_LABELS, EU_COUNTRIES } from "@/lib/invoicing/vat";
@@ -115,7 +118,7 @@ export function ProfileClient({ profile, userEmail }: Props) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                 placeholder="Your name"
               />
             </div>
@@ -133,7 +136,7 @@ export function ProfileClient({ profile, userEmail }: Props) {
                 type="text"
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                 placeholder="@yourhandle"
               />
             </div>
@@ -148,7 +151,7 @@ export function ProfileClient({ profile, userEmail }: Props) {
                 type="text"
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                 placeholder="reels, tutorials, comedy"
               />
               <p className="text-muted text-sm mt-1">
@@ -193,10 +196,23 @@ export function ProfileClient({ profile, userEmail }: Props) {
                 {saving ? "Saving..." : "Save Changes"}
               </button>
               {saved && (
-                <span className="text-success text-sm">Changes saved</span>
+                <span className="inline-flex items-center gap-1.5 text-success text-sm">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Changes saved
+                </span>
               )}
             </div>
           </form>
+
+          {/* Notifications */}
+          <div className="mt-12 pt-8 border-t border-border">
+            <NotificationsPanel
+              role="creator"
+              preferences={preferencesFromProfile(profile ?? {})}
+            />
+          </div>
 
           {/* Payouts */}
           <div className="mt-12 pt-8 border-t border-border">
@@ -296,7 +312,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           >
             {countryOptions.map((code) => (
               <option key={code} value={code}>
@@ -311,7 +327,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
             type="text"
             value={postalCode}
             onChange={(e) => setPostalCode(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           />
         </div>
       </div>
@@ -322,7 +338,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
           type="text"
           value={line1}
           onChange={(e) => setLine1(e.target.value)}
-          className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           placeholder="Street and number"
         />
       </div>
@@ -333,7 +349,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
           type="text"
           value={line2}
           onChange={(e) => setLine2(e.target.value)}
-          className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           placeholder="Apartment, floor, c/o (optional)"
         />
       </div>
@@ -344,7 +360,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
           type="text"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
         />
       </div>
 
@@ -371,7 +387,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
             type="text"
             value={vatNumber}
             onChange={(e) => setVatNumber(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             placeholder={country === "DK" ? "DK12345678" : "e.g. DE123456789"}
           />
         </div>
@@ -386,7 +402,7 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
             type="text"
             value={cvrNumber}
             onChange={(e) => setCvrNumber(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             placeholder="12345678"
           />
         </div>
@@ -409,7 +425,16 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
             >
               self-billing agreement
             </button>
-            . Boulders may issue invoices on my behalf for payouts delivered
+            {" "}(
+            <a
+              href="/legal/self-billing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              open in a new tab
+            </a>
+            ). Boulders may issue invoices on my behalf for payouts delivered
             through this platform.
           </span>
         </label>
@@ -461,30 +486,26 @@ function StripeConnectSection({
   }
 
   let statusLabel = "Not connected";
-  let statusClass = "bg-muted/20 text-muted";
+  let statusTone: StatusTone = "neutral";
   let ctaLabel = "Connect payout account";
 
   if (payoutsEnabled) {
     statusLabel = "Payouts enabled";
-    statusClass = "bg-success/20 text-success";
+    statusTone = "success";
     ctaLabel = "Update payout details";
   } else if (hasAccount && detailsSubmitted) {
     statusLabel = "Under review";
-    statusClass = "bg-warning/20 text-warning";
+    statusTone = "warning";
     ctaLabel = "Update payout details";
   } else if (hasAccount) {
     statusLabel = "Onboarding incomplete";
-    statusClass = "bg-warning/20 text-warning";
+    statusTone = "warning";
     ctaLabel = "Continue onboarding";
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <span
-        className={`px-2.5 py-1 text-xs font-medium rounded-full ${statusClass}`}
-      >
-        {statusLabel}
-      </span>
+    <div className="flex flex-wrap items-center gap-4">
+      <StatusPill tone={statusTone}>{statusLabel}</StatusPill>
       <button
         type="button"
         onClick={handleConnect}
