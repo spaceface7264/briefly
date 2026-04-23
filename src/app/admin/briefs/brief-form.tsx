@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
 import type { Brief, BriefCategory, BriefFormat } from "@/types/database";
 
@@ -122,8 +123,76 @@ export function BriefForm({ brief }: BriefFormProps) {
     return existing.length > 0 ? existing : specsToEntries(formatTemplates[brief?.format || "reel"].fields);
   });
 
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  function toggleMarkdown(type: "bold" | "italic") {
+    const textarea = descriptionRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = description.slice(start, end);
+    const wrapper = type === "bold" ? "**" : "*";
+
+    // Check if selection is already wrapped
+    const beforeStart = start - wrapper.length;
+    const afterEnd = end + wrapper.length;
+    const alreadyWrapped =
+      beforeStart >= 0 &&
+      afterEnd <= description.length &&
+      description.slice(beforeStart, start) === wrapper &&
+      description.slice(end, afterEnd) === wrapper;
+
+    let newText: string;
+    let newCursorStart: number;
+    let newCursorEnd: number;
+
+    if (alreadyWrapped) {
+      // Unwrap
+      newText =
+        description.slice(0, beforeStart) +
+        selected +
+        description.slice(afterEnd);
+      newCursorStart = beforeStart;
+      newCursorEnd = beforeStart + selected.length;
+    } else if (selected) {
+      // Wrap selection
+      newText =
+        description.slice(0, start) +
+        wrapper + selected + wrapper +
+        description.slice(end);
+      newCursorStart = start + wrapper.length;
+      newCursorEnd = end + wrapper.length;
+    } else {
+      // No selection — insert placeholder
+      const placeholder = type === "bold" ? "bold text" : "italic text";
+      newText =
+        description.slice(0, start) +
+        wrapper + placeholder + wrapper +
+        description.slice(end);
+      newCursorStart = start + wrapper.length;
+      newCursorEnd = start + wrapper.length + placeholder.length;
+    }
+
+    setDescription(newText);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorStart, newCursorEnd);
+    });
+  }
+
+  function handleDescriptionKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "b") {
+      e.preventDefault();
+      toggleMarkdown("bold");
+    } else if ((e.metaKey || e.ctrlKey) && e.key === "i") {
+      e.preventDefault();
+      toggleMarkdown("italic");
+    }
+  }
 
   function applyTemplate(fmt: BriefFormat) {
     const template = formatTemplates[fmt];
@@ -247,15 +316,56 @@ export function BriefForm({ brief }: BriefFormProps) {
         <label htmlFor="description" className="block text-sm font-medium mb-2">
           Description <span className="text-error">*</span>
         </label>
-        <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-          rows={4}
-          className={`${inputClass} resize-none`}
-          placeholder="Describe the brief, what you're looking for, and any requirements..."
-        />
+        <div className="border border-border rounded-lg overflow-hidden focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-colors">
+          <div className="flex items-center gap-1 px-3 py-1.5 bg-surface-raised border-b border-border">
+            <button
+              type="button"
+              onClick={() => toggleMarkdown("bold")}
+              className="px-2 py-1 text-sm font-bold text-muted hover:text-foreground hover:bg-surface-hover rounded transition-colors"
+              title="Bold (Cmd+B)"
+            >
+              B
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleMarkdown("italic")}
+              className="px-2 py-1 text-sm italic text-muted hover:text-foreground hover:bg-surface-hover rounded transition-colors"
+              title="Italic (Cmd+I)"
+            >
+              I
+            </button>
+          </div>
+          <textarea
+            ref={descriptionRef}
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onKeyDown={handleDescriptionKeyDown}
+            required
+            rows={6}
+            className="w-full px-4 py-3 bg-surface resize-y border-0 focus:ring-0 focus:outline-none"
+            placeholder={"Describe the brief, what you're looking for, and any requirements...\n\n## Krav\n- Ekstern mikrofon\n- Adgang til rutebygger-teamet"}
+          />
+        </div>
+        <p className="text-muted text-sm mt-1">
+          Supports markdown: **bold**, *italic*, - lists, ## headings
+        </p>
+        {description.trim() && (
+          <div className="mt-3 px-4 py-3 bg-surface-raised border border-border rounded-lg">
+            <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Preview</p>
+            <div className="prose-brief text-sm">
+              <ReactMarkdown
+                components={{
+                  a: ({ children, href, ...props }) => (
+                    <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                  ),
+                }}
+              >
+                {description}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Category & Format */}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
 import { StatusPill } from "@/components/status-pill";
@@ -139,7 +140,17 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
               {/* Description */}
               <section>
                 <h2 className="text-lg font-semibold mb-3">Description</h2>
-                <p className="text-muted leading-relaxed">{brief.description}</p>
+                <div className="prose-brief">
+                  <ReactMarkdown
+                    components={{
+                      a: ({ children, href, ...props }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                      ),
+                    }}
+                  >
+                    {brief.description}
+                  </ReactMarkdown>
+                </div>
               </section>
 
               {/* Deliverable Specs */}

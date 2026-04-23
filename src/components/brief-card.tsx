@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import type { Brief, BriefWithClaims } from "@/types/database";
 import { formatPrice, formatDeadline, categoryLabel, formatLabel } from "@/lib/utils";
 import { StatusPill } from "./status-pill";
@@ -60,7 +61,9 @@ export function BriefCard({ brief }: BriefCardProps) {
         </span>
       </div>
 
-      <p className="text-muted text-sm line-clamp-2 mb-4">{brief.description}</p>
+      <div className="text-muted text-sm line-clamp-2 mb-4 prose-brief [&>*]:mb-0">
+        <ReactMarkdown>{brief.description}</ReactMarkdown>
+      </div>
 
       <div className="flex flex-wrap items-center gap-1.5 mb-4">
         <span className="px-2 py-0.5 bg-accent-muted text-accent text-xs font-medium rounded-md">
