@@ -140,7 +140,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={categoryFilter}
               onChange={(e) => updateFilter("category", e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               {categories.map((cat) => (
                 <option key={cat.value} value={cat.value}>
@@ -152,7 +152,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={formatFilter}
               onChange={(e) => updateFilter("format", e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               {formats.map((fmt) => (
                 <option key={fmt.value} value={fmt.value}>
@@ -164,7 +164,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={priceFilter}
               onChange={(e) => setPriceFilter(e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               {priceRanges.map((range) => (
                 <option key={range.value} value={range.value}>
@@ -176,7 +176,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
             <select
               value={gymFilter}
               onChange={(e) => setGymFilter(e.target.value)}
-              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-sm hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             >
               <option value="">All Gyms</option>
               {gyms.map((gym) => (
@@ -199,7 +199,8 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
                 key={f.key}
                 type="button"
                 onClick={f.clear}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full hover:bg-accent hover:text-background transition-colors"
+                aria-label={`Remove filter: ${f.label}`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-info-muted text-info text-xs font-medium rounded-full border border-info/30 hover:bg-info hover:text-background hover:border-info transition-colors"
               >
                 {f.label}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -226,20 +227,24 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 bg-surface border border-border rounded-xl">
+            <div className="text-center py-16 bg-surface border border-dashed border-border rounded-xl">
               {totalCount === 0 ? (
-                <p className="text-muted">
-                  No briefs are open right now. Check back soon.
-                </p>
+                <>
+                  <p className="font-medium mb-1">No open briefs right now</p>
+                  <p className="text-muted text-sm">
+                    Check back soon — new briefs go live regularly.
+                  </p>
+                </>
               ) : (
                 <>
-                  <p className="text-muted mb-4">
-                    No briefs match your filters
+                  <p className="font-medium mb-1">No briefs match your filters</p>
+                  <p className="text-muted text-sm mb-5">
+                    Try removing a filter or clearing all of them.
                   </p>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+                    className="inline-flex px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
                   >
                     Clear filters
                   </button>

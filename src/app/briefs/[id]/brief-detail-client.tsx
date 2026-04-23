@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
+import { StatusPill } from "@/components/status-pill";
 import { createClient } from "@/lib/supabase/client";
 import type { Brief, Claim } from "@/types/database";
 import {
@@ -99,30 +100,28 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
             <div>
               {brief.is_ad_intended && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-warning/20 text-warning text-sm font-medium rounded mb-2">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                  </svg>
-                  Intended for Ads
-                </span>
+                <div className="mb-3">
+                  <StatusPill tone="warning" size="md" dot={false}>
+                    Intended for Ads
+                  </StatusPill>
+                </div>
               )}
               <h1 className="text-3xl font-bold mb-3">{brief.title}</h1>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-3 py-1.5 bg-accent-muted text-accent text-sm font-medium rounded-full">
                   {categoryLabel(brief.category)}
                 </span>
-                <span className="px-3 py-1.5 bg-border text-muted text-sm font-mono rounded-full">
+                <span className="px-3 py-1.5 bg-surface-raised text-muted text-sm font-mono rounded-full border border-border">
                   {formatLabel(brief.format)}
                 </span>
                 {brief.gym && (
-                  <span className="px-3 py-1.5 bg-border text-muted text-sm rounded-full">
+                  <span className="px-3 py-1.5 bg-surface-raised text-muted text-sm rounded-full border border-border">
                     {brief.gym}
                   </span>
                 )}
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="font-mono text-3xl text-accent font-bold">
                 {formatPrice(brief.price_dkk)}
               </p>
@@ -149,7 +148,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                   <h2 className="text-lg font-semibold mb-3">
                     Deliverable Specs
                   </h2>
-                  <div className="bg-surface border border-border rounded-lg p-4">
+                  <div className="bg-surface-raised border border-border rounded-lg p-4">
                     <dl className="grid gap-3 sm:grid-cols-2">
                       {Object.entries(specs).map(([key, value]) => (
                         <div key={key}>
@@ -196,16 +195,20 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
 
             {/* Sidebar */}
             <div className="lg:col-span-1 space-y-4">
-              <div className="sticky top-8 space-y-4">
-              <div className="bg-surface border border-border rounded-xl p-6">
+              <div className="sticky top-20 space-y-4">
+              <div className="bg-surface-raised border border-border rounded-xl p-6 shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset]">
                 {/* Slots info */}
                 <div className="mb-4 pb-4 border-b border-border">
-                  <p className="text-sm text-muted mb-1">Availability</p>
+                  <p className="text-xs text-muted uppercase tracking-wider mb-2">
+                    Availability
+                  </p>
                   <p className="font-mono text-lg">
                     <span className={slotsAvailable > 0 ? "text-foreground" : "text-warning"}>
                       {slotsAvailable}
                     </span>
-                    {" "}of {claimLimit} slot{claimLimit !== 1 ? "s" : ""} available
+                    <span className="text-muted">
+                      {" "}of {claimLimit} slot{claimLimit !== 1 ? "s" : ""}
+                    </span>
                   </p>
                 </div>
 
@@ -234,14 +237,16 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                         Claim Brief
                       </button>
                     ) : (
-                      <div className="space-y-3">
-                        <p className="text-sm text-warning">
-                          Are you sure? This will reserve a slot for 7 days.
+                      <div className="space-y-3 bg-warning-muted border border-warning/30 rounded-lg p-3">
+                        <p className="text-sm text-foreground">
+                          <span className="font-medium text-warning">Heads up:</span>{" "}
+                          this reserves a slot for 7 days. You can release it
+                          anytime.
                         </p>
                         <div className="flex gap-2">
                           <button
                             onClick={() => setShowConfirm(false)}
-                            className="flex-1 py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+                            className="flex-1 py-2.5 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
                           >
                             Cancel
                           </button>
@@ -250,7 +255,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                             disabled={claiming}
                             className="flex-1 py-2.5 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-lg transition-colors"
                           >
-                            {claiming ? "Claiming..." : "Confirm"}
+                            {claiming ? "Claiming..." : "Confirm claim"}
                           </button>
                         </div>
                       </div>
@@ -345,18 +350,18 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
   if (claim.status === "submitted") {
     return (
       <div className="text-center">
-        <div className="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center mx-auto mb-3">
-          <svg className="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="w-12 h-12 bg-info-muted rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <p className="text-warning font-medium mb-2">Under Review</p>
+        <p className="font-semibold mb-1">Under review</p>
         <p className="text-muted text-sm mb-4">
-          Your submission is being reviewed by the team
+          Your submission is with the team. We&apos;ll email you when it&apos;s reviewed.
         </p>
         <Link
           href="/my-briefs"
-          className="block w-full py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
+          className="block w-full py-2.5 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
         >
           View in My Briefs
         </Link>
@@ -368,18 +373,18 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
   if (claim.status === "approved") {
     return (
       <div className="text-center">
-        <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-3">
+        <div className="w-12 h-12 bg-success-muted rounded-full flex items-center justify-center mx-auto mb-3">
           <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <p className="text-success font-medium mb-2">Approved</p>
+        <p className="font-semibold mb-1">Approved</p>
         <p className="text-muted text-sm mb-4">
-          Your submission has been approved. Payment coming soon.
+          Payment is on its way. You&apos;ll get an invoice you can download.
         </p>
         <Link
           href="/my-briefs"
-          className="block w-full py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
+          className="block w-full py-2.5 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
         >
           View in My Briefs
         </Link>
@@ -391,13 +396,13 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
   if (claim.status === "paid") {
     return (
       <div className="text-center">
-        <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-3">
+        <div className="w-12 h-12 bg-success-muted rounded-full flex items-center justify-center mx-auto mb-3">
           <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <p className="text-success font-medium mb-2">Completed</p>
-        <p className="text-muted text-sm">Payment has been sent</p>
+        <p className="font-semibold mb-1">Completed</p>
+        <p className="text-muted text-sm">Payment has been sent.</p>
       </div>
     );
   }
@@ -407,25 +412,29 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
     <div>
       {!showSubmitForm && !showCancelConfirm && (
         <>
-          <p className="text-accent font-medium mb-2 text-center">You claimed this brief</p>
-          <p className="text-muted text-sm mb-4 text-center">
-            Expires: {formatDeadline(claim.expires_at)}
+          <div className="flex justify-center mb-3">
+            <StatusPill tone="info" size="md" pulse>
+              Claimed by you
+            </StatusPill>
+          </div>
+          <p className="text-muted text-sm mb-4 text-center font-mono">
+            Expires {formatDeadline(claim.expires_at)}
           </p>
 
           {error && (
             <p className="text-error text-sm mb-4 text-center">{error}</p>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <button
               onClick={() => setShowSubmitForm(true)}
               className="w-full py-2.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors"
             >
-              Submit Work
+              Submit work
             </button>
             <Link
               href="/my-briefs"
-              className="block w-full py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
+              className="block w-full py-2.5 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors text-center"
             >
               View in My Briefs
             </Link>
@@ -433,7 +442,7 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
               onClick={() => setShowCancelConfirm(true)}
               className="w-full py-2.5 text-muted hover:text-error text-sm transition-colors"
             >
-              Cancel Claim
+              Release claim
             </button>
           </div>
         </>
@@ -496,23 +505,24 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
       )}
 
       {showCancelConfirm && (
-        <div className="space-y-3 text-center">
-          <p className="text-sm text-warning">
-            Are you sure you want to release this brief?
+        <div className="space-y-3 bg-error-muted border border-error/30 rounded-lg p-3">
+          <p className="text-sm">
+            <span className="font-medium text-error">Release this claim?</span>{" "}
+            The slot will open for another creator.
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setShowCancelConfirm(false)}
-              className="flex-1 py-2.5 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+              className="flex-1 py-2.5 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
             >
-              Keep
+              Keep it
             </button>
             <button
               onClick={handleCancel}
               disabled={cancelling}
               className="flex-1 py-2.5 bg-error hover:bg-error/80 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
             >
-              {cancelling ? "Cancelling..." : "Release"}
+              {cancelling ? "Releasing..." : "Release"}
             </button>
           </div>
         </div>
@@ -532,7 +542,7 @@ function SubmissionChecklist() {
   const allChecked = Object.values(checks).every(Boolean);
 
   return (
-    <div className="bg-background border border-border rounded-lg p-3">
+    <div className="bg-surface border border-border rounded-lg p-3">
       <p className="text-xs font-medium text-muted uppercase tracking-wider mb-3">
         Pre-submission checklist
       </p>

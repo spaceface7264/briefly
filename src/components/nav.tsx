@@ -40,21 +40,24 @@ export function Nav() {
   }, []);
 
   return (
-    <header className="border-b border-border bg-surface">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/briefs" className="flex items-center">
+        <div className="flex items-center justify-between h-16 gap-4">
+          <Link
+            href="/briefs"
+            className="flex items-center shrink-0 -ml-1 px-1 py-1 rounded-md"
+          >
             <Image
               src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
               alt="Boulders"
               width={120}
               height={32}
-              className="h-8 w-auto"
+              className="h-7 w-auto"
               priority
             />
           </Link>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5 overflow-x-auto">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -63,20 +66,26 @@ export function Nav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`relative px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
-                      ? "bg-accent text-background"
-                      : "text-muted hover:text-foreground hover:bg-surface-hover"
+                      ? "text-foreground bg-surface-raised"
+                      : "text-muted hover:text-foreground hover:bg-surface"
                   }`}
                 >
                   {item.label}
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-1/2 -bottom-[9px] -translate-x-1/2 w-1 h-1 rounded-full bg-accent"
+                    />
+                  )}
                 </Link>
               );
             })}
             {isAdmin && (
               <Link
                 href="/admin"
-                className={`ml-2 px-4 py-2 rounded-lg text-sm font-medium border border-accent text-accent hover:bg-accent hover:text-background transition-[opacity,background-color,color] duration-200 ${
+                className={`ml-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border border-accent/60 text-accent hover:bg-accent hover:text-background transition-[opacity,background-color,color] duration-200 whitespace-nowrap ${
                   adminChecked ? "opacity-100" : "opacity-0"
                 }`}
               >
