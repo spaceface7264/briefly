@@ -23,12 +23,25 @@ export default async function MyBriefsPage() {
   }
 
   // Fetch user's claims with brief details + any succeeded invoice
+  // Try with payments join first; fall back without if the table doesn't exist yet
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: claims, error } = await (supabase
+  let { data: claims, error } = await (supabase
     .from("claims") as any)
     .select("*, brief:briefs(*), payments:payments(id, invoice_number, status)")
     .eq("user_id", user.id)
     .order("claimed_at", { ascending: false });
+
+  if (error) {
+    // payments table may not exist yet — retry without it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fallback = await (supabase.from("claims") as any)
+      .select("*, brief:briefs(*)")
+      .eq("user_id", user.id)
+      .order("claimed_at", { ascending: false });
+
+    claims = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error("Error fetching claims:", {

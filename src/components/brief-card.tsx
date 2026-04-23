@@ -19,12 +19,12 @@ export function BriefCard({ brief }: BriefCardProps) {
   const isFull = slotsAvailable <= 0;
 
   const containerClasses = [
-    "relative block rounded-xl p-5 transition-all",
+    "relative block rounded-xl p-5 transition-all duration-200",
     userHasClaimed
-      ? "bg-info-muted/30 border border-info/40 hover:border-info"
+      ? "bg-surface border border-accent/25 hover:border-accent/50"
       : isFull
-        ? "bg-surface/60 border border-border hover:border-border-strong opacity-75"
-        : "bg-surface border border-border hover:border-accent/60 hover:bg-surface-hover",
+        ? "bg-surface/50 border border-border opacity-60 hover:opacity-80"
+        : "bg-surface border border-border hover:border-border-strong hover:bg-surface-hover",
     "group",
   ].join(" ");
 
@@ -33,7 +33,7 @@ export function BriefCard({ brief }: BriefCardProps) {
       {userHasClaimed && (
         <span
           aria-hidden="true"
-          className="absolute left-0 top-4 bottom-4 w-0.5 bg-info rounded-r"
+          className="absolute left-0 top-4 bottom-4 w-0.5 bg-accent rounded-r"
         />
       )}
 
@@ -41,8 +41,8 @@ export function BriefCard({ brief }: BriefCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             {userHasClaimed && (
-              <StatusPill tone="info" pulse>
-                Claimed by you
+              <StatusPill tone="brand" pulse>
+                Claimed
               </StatusPill>
             )}
             {brief.is_ad_intended && (
@@ -51,11 +51,11 @@ export function BriefCard({ brief }: BriefCardProps) {
               </StatusPill>
             )}
           </div>
-          <h3 className="font-semibold text-lg group-hover:text-accent transition-colors line-clamp-2">
+          <h3 className="font-semibold text-base group-hover:text-foreground transition-colors line-clamp-2">
             {brief.title}
           </h3>
         </div>
-        <span className="font-mono text-accent text-lg whitespace-nowrap">
+        <span className="font-mono text-accent text-base font-medium whitespace-nowrap">
           {formatPrice(brief.price_dkk)}
         </span>
       </div>
@@ -63,19 +63,19 @@ export function BriefCard({ brief }: BriefCardProps) {
       <p className="text-muted text-sm line-clamp-2 mb-4">{brief.description}</p>
 
       <div className="flex flex-wrap items-center gap-1.5 mb-4">
-        <span className="px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full">
+        <span className="px-2 py-0.5 bg-accent-muted text-accent text-xs font-medium rounded-md">
           {categoryLabel(brief.category)}
         </span>
-        <span className="px-2.5 py-1 bg-surface-raised text-muted text-xs font-mono rounded-full border border-border">
+        <span className="px-2 py-0.5 bg-surface-raised text-muted text-xs font-mono rounded-md border border-border">
           {formatLabel(brief.format)}
         </span>
         {brief.gym && (
-          <span className="px-2.5 py-1 bg-surface-raised text-muted text-xs rounded-full border border-border">
+          <span className="px-2 py-0.5 bg-surface-raised text-muted text-xs rounded-md border border-border">
             {brief.gym}
           </span>
         )}
         {brief.deadline && (
-          <span className="px-2.5 py-1 bg-surface-raised text-muted text-xs font-mono rounded-full border border-border">
+          <span className="px-2 py-0.5 bg-surface-raised text-muted text-xs font-mono rounded-md border border-border">
             {formatDeadline(brief.deadline)}
           </span>
         )}
@@ -83,7 +83,7 @@ export function BriefCard({ brief }: BriefCardProps) {
 
       <div className="flex items-center justify-between text-xs pt-3 border-t border-border">
         {userHasClaimed ? (
-          <span className="text-info font-medium">Open to continue →</span>
+          <span className="text-accent font-medium">Continue →</span>
         ) : isFull ? (
           <span className="text-muted">No slots available</span>
         ) : (

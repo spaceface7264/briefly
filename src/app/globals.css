@@ -1,36 +1,35 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Neutrals - cool-tinted dark theme with three elevation tiers */
-  --color-background: #0a0a0d;
-  --color-foreground: #f3f3f5;
-  --color-surface: #141418;
-  --color-surface-raised: #1c1c22;
-  --color-surface-hover: #1f1f26;
-  --color-border: #27272f;
-  --color-border-strong: #3a3a44;
-  --color-muted: #8a8a92;
+  /* Neutrals — warm-tinted dark with clear elevation tiers */
+  --color-background: #0B0B0F;
+  --color-foreground: #EDEDF0;
+  --color-surface: #14141A;
+  --color-surface-raised: #1C1C24;
+  --color-surface-hover: #22222C;
+  --color-border: #2A2A35;
+  --color-border-strong: #3D3D4A;
+  --color-muted: #78788A;
 
-  /* Brand magenta - softened from pure #ff00ff to reduce eye strain
-     while staying visually identical at a glance */
-  --color-accent: #f318e8;
-  --color-accent-hover: #d500c7;
-  --color-accent-muted: rgba(243, 24, 232, 0.15);
-  --color-accent-soft: rgba(243, 24, 232, 0.08);
+  /* Brand lime — energetic, high-contrast on dark */
+  --color-accent: #C8FF00;
+  --color-accent-hover: #B2E600;
+  --color-accent-muted: rgba(200, 255, 0, 0.12);
+  --color-accent-soft: rgba(200, 255, 0, 0.06);
 
-  /* Status colors - each hue clearly distinct at a glance */
-  --color-info: #3b82f6;
-  --color-info-muted: rgba(59, 130, 246, 0.15);
-  --color-success: #10b981;
-  --color-success-muted: rgba(16, 185, 129, 0.15);
-  --color-warning: #f59e0b;
-  --color-warning-muted: rgba(245, 158, 11, 0.15);
-  --color-error: #ef4444;
-  --color-error-muted: rgba(239, 68, 68, 0.15);
+  /* Status colors — desaturated so they don't compete with accent */
+  --color-info: #7B9EFF;
+  --color-info-muted: rgba(123, 158, 255, 0.12);
+  --color-success: #34D399;
+  --color-success-muted: rgba(52, 211, 153, 0.12);
+  --color-warning: #FBBF24;
+  --color-warning-muted: rgba(251, 191, 36, 0.10);
+  --color-error: #F87171;
+  --color-error-muted: rgba(248, 113, 113, 0.12);
 
   /* Fonts */
-  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
-  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+  --font-sans: var(--font-plus-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
   /* Fluid type scale */
   --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.8rem);
@@ -56,8 +55,17 @@ body {
 }
 
 ::selection {
-  background: var(--color-accent-muted);
+  background: rgba(200, 255, 0, 0.25);
   color: var(--color-foreground);
+}
+
+/* Hide scrollbar but keep scrollable */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 ::-webkit-scrollbar {

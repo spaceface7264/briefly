@@ -127,7 +127,7 @@ function LoginForm() {
             onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
               mode === "login"
-                ? "bg-accent text-background"
+                ? "bg-accent text-background font-bold"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -138,7 +138,7 @@ function LoginForm() {
             onClick={() => { setMode("signup"); setError(""); setSuccess(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
               mode === "signup"
-                ? "bg-accent text-background"
+                ? "bg-accent text-background font-bold"
                 : "text-muted hover:text-foreground"
             }`}
           >

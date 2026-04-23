@@ -200,7 +200,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
                 type="button"
                 onClick={f.clear}
                 aria-label={`Remove filter: ${f.label}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-info-muted text-info text-xs font-medium rounded-full border border-info/30 hover:bg-info hover:text-background hover:border-info transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-md border border-accent/20 hover:bg-accent hover:text-background hover:border-accent transition-colors"
               >
                 {f.label}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

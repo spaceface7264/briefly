@@ -6,9 +6,9 @@ Invite-only content creator platform for Boulders climbing gyms.
 
 - Next.js 15 (App Router)
 - TypeScript
-- Tailwind CSS 4 (dark-first, magenta #ff00ff accent)
+- Tailwind CSS 4 (dark-first, lime #C8FF00 accent)
 - Supabase (Auth + Postgres + RLS)
-- Fonts: DM Sans + DM Mono
+- Fonts: Plus Jakarta Sans + JetBrains Mono
 
 ## Development
 

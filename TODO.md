@@ -11,12 +11,12 @@ Work top to bottom — each section has its own preconditions.
 Run in order via the Supabase Dashboard → SQL Editor. Copy/paste each file's
 contents into a new query and run it.
 
-- [ ] `supabase/migrations/0008_notification_preferences.sql` — adds the
+- [X] `supabase/migrations/0008_notification_preferences.sql` — adds the
   initial `email_notifications_enabled` column on `profiles`
-- [ ] `supabase/migrations/0009_notification_types.sql` — replaces the
+- [X] `supabase/migrations/0009_notification_types.sql` — replaces the
   single column with per-type columns (`notify_submissions`,
   `notify_new_briefs`), copying any prior opt-outs into both
-- [ ] `supabase/migrations/0010_claim_auto_expiry.sql` — enables pg_cron
+- [X] `supabase/migrations/0010_claim_auto_expiry.sql` — enables pg_cron
   and schedules an hourly job that flips `active` claims past
   `expires_at` to `cancelled`, releasing the slot against `claim_limit`
 
@@ -47,8 +47,8 @@ ordering or formatting. After the migrations apply:
 npx supabase gen types typescript --project-id <PROJECT_ID> > src/types/database.ts
 ```
 
-- [ ] Regenerate types
-- [ ] Re-run `npm run build` to confirm nothing drifted
+- [X] Regenerate types
+- [X] Re-run `npm run build` to confirm nothing drifted
 
 ---
 

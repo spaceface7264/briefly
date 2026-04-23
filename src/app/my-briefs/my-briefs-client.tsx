@@ -22,7 +22,7 @@ const statusGroups: {
     status: "active",
     title: "In Progress",
     description: "Briefs you are currently working on",
-    tone: "info",
+    tone: "brand",
   },
   {
     status: "submitted",
@@ -57,7 +57,7 @@ function claimStatusLabel(status: string): string {
 
 function claimStatusTone(status: string): StatusTone {
   const tones: Record<string, StatusTone> = {
-    active: "info",
+    active: "brand",
     submitted: "warning",
     approved: "success",
     paid: "neutral",
@@ -129,8 +129,8 @@ export function MyBriefsClient({ claims }: Props) {
                           className={`inline-block w-2 h-2 rounded-full ${
                             isEmpty
                               ? "bg-border-strong"
-                              : group.tone === "info"
-                                ? "bg-info"
+                              : group.tone === "brand"
+                                ? "bg-accent"
                                 : group.tone === "warning"
                                   ? "bg-warning"
                                   : group.tone === "success"
