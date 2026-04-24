@@ -64,7 +64,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_env }}" = "staging" ]; then
             npx opennextjs-cloudflare deploy --env staging
           else
-            npx opennextjs-cloudflare deploy
+            npx opennextjs-cloudflare deploy --env ""
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
