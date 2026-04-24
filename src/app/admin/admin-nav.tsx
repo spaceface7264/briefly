@@ -93,6 +93,7 @@ export function AdminNav() {
 
   useEffect(() => {
     if (!userId) return;
+    const currentUserId = userId;
     const supabase = createClient();
     let channel: RealtimeChannel | null = null;
 
@@ -100,7 +101,7 @@ export function AdminNav() {
       const { count } = await supabase
         .from("notifications")
         .select("id", { head: true, count: "exact" })
-        .eq("recipient_id", userId)
+        .eq("recipient_id", currentUserId)
         .eq("event_type", "claim_submitted")
         .is("read_at", null);
 
@@ -110,14 +111,14 @@ export function AdminNav() {
     loadUnread();
 
     channel = supabase
-      .channel(`admin-claims-unread:${userId}`)
+      .channel(`admin-claims-unread:${currentUserId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "notifications",
-          filter: `recipient_id=eq.${userId}`,
+          filter: `recipient_id=eq.${currentUserId}`,
         },
         () => {
           loadUnread();
