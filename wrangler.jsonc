@@ -24,7 +24,8 @@
   },
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://hfepjqlbwcwhppbxxpkr.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZXBqcWxid2N3aHBwYnh4cGtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTEyNTcsImV4cCI6MjA5MjM2NzI1N30.IMtFmTWaZC3rQgr9n2OjomvZhmS_FBMzksfKbldJ8nw"
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZXBqcWxid2N3aHBwYnh4cGtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTEyNTcsImV4cCI6MjA5MjM2NzI1N30.IMtFmTWaZC3rQgr9n2OjomvZhmS_FBMzksfKbldJ8nw",
+    "NEXT_PUBLIC_APP_URL": "https://creators.boulders.dk"
   },
   "env": {
     "staging": {

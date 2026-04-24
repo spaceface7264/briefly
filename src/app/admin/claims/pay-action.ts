@@ -191,7 +191,7 @@ export async function payClaim(claimId: string): Promise<PayResult> {
           invoice_number: invoiceNumber,
         },
       },
-      { idempotencyKey: `claim-${claim.id}` }
+      { idempotencyKey: `payment-${payment.id}` }
     );
 
     await supabase
