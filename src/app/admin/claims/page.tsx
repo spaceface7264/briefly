@@ -16,7 +16,7 @@ export default async function AdminClaimsPage({
   // Always fetch all claims so tab counts are accurate; filter the displayed list below
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: allClaims } = await (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle)")
+    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled)")
     .order("claimed_at", { ascending: false });
 
   const claims = statusFilter
