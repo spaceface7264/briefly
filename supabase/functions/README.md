@@ -1,11 +1,12 @@
 # Email Notifications Setup
 
-This project includes two Supabase Edge Functions for email notifications via Resend.
+This project includes Supabase Edge Functions for email notifications via Resend.
 
 ## Functions
 
-1. **notify-submission** - Notifies admins when a creator submits work
-2. **notify-new-brief** - Notifies all creators when a new brief is published
+1. **notify-submission** - Legacy webhook notifier for submission events
+2. **notify-new-brief** - Legacy webhook notifier for newly published briefs
+3. **process-notification-outbox** - Processes queued notification emails from `notification_outbox`
 
 ## Setup Instructions
 
@@ -26,6 +27,18 @@ npx supabase link --project-ref hfepjqlbwcwhppbxxpkr
 ```bash
 npx supabase functions deploy notify-submission
 npx supabase functions deploy notify-new-brief
+npx supabase functions deploy process-notification-outbox
+### 3b. Configure outbox processing
+
+Set up a Supabase Function schedule (or external cron) to run every minute:
+
+```bash
+curl -X POST https://hfepjqlbwcwhppbxxpkr.supabase.co/functions/v1/process-notification-outbox \
+  -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY"
+```
+
+This worker consumes pending records in `notification_outbox`, applies profile preferences, retries with exponential backoff, and marks sends as delivered.
+
 ```
 
 ### 4. Set the Resend API key

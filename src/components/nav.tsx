@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationCenter } from "@/components/notification-center";
+import type { NotificationRow } from "@/lib/notification-center";
 
 const navItems = [
   { href: "/briefs", label: "Briefs" },
@@ -32,15 +35,20 @@ export function Nav() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     async function checkAdmin() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setUserId(null);
         setAdminChecked(true);
         return;
       }
+      setUserId(user.id);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: profile } = await (supabase.from("profiles") as any)
@@ -53,6 +61,52 @@ export function Nav() {
     }
     checkAdmin();
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createClient();
+    let channel: RealtimeChannel | null = null;
+
+    async function loadNotifications() {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("recipient_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      const rows = (data ?? []) as NotificationRow[];
+      setNotifications(rows);
+      setUnreadCount(rows.filter((row) => !row.read_at).length);
+    }
+
+    function subscribe() {
+      channel = supabase
+        .channel(`notifications:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${userId}`,
+          },
+          () => {
+            loadNotifications();
+          }
+        )
+        .subscribe();
+    }
+
+    loadNotifications();
+    subscribe();
+
+    return () => {
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [userId]);
 
   const isProfileActive = pathname.startsWith("/profile");
 
@@ -141,6 +195,12 @@ export function Nav() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <NotificationCenter
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onNotificationsChange={setNotifications}
+              onUnreadCountChange={setUnreadCount}
+            />
 
             {isAdmin && (
               <Link

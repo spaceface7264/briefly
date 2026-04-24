@@ -149,6 +149,110 @@ export type Database = {
           },
         ]
       }
+      notification_outbox: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          notification_id: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          notification_id: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          notification_id?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_outbox_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: true
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          body: string
+          created_at: string
+          dedupe_key: string
+          entity_id: string
+          entity_type: string
+          event_type: Database["public"]["Enums"]["notification_event_type"]
+          id: string
+          metadata: Json
+          read_at: string | null
+          recipient_id: string
+          title: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body: string
+          created_at?: string
+          dedupe_key: string
+          entity_id: string
+          entity_type: string
+          event_type: Database["public"]["Enums"]["notification_event_type"]
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          recipient_id: string
+          title: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string
+          created_at?: string
+          dedupe_key?: string
+          entity_id?: string
+          entity_type?: string
+          event_type?: Database["public"]["Enums"]["notification_event_type"]
+          id?: string
+          metadata?: Json
+          read_at?: string | null
+          recipient_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           billing_address_line1: string | null
@@ -162,7 +266,10 @@ export type Database = {
           id: string
           instagram_handle: string | null
           name: string | null
+          notify_claim_queue: boolean
+          notify_claim_updates: boolean
           notify_new_briefs: boolean
+          notify_payments: boolean
           notify_submissions: boolean
           role: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at: string | null
@@ -187,7 +294,10 @@ export type Database = {
           id: string
           instagram_handle?: string | null
           name?: string | null
+          notify_claim_queue?: boolean
+          notify_claim_updates?: boolean
           notify_new_briefs?: boolean
+          notify_payments?: boolean
           notify_submissions?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
@@ -212,7 +322,10 @@ export type Database = {
           id?: string
           instagram_handle?: string | null
           name?: string | null
+          notify_claim_queue?: boolean
+          notify_claim_updates?: boolean
           notify_new_briefs?: boolean
+          notify_payments?: boolean
           notify_submissions?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
@@ -357,6 +470,21 @@ export type Database = {
     }
     Functions: {
       allocate_invoice_number: { Args: { p_year: number }; Returns: number }
+      create_notification_for_user: {
+        Args: {
+          p_actor_id: string
+          p_body: string
+          p_dedupe_key: string
+          p_entity_id: string
+          p_entity_type: string
+          p_event_type: Database["public"]["Enums"]["notification_event_type"]
+          p_metadata: Json
+          p_recipient_id: string
+          p_title: string
+        }
+        Returns: undefined
+      }
+      expire_stale_claims: { Args: never; Returns: number }
       get_active_claim_count: { Args: { brief_uuid: string }; Returns: number }
       is_admin: { Args: never; Returns: boolean }
       user_has_claimed: { Args: { brief_uuid: string }; Returns: boolean }
@@ -371,6 +499,15 @@ export type Database = {
         | "approved"
         | "paid"
         | "archived"
+      notification_event_type:
+        | "claim_created"
+        | "claim_submitted"
+        | "claim_approved"
+        | "claim_rejected"
+        | "claim_paid"
+        | "claim_released"
+        | "claim_expired"
+        | "brief_published"
       payment_status: "pending" | "succeeded" | "failed"
       user_role: "creator" | "admin"
       vat_scheme: "none" | "standard" | "reverse_charge"
@@ -511,6 +648,16 @@ export const Constants = {
         "paid",
         "archived",
       ],
+      notification_event_type: [
+        "claim_created",
+        "claim_submitted",
+        "claim_approved",
+        "claim_rejected",
+        "claim_paid",
+        "claim_released",
+        "claim_expired",
+        "brief_published",
+      ],
       payment_status: ["pending", "succeeded", "failed"],
       user_role: ["creator", "admin"],
       vat_scheme: ["none", "standard", "reverse_charge"],
@@ -522,12 +669,15 @@ export const Constants = {
 export type Profile = Tables<"profiles">;
 export type Brief = Tables<"briefs">;
 export type Claim = Tables<"claims">;
+export type Notification = Tables<"notifications">;
+export type NotificationOutbox = Tables<"notification_outbox">;
 export type Payment = Tables<"payments">;
 
 export type BriefCategory = Enums<"brief_category">;
 export type BriefFormat = Enums<"brief_format">;
 export type BriefStatus = Enums<"brief_status">;
 export type PaymentStatus = Enums<"payment_status">;
+export type NotificationEventType = Enums<"notification_event_type">;
 export type VatScheme = Enums<"vat_scheme">;
 export type UserRole = Enums<"user_role">;
 export type ClaimStatus = "active" | "submitted" | "approved" | "paid" | "cancelled";

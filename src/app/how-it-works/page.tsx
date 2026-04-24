@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Nav } from "@/components/nav";
+import { RECLAIM_COOLDOWN_DAYS } from "@/lib/claims";
 
 const steps = [
   {
@@ -44,6 +45,10 @@ const faq = [
   {
     q: "What do I need to set up before payout?",
     a: "Complete billing details, accept the self-billing agreement, and connect your Stripe payout account.",
+  },
+  {
+    q: "Can I release and reclaim the same brief immediately?",
+    a: `No. After a release/cancel, reclaiming the same brief is blocked for ${RECLAIM_COOLDOWN_DAYS} days.`,
   },
 ];
 

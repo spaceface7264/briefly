@@ -1,16 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
-import { StatusPill, type StatusTone } from "@/components/status-pill";
+import type { StatusTone } from "@/components/status-pill";
 import type { ClaimStatus } from "@/types/database";
 import type { ClaimWithBrief } from "./page";
 import {
   formatPrice,
-  formatDeadline,
   categoryLabel,
   formatLabel,
 } from "@/lib/utils";
+
+function formatShortDate(date: string | null | undefined) {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+}
 
 const statusGroups: {
   status: ClaimStatus;
@@ -34,7 +42,7 @@ const statusGroups: {
     status: "approved",
     title: "Approved",
     description: "Ready for payment",
-    tone: "brand",
+    tone: "info",
   },
   {
     status: "paid",
@@ -44,33 +52,47 @@ const statusGroups: {
   },
 ];
 
-function claimStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    active: "In Progress",
-    submitted: "Submitted",
-    approved: "Approved",
-    paid: "Paid",
-    cancelled: "Cancelled",
-  };
-  return labels[status] || status;
-}
-
-function claimStatusTone(status: string): StatusTone {
-  const tones: Record<string, StatusTone> = {
-    active: "brand",
-    submitted: "info",
-    approved: "brand",
-    paid: "success",
-    cancelled: "danger",
-  };
-  return tones[status] || "neutral";
-}
+const statusTheme: Record<
+  ClaimStatus,
+  {
+    summaryCard: string;
+    rowCard: string;
+    dot: string;
+  }
+> = {
+  active: {
+    summaryCard: "bg-accent/6 border-accent/20",
+    rowCard: "bg-accent/6 border-accent/22 hover:border-accent/38",
+    dot: "bg-accent",
+  },
+  submitted: {
+    summaryCard: "bg-info/8 border-info/22",
+    rowCard: "bg-info/8 border-info/24 hover:border-info/40",
+    dot: "bg-info",
+  },
+  approved: {
+    summaryCard: "bg-success/8 border-success/22",
+    rowCard: "bg-success/8 border-success/24 hover:border-success/40",
+    dot: "bg-success",
+  },
+  paid: {
+    summaryCard: "bg-success/10 border-success/26",
+    rowCard: "bg-success/10 border-success/28 hover:border-success/44",
+    dot: "bg-success",
+  },
+  cancelled: {
+    summaryCard: "bg-error/8 border-error/22",
+    rowCard: "bg-error/8 border-error/24 hover:border-error/40",
+    dot: "bg-error",
+  },
+};
 
 interface Props {
   claims: ClaimWithBrief[];
 }
 
 export function MyBriefsClient({ claims }: Props) {
+  const router = useRouter();
   const groupedClaims = statusGroups.map((group) => ({
     ...group,
     claims: claims.filter((c) => c.status === group.status),
@@ -83,9 +105,9 @@ export function MyBriefsClient({ claims }: Props) {
       <Nav />
       <main className="flex-1">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">My Briefs</h1>
-            <p className="text-text-secondary">Track your claimed briefs and submissions</p>
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">My Briefs</h1>
+            <p className="text-sm text-text-secondary">Track your claimed briefs and submissions</p>
           </div>
 
           {!hasAnyClaims ? (
@@ -107,21 +129,21 @@ export function MyBriefsClient({ claims }: Props) {
           ) : (
             <>
               {/* Status summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-8">
                 {groupedClaims.map((group) => {
                   const count = group.claims.length;
                   const isEmpty = count === 0;
                   return (
                     <div
                       key={group.status}
-                      className={`rounded-lg p-4 border ${
+                      className={`rounded-lg px-4 py-3 border ${
                         isEmpty
                           ? "bg-surface/40 border-border"
-                          : "bg-surface border-border"
+                          : statusTheme[group.status].summaryCard
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <p className={`value-text text-2xl font-bold ${isEmpty ? "text-muted" : ""}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={`value-text text-[1.8rem] leading-none font-bold ${isEmpty ? "text-muted" : ""}`}>
                           {count}
                         </p>
                         <span
@@ -129,17 +151,11 @@ export function MyBriefsClient({ claims }: Props) {
                           className={`inline-block w-2 h-2 rounded-full ${
                             isEmpty
                               ? "bg-border-strong"
-                              : group.tone === "brand"
-                                ? "bg-accent"
-                                : group.tone === "warning"
-                                  ? "bg-warning"
-                                  : group.tone === "success"
-                                    ? "bg-success"
-                                    : "bg-muted"
+                              : statusTheme[group.status].dot
                           }`}
                         />
                       </div>
-                      <p className="text-xs text-muted uppercase tracking-wider">
+                      <p className="text-[0.7rem] text-muted uppercase tracking-wider">
                         {group.title}
                       </p>
                     </div>
@@ -147,16 +163,16 @@ export function MyBriefsClient({ claims }: Props) {
                 })}
               </div>
 
-              <div className="space-y-10">
+              <div className="space-y-8">
                 {groupedClaims.map((group) => (
                   <section key={group.status}>
-                    <div className="flex items-baseline gap-3 mb-4">
-                      <h2 className="text-xl font-semibold">{group.title}</h2>
-                      <span className="value-text text-muted text-sm">
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <h2 className="text-lg font-semibold">{group.title}</h2>
+                      <span className="value-text text-muted text-xs">
                         {group.claims.length}
                       </span>
                     </div>
-                    <p className="text-text-secondary text-sm mb-4 -mt-3">
+                    <p className="text-text-secondary text-sm mb-3 -mt-2">
                       {group.description}
                     </p>
 
@@ -167,73 +183,69 @@ export function MyBriefsClient({ claims }: Props) {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         {group.claims.map((claim) => (
                           <div
                             key={claim.id}
-                            className="relative bg-surface border border-border rounded-xl p-5 hover:border-border-strong hover:bg-surface-hover transition-all"
+                            role="link"
+                            tabIndex={0}
+                            aria-label={`Open brief: ${claim.brief.title}`}
+                            onClick={() => router.push(`/briefs/${claim.brief_id}`)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                router.push(`/briefs/${claim.brief_id}`);
+                              }
+                            }}
+                            className={`relative border rounded-xl px-4 py-3.5 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${statusTheme[claim.status as ClaimStatus].rowCard}`}
                           >
-                            <Link
-                              href={`/briefs/${claim.brief_id}`}
-                              className="absolute inset-0 rounded-xl"
-                              aria-label={claim.brief.title}
-                            />
-                            <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                  <h3 className="font-semibold text-lg truncate">
-                                    {claim.brief.title}
-                                  </h3>
-                                  <StatusPill tone={claimStatusTone(claim.status)}>
-                                    {claimStatusLabel(claim.status)}
-                                  </StatusPill>
-                                </div>
+                            <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
+                              <h3 className="font-semibold text-[1.05rem] leading-tight">
+                                {claim.brief.title}
+                              </h3>
 
-                                <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                                  <span className="px-2.5 py-1 bg-surface-raised text-foreground text-xs font-medium rounded-full border border-border">
-                                    {categoryLabel(claim.brief.category)}
-                                  </span>
-                                  <span className="px-2.5 py-1 bg-surface-raised text-text-secondary text-xs font-mono rounded-full border border-border">
-                                    {formatLabel(claim.brief.format)}
-                                  </span>
-                                  {claim.brief.gym && (
-                                    <span className="px-2.5 py-1 bg-surface-raised text-text-secondary text-xs rounded-full border border-border">
-                                      {claim.brief.gym}
-                                    </span>
-                                  )}
-                                </div>
+                              <span className="px-2 py-0.5 bg-surface-raised text-foreground text-[0.78rem] font-medium rounded-full border border-border">
+                                {categoryLabel(claim.brief.category)}
+                              </span>
+                              <span className="px-2 py-0.5 bg-surface-raised text-text-secondary text-[0.78rem] font-mono rounded-full border border-border">
+                                {formatLabel(claim.brief.format)}
+                              </span>
+                              {claim.brief.gym && (
+                                <span className="px-2 py-0.5 bg-surface-raised text-text-secondary text-[0.78rem] rounded-full border border-border">
+                                  {claim.brief.gym}
+                                </span>
+                              )}
 
-                                {claim.status === "active" && (
-                                  <p className="text-sm font-mono text-muted">
-                                    Expires {formatDeadline(claim.expires_at)}
-                                  </p>
-                                )}
+                              {claim.status === "active" && (
+                                <span className="font-mono text-xs text-muted/90">
+                                  Expires {formatShortDate(claim.expires_at)}
+                                </span>
+                              )}
 
-                                {claim.status === "paid" && claim.invoice && (
-                                  <a
-                                    href={`/api/invoices/${claim.invoice.id}/pdf`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="relative inline-flex items-center gap-1.5 text-sm text-accent hover:underline"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-                                    </svg>
-                                    Invoice {claim.invoice.invoice_number}
-                                  </a>
-                                )}
-                              </div>
+                              {claim.brief.deadline && (
+                                <span className="font-mono text-xs text-muted/90">
+                                  Due {formatShortDate(claim.brief.deadline)}
+                                </span>
+                              )}
 
-                              <div className="text-left sm:text-right shrink-0">
-                                <p className="value-text text-xl text-accent font-bold">
-                                  {formatPrice(claim.brief.price_dkk)}
-                                </p>
-                                {claim.brief.deadline && (
-                                  <p className="value-text text-muted text-sm mt-1">
-                                    Due {formatDeadline(claim.brief.deadline)}
-                                  </p>
-                                )}
-                              </div>
+                              <span className="ml-auto value-text text-xl text-accent font-bold whitespace-nowrap">
+                                {formatPrice(claim.brief.price_dkk)}
+                              </span>
+
+                              {claim.status === "paid" && claim.invoice && (
+                                <a
+                                  href={`/api/invoices/${claim.invoice.id}/pdf`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="relative inline-flex items-center gap-1.5 text-xs text-accent hover:underline basis-full"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                                  </svg>
+                                  Invoice {claim.invoice.invoice_number}
+                                </a>
+                              )}
                             </div>
                           </div>
                         ))}

@@ -8,17 +8,17 @@ interface ContentTipsProps {
 
 export function ContentTips({ category, isAdIntended }: ContentTipsProps) {
   return (
-    <div className="bg-surface border border-border rounded-lg p-4 space-y-3">
+    <div className="bg-surface border border-border rounded-lg p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Tips</h3>
-        <Link href="/guide" className="text-[0.65rem] text-brand hover:text-brand-hover transition-colors">
+        <h3 className="text-xs font-semibold text-muted uppercase tracking-[0.12em]">Tips</h3>
+        <Link href="/guide" className="text-xs font-medium text-brand hover:text-brand-hover transition-colors">
           Guide →
         </Link>
       </div>
 
       {isAdIntended && (
         <div className="space-y-2 pb-3 border-b border-border">
-          <p className="text-[0.65rem] font-medium text-warning uppercase tracking-wider">For Ads</p>
+          <p className="text-xs font-semibold text-warning uppercase tracking-[0.12em]">For Ads</p>
           <ul className="space-y-1">
             {[
               ["Hook:", "Fang seeren i de første 2-3 sek"],
@@ -26,7 +26,7 @@ export function ContentTips({ category, isAdIntended }: ContentTipsProps) {
               ["Undertekster:", "Placeret i midten"],
               ["Branding:", "Vis Boulders logo tydeligt"],
             ].map(([label, desc], i) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs">
+              <li key={i} className="flex items-start gap-1.5 text-sm">
                 <span className="text-warning mt-px">·</span>
                 <span className="text-muted">
                   <span className="text-text-secondary">{label}</span> {desc}
@@ -38,12 +38,12 @@ export function ContentTips({ category, isAdIntended }: ContentTipsProps) {
       )}
 
       <div className="space-y-2">
-        <p className="text-[0.65rem] font-medium text-brand uppercase tracking-wider">
+        <p className="text-xs font-semibold text-brand uppercase tracking-[0.12em]">
           {getCategoryTipLabel(category)}
         </p>
         <ul className="space-y-1">
           {getCategoryTips(category).map((tip, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-xs">
+            <li key={i} className="flex items-start gap-1.5 text-sm leading-relaxed">
               <span className="text-brand mt-px">·</span>
               <span className="text-muted">{tip}</span>
             </li>

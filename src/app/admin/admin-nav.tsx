@@ -3,6 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const navItems = [
   {
@@ -64,6 +67,70 @@ const navItems = [
 
 export function AdminNav() {
   const pathname = usePathname();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [claimUnread, setClaimUnread] = useState(0);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: RealtimeChannel | null = null;
+
+    async function bootstrap() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+    }
+
+    bootstrap();
+
+    return () => {
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createClient();
+    let channel: RealtimeChannel | null = null;
+
+    async function loadUnread() {
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { head: true, count: "exact" })
+        .eq("recipient_id", userId)
+        .eq("event_type", "claim_submitted")
+        .is("read_at", null);
+
+      setClaimUnread(count ?? 0);
+    }
+
+    loadUnread();
+
+    channel = supabase
+      .channel(`admin-claims-unread:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        () => {
+          loadUnread();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [userId]);
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
@@ -99,6 +166,11 @@ export function AdminNav() {
             >
               {item.icon}
               {item.label}
+              {item.href === "/admin/claims" && claimUnread > 0 && (
+                <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-background/15 px-1.5 text-[11px] font-semibold">
+                  {claimUnread > 99 ? "99+" : claimUnread}
+                </span>
+              )}
             </Link>
           );
         })}
