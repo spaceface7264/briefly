@@ -70,13 +70,12 @@ export function BriefCard({ brief }: BriefCardProps) {
           <span className="whitespace-nowrap">{categoryLabel(brief.category)}</span>
           <span className="text-border select-none">/</span>
           <span className="whitespace-nowrap">{durationClassLabel(brief.duration_class)}</span>
-          {brief.is_ad_intended && (
-            <>
-              <span className="text-border select-none">/</span>
-              <span className="text-warning font-medium">Ad use</span>
-            </>
-          )}
         </div>
+        {brief.is_ad_intended && (
+          <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-warning">
+            Ad
+          </span>
+        )}
         <span className="value-text inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-1.5 py-px text-accent text-xs font-semibold whitespace-nowrap">
           {formatPrice(brief.price_dkk)}
         </span>
