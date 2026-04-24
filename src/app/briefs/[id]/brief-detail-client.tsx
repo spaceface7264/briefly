@@ -6,6 +6,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
+import { ConfirmDialog } from "@/components/modal";
 import { createClient } from "@/lib/supabase/client";
 import type { Brief, Claim } from "@/types/database";
 import {
@@ -20,6 +21,8 @@ interface Props {
   brief: Brief;
   claimCount: number;
   userClaim: Claim | null;
+  reclaimBlockedUntil: string | null;
+  reclaimCooldownDays: number;
 }
 
 const categoryDot: Record<string, string> = {
@@ -45,7 +48,13 @@ function formatShortDate(date: string | null | undefined) {
   });
 }
 
-export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
+export function BriefDetailClient({
+  brief,
+  claimCount,
+  userClaim,
+  reclaimBlockedUntil,
+  reclaimCooldownDays,
+}: Props) {
   const router = useRouter();
   const [claiming, setClaiming] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -53,7 +62,14 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
 
   const claimLimit = brief.claim_limit || 1;
   const slotsAvailable = claimLimit - claimCount;
-  const canClaim = brief.status === "open" && slotsAvailable > 0 && !userClaim;
+  const isReclaimBlocked = Boolean(
+    reclaimBlockedUntil && new Date(reclaimBlockedUntil) > new Date()
+  );
+  const canClaim =
+    brief.status === "open" &&
+    slotsAvailable > 0 &&
+    !userClaim &&
+    !isReclaimBlocked;
   const hasClaim = Boolean(userClaim);
   const isActiveClaim = Boolean(
     userClaim &&
@@ -70,6 +86,13 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
     : "";
 
   async function handleClaim() {
+    if (isReclaimBlocked && reclaimBlockedUntil) {
+      setError(
+        `You can reclaim this brief after ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown).`
+      );
+      return;
+    }
+
     setClaiming(true);
     setError("");
 
@@ -115,7 +138,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
           {/* Breadcrumb */}
           <Link
             href="/briefs"
-            className="inline-flex items-center gap-1.5 text-muted hover:text-foreground text-xs font-mono mb-5 transition-colors"
+            className="inline-flex items-center gap-1.5 text-muted hover:text-foreground text-sm mb-5 transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -126,7 +149,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
           {/* Header — full width, compact */}
           <header className="mb-8">
             {/* Meta row */}
-            <div className="flex items-center gap-2 mb-2 text-xs">
+            <div className="flex items-center gap-2 mb-2 text-sm">
               <span
                 aria-hidden="true"
                 className={`w-1.5 h-1.5 rounded-full ${categoryDot[brief.category] || "bg-muted"}`}
@@ -143,7 +166,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
               {hasClaim && userClaim && (
                 <>
                   <span className="text-border">·</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
                     <span
                       className={`w-1.5 h-1.5 rounded-full bg-accent ${isActiveClaim ? "animate-status-pulse" : ""}`}
                       aria-hidden="true"
@@ -169,7 +192,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                 <p className="value-text text-2xl sm:text-3xl text-accent font-bold leading-none">
                   {formatPrice(brief.price_dkk)}
                 </p>
-                <p className="mt-2 text-[11px] font-medium text-info">
+                <p className="mt-2 text-xs font-medium text-info">
                   Payout after submission approval
                 </p>
               </div>
@@ -177,9 +200,9 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
           </header>
 
           {/* Two-column content */}
-          <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+          <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
             {/* Main content */}
-            <div className="space-y-6 min-w-0">
+            <div className="space-y-8 min-w-0">
               {/* Description */}
               <section>
                 <SectionLabel>Description</SectionLabel>
@@ -202,11 +225,11 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                   <SectionLabel>Specs</SectionLabel>
                   <div className="grid gap-px bg-border rounded-lg overflow-hidden border border-border">
                     {Object.entries(specs).map(([key, value]) => (
-                      <div key={key} className="flex items-baseline gap-4 bg-surface px-4 py-2.5">
-                        <dt className="text-muted text-xs w-32 shrink-0">
+                      <div key={key} className="flex items-baseline gap-4 bg-surface px-4 py-3">
+                        <dt className="text-muted text-sm w-32 shrink-0">
                           {humanizeKey(key)}
                         </dt>
-                        <dd className="font-mono text-sm text-foreground">{value}</dd>
+                        <dd className="text-base text-foreground">{value}</dd>
                       </div>
                     ))}
                   </div>
@@ -217,7 +240,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
               {brief.usage_rights && (
                 <section>
                   <SectionLabel>Usage Rights</SectionLabel>
-                  <p className="text-text-secondary text-sm leading-relaxed">{brief.usage_rights}</p>
+                  <p className="text-text-secondary text-base leading-relaxed">{brief.usage_rights}</p>
                 </section>
               )}
 
@@ -225,14 +248,14 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
               {brief.reference_urls && brief.reference_urls.length > 0 && (
                 <section>
                   <SectionLabel>References</SectionLabel>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {brief.reference_urls.map((url, i) => (
                       <a
                         key={i}
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-brand hover:text-brand-hover text-xs font-mono break-all transition-colors group/ref"
+                        className="flex items-center gap-2 text-brand hover:text-brand-hover text-sm break-all transition-colors group/ref"
                       >
                         <svg className="w-3 h-3 shrink-0 opacity-40 group-hover/ref:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -246,8 +269,8 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
             </div>
 
             {/* Sidebar */}
-            <aside className="space-y-3">
-              <div className="sticky top-20 space-y-3">
+            <aside className="space-y-4">
+              <div className="sticky top-20 space-y-4">
                 {/* Action card */}
                 <div className="bg-surface border border-border rounded-lg overflow-hidden">
                   {/* Availability bar */}
@@ -266,6 +289,7 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                     {userClaim ? (
                       <ClaimedState
                         claim={userClaim}
+                        reclaimCooldownDays={reclaimCooldownDays}
                         onCancelled={() => router.refresh()}
                       />
                     ) : canClaim ? (
@@ -281,27 +305,27 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                         {!showConfirm ? (
                           <button
                             onClick={() => setShowConfirm(true)}
-                            className="w-full py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold text-sm rounded-md transition-colors"
+                            className="w-full min-h-11 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold text-sm rounded-md transition-colors"
                           >
                             Claim Brief
                           </button>
                         ) : (
                           <div className="space-y-2.5 bg-warning/5 border border-warning/20 rounded-md p-3">
-                            <p className="text-xs text-text-secondary">
+                            <p className="text-sm text-text-secondary">
                               <span className="font-medium text-warning">Heads up:</span>{" "}
                               reserves for 7 days. Release anytime.
                             </p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setShowConfirm(false)}
-                                className="flex-1 py-2 border border-border hover:bg-surface-hover text-xs font-medium rounded-md transition-colors"
+                                className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors"
                               >
                                 Cancel
                               </button>
                               <button
                                 onClick={handleClaim}
                                 disabled={claiming}
-                                className="flex-1 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-xs font-semibold rounded-md transition-colors"
+                                className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-md transition-colors"
                               >
                                 {claiming ? "Claiming..." : "Confirm"}
                               </button>
@@ -310,10 +334,12 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
                         )}
                       </>
                     ) : (
-                      <p className="text-warning text-xs text-center py-2">
-                        {brief.status !== "open"
-                          ? "Brief is no longer open"
-                          : "All slots claimed"}
+                      <p className="text-warning text-sm text-center py-2">
+                        {isReclaimBlocked && reclaimBlockedUntil
+                          ? `Reclaim available ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown after release)`
+                          : brief.status !== "open"
+                            ? "Brief is no longer open"
+                            : "All slots claimed"}
                       </p>
                     )}
                   </div>
@@ -332,13 +358,21 @@ export function BriefDetailClient({ brief, claimCount, userClaim }: Props) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3">
+    <h2 className="text-xs font-semibold text-muted uppercase tracking-[0.12em] mb-3">
       {children}
     </h2>
   );
 }
 
-function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () => void }) {
+function ClaimedState({
+  claim,
+  reclaimCooldownDays,
+  onCancelled,
+}: {
+  claim: Claim;
+  reclaimCooldownDays: number;
+  onCancelled: () => void;
+}) {
   const router = useRouter();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
@@ -438,10 +472,10 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
           </svg>
         </div>
         <p className="font-semibold text-sm mb-0.5">{stateConfig.label}</p>
-        <p className="text-muted text-xs mb-3">{stateConfig.desc}</p>
+        <p className="text-muted text-sm mb-3">{stateConfig.desc}</p>
         <Link
           href="/my-briefs"
-          className="block w-full py-2 border border-border hover:bg-surface-hover text-xs font-medium rounded-md transition-colors text-center"
+          className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
         >
           My Briefs
         </Link>
@@ -452,14 +486,14 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
   // Active — can submit or cancel
   return (
     <div>
-      {!showSubmitForm && !showCancelConfirm && (
+      {!showSubmitForm && (
         <>
           <div className="flex items-center justify-between mb-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-accent">
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-status-pulse" />
               Claimed
             </span>
-            <span className="value-text text-muted text-xs">
+            <span className="value-text text-muted text-sm">
               exp {formatDeadline(claim.expires_at)}
             </span>
           </div>
@@ -471,19 +505,19 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
           <div className="space-y-1.5">
             <button
               onClick={() => setShowSubmitForm(true)}
-              className="w-full py-2 bg-accent hover:bg-accent-hover text-background text-xs font-semibold rounded-md transition-colors"
+              className="w-full min-h-11 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-md transition-colors"
             >
               Submit work
             </button>
             <Link
               href="/my-briefs"
-              className="block w-full py-2 border border-border hover:bg-surface-hover text-xs font-medium rounded-md transition-colors text-center"
+              className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
             >
               My Briefs
             </Link>
             <button
               onClick={() => setShowCancelConfirm(true)}
-              className="w-full py-1.5 text-muted hover:text-error text-xs transition-colors"
+              className="w-full min-h-11 py-2 text-muted hover:text-error text-sm transition-colors"
             >
               Release claim
             </button>
@@ -491,10 +525,22 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
         </>
       )}
 
+      <ConfirmDialog
+        open={showCancelConfirm}
+        onClose={() => !cancelling && setShowCancelConfirm(false)}
+        onConfirm={handleCancel}
+        title="Release claim?"
+        description={`Your slot will open for other creators. You can reclaim this brief again after ${reclaimCooldownDays} days.`}
+        confirmLabel={cancelling ? "Releasing..." : "Release claim"}
+        cancelLabel="Cancel"
+        tone="danger"
+        loading={cancelling}
+      />
+
       {showSubmitForm && (
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label htmlFor="submissionUrl" className="block text-xs font-medium mb-1.5">
+            <label htmlFor="submissionUrl" className="block text-sm font-medium mb-1.5">
               URL <span className="text-error">*</span>
             </label>
             <input
@@ -504,11 +550,11 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
               onChange={(e) => setSubmissionUrl(e.target.value)}
               placeholder="https://instagram.com/reel/..."
               required
-              className="w-full px-2.5 py-2 bg-background border border-border rounded-md text-xs focus:border-accent focus:ring-1 focus:ring-accent"
+              className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent"
             />
           </div>
           <div>
-            <label htmlFor="submissionNotes" className="block text-xs font-medium mb-1.5">
+            <label htmlFor="submissionNotes" className="block text-sm font-medium mb-1.5">
               Notes
             </label>
             <textarea
@@ -517,7 +563,7 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
               onChange={(e) => setSubmissionNotes(e.target.value)}
               placeholder="Optional context..."
               rows={2}
-              className="w-full px-2.5 py-2 bg-background border border-border rounded-md text-xs focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
             />
           </div>
 
@@ -531,43 +577,19 @@ function ClaimedState({ claim, onCancelled }: { claim: Claim; onCancelled: () =>
             <button
               type="button"
               onClick={() => setShowSubmitForm(false)}
-              className="flex-1 py-2 border border-border hover:bg-surface-hover text-xs font-medium rounded-md transition-colors"
+              className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-xs font-semibold rounded-md transition-colors"
+              className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-md transition-colors"
             >
               {submitting ? "Submitting..." : "Submit"}
             </button>
           </div>
         </form>
-      )}
-
-      {showCancelConfirm && (
-        <div className="space-y-2.5 bg-error/5 border border-error/20 rounded-md p-3">
-          <p className="text-xs">
-            <span className="font-medium text-error">Release?</span>{" "}
-            Slot opens for others.
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowCancelConfirm(false)}
-              className="flex-1 py-2 border border-border hover:bg-surface-hover text-xs font-medium rounded-md transition-colors"
-            >
-              Keep
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={cancelling}
-              className="flex-1 py-2 bg-error hover:bg-error/80 disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-colors"
-            >
-              {cancelling ? "Releasing..." : "Release"}
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -592,7 +614,7 @@ function SubmissionChecklist() {
 
   return (
     <div className="bg-surface-raised border border-border rounded-md p-3">
-      <p className="text-[0.65rem] font-medium text-muted uppercase tracking-wider mb-2">
+      <p className="text-xs font-medium text-muted uppercase tracking-[0.12em] mb-2">
         Checklist
       </p>
       <div className="space-y-1.5">
@@ -604,14 +626,14 @@ function SubmissionChecklist() {
               onChange={(e) => setChecks({ ...checks, [item.key]: e.target.checked })}
               className="w-3.5 h-3.5 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
             />
-            <span className="text-[0.7rem] text-text-secondary leading-tight">
+            <span className="text-xs text-text-secondary leading-tight">
               {item.label}
             </span>
           </label>
         ))}
       </div>
       {allChecked && (
-        <p className="text-[0.65rem] text-success mt-2 flex items-center gap-1">
+        <p className="text-xs text-success mt-2 flex items-center gap-1">
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>

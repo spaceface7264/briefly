@@ -34,7 +34,9 @@ export default async function AdminSettingsPage() {
         .order("name", { ascending: true }),
       supabase
         .from("profiles")
-        .select("notify_submissions, notify_new_briefs")
+        .select(
+          "notify_submissions, notify_new_briefs, notify_claim_updates, notify_claim_queue, notify_payments"
+        )
         .eq("id", user.id)
         .single(),
     ]);

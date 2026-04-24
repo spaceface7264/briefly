@@ -44,5 +44,6 @@ export async function setNotificationPreference(
 
   revalidatePath("/admin/settings");
   revalidatePath("/profile");
+  revalidatePath("/profile/notifications");
   return { ok: true };
 }

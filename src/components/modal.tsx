@@ -13,6 +13,7 @@ interface ModalProps {
   children?: ReactNode;
   footer?: ReactNode;
   closeOnBackdrop?: boolean;
+  showCloseButton?: boolean;
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -30,6 +31,7 @@ export function Modal({
   children,
   footer,
   closeOnBackdrop = true,
+  showCloseButton = true,
 }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -75,21 +77,23 @@ export function Modal({
               {title}
             </h2>
             {description && (
-              <p id="modal-description" className="text-muted text-sm mt-1">
+              <p id="modal-description" className="text-text-secondary text-sm mt-1">
                 {description}
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => ref.current?.close()}
-            aria-label="Close"
-            className="shrink-0 -mr-2 -mt-1 p-2 text-muted hover:text-foreground hover:bg-surface-hover rounded-md transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {showCloseButton && (
+            <button
+              type="button"
+              onClick={() => ref.current?.close()}
+              aria-label="Close"
+              className="shrink-0 -mr-2 -mt-1 p-2 text-muted hover:text-foreground hover:bg-surface-hover rounded-md transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </header>
 
         {children && (
@@ -122,13 +126,13 @@ interface ConfirmDialogProps {
 
 const toneButtonClasses: Record<ConfirmTone, string> = {
   danger:
-    "bg-error hover:bg-error/80 text-white",
+    "bg-error hover:bg-error/80 text-white focus-visible:ring-error/50",
   success:
-    "bg-success hover:bg-success/80 text-background",
+    "bg-success hover:bg-success/80 text-background focus-visible:ring-success/50",
   brand:
-    "bg-accent hover:bg-accent-hover text-background",
+    "bg-accent hover:bg-accent-hover text-background focus-visible:ring-accent/50",
   warning:
-    "bg-warning hover:bg-warning/80 text-background",
+    "bg-warning hover:bg-warning/80 text-background focus-visible:ring-warning/50",
 };
 
 export function ConfirmDialog({
@@ -153,13 +157,14 @@ export function ConfirmDialog({
       title={title}
       description={description}
       size="sm"
+      showCloseButton={false}
       footer={
         <>
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 border border-border-strong hover:bg-surface-hover disabled:opacity-50 text-sm font-medium rounded-lg transition-colors"
+            className="px-4 py-2 border border-border-strong hover:bg-surface-hover disabled:opacity-50 text-sm font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-border-strong focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
           >
             {cancelLabel}
           </button>
@@ -167,7 +172,7 @@ export function ConfirmDialog({
             type="button"
             onClick={handleConfirm}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 ${toneButtonClasses[tone]}`}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised ${toneButtonClasses[tone]}`}
           >
             {loading ? "Working..." : confirmLabel}
           </button>
