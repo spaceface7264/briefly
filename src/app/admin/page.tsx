@@ -85,17 +85,17 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex gap-4 mb-10">
+      <div className="flex flex-wrap gap-2 sm:gap-4 mb-10">
         <Link
           href="/admin/briefs/new"
-          className="px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
+          className="px-3.5 py-2 text-sm sm:px-6 sm:py-3 sm:text-base bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
         >
           Create New Brief
         </Link>
         {(pendingCount || 0) > 0 && (
           <Link
             href="/admin/claims?status=submitted"
-            className="px-6 py-3 border border-accent text-accent hover:bg-accent-muted font-semibold rounded-lg transition-colors"
+            className="px-3.5 py-2 text-sm sm:px-6 sm:py-3 sm:text-base border border-accent text-accent hover:bg-accent-muted font-semibold rounded-lg transition-colors"
           >
             Review Submissions ({pendingCount})
           </Link>
@@ -107,7 +107,7 @@ export default async function AdminDashboard() {
         <h2 className="text-xl font-semibold mb-4">Recent Claims</h2>
         {recentClaims && recentClaims.length > 0 ? (
           <div className="bg-surface border border-border rounded-xl overflow-x-auto">
-            <table className="w-full min-w-[560px]">
+            <table className="w-full min-w-[680px]">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left text-sm font-medium text-muted px-4 py-3">Brief</th>

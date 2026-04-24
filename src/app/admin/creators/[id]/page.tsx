@@ -91,7 +91,7 @@ export default async function CreatorDetailPage({
       <h2 className="text-xl font-semibold mb-4">Claims History ({claims?.length || 0})</h2>
       {claims && claims.length > 0 ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[640px]">
+          <table className="w-full min-w-[760px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">Brief</th>

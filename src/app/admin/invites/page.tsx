@@ -26,7 +26,7 @@ export default async function AdminInvitesPage() {
 
       {invites && invites.length > 0 ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[760px]">
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">Code</th>

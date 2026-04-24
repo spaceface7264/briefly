@@ -43,7 +43,7 @@ export default async function AdminCreatorsPage() {
 
       {creatorsWithCounts.length > 0 ? (
         <div className="bg-surface border border-border rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[720px]">
+          <table className="w-full min-w-[840px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">Creator</th>
