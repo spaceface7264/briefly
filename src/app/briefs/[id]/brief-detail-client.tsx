@@ -13,7 +13,7 @@ import {
   formatPrice,
   formatDeadline,
   categoryLabel,
-  formatLabel,
+  durationClassLabel,
   humanizeKey,
 } from "@/lib/utils";
 
@@ -156,7 +156,7 @@ export function BriefDetailClient({
               />
               <span className="text-muted">{categoryLabel(brief.category)}</span>
               <span className="text-border">/</span>
-              <span className="text-muted">{formatLabel(brief.format)}</span>
+              <span className="text-muted">{durationClassLabel(brief.duration_class)}</span>
               {brief.gym && (
                 <>
                   <span className="text-border">/</span>

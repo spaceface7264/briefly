@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
-import type { Brief, BriefCategory, BriefFormat } from "@/types/database";
+import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory; label: string }[] = [
   { value: "entertaining", label: "Entertaining" },
@@ -14,12 +14,11 @@ const categories: { value: BriefCategory; label: string }[] = [
   { value: "community", label: "Community" },
 ];
 
-const formats: { value: BriefFormat; label: string }[] = [
-  { value: "reel", label: "Reel" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "youtube_short", label: "YouTube Short" },
-  { value: "long_form", label: "Long Form" },
-  { value: "photo", label: "Photo" },
+const durationClasses: { value: BriefDurationClass; label: string }[] = [
+  { value: "short", label: "Short" },
+  { value: "medium", label: "Medium" },
+  { value: "long", label: "Long" },
+  { value: "static", label: "Static" },
 ];
 
 // Predefined spec fields available for all formats
@@ -29,41 +28,35 @@ const commonFields = [
   { key: "style", label: "Style", placeholder: "Cinematic, vlog, raw, etc." },
 ];
 
-// Format-specific templates with pre-filled defaults
-const formatTemplates: Record<BriefFormat, { fields: Record<string, string> }> = {
-  reel: {
+// Duration-specific templates with pre-filled defaults
+const durationTemplates: Record<BriefDurationClass, { fields: Record<string, string> }> = {
+  short: {
     fields: {
-      duration: "30-60 sek",
+      duration: "15-45 sek",
       aspect_ratio: "9:16",
       captions: "Påkrævet, centreret",
     },
   },
-  tiktok: {
+  medium: {
     fields: {
-      duration: "15-60 sek",
+      duration: "45-90 sek",
       aspect_ratio: "9:16",
       captions: "Påkrævet",
     },
   },
-  youtube_short: {
+  long: {
     fields: {
-      duration: "30-60 sek",
-      aspect_ratio: "9:16",
-      captions: "Påkrævet",
-    },
-  },
-  long_form: {
-    fields: {
-      duration: "3-10 min",
+      duration: "2-10 min",
       aspect_ratio: "16:9",
       captions: "Påkrævet",
       resolution: "1080p minimum",
     },
   },
-  photo: {
+  static: {
     fields: {
-      resolution: "Min 2000px bred",
+      duration: "N/A",
       aspect_ratio: "Frit",
+      resolution: "Min 2000px bred",
       file_format: "JPG eller PNG",
     },
   },
@@ -108,7 +101,7 @@ export function BriefForm({ brief }: BriefFormProps) {
   const [title, setTitle] = useState(brief?.title || "");
   const [description, setDescription] = useState(brief?.description || "");
   const [category, setCategory] = useState<BriefCategory>(brief?.category || "entertaining");
-  const [format, setFormat] = useState<BriefFormat>(brief?.format || "reel");
+  const [durationClass, setDurationClass] = useState<BriefDurationClass>(brief?.duration_class || "short");
   const [priceDkk, setPriceDkk] = useState(brief?.price_dkk?.toString() || "");
   const [deadline, setDeadline] = useState(brief?.deadline || "");
   const [gym, setGym] = useState(brief?.gym || "");
@@ -122,7 +115,7 @@ export function BriefForm({ brief }: BriefFormProps) {
   // Deliverable specs as structured entries
   const [specEntries, setSpecEntries] = useState<SpecEntry[]>(() => {
     const existing = specsToEntries(brief?.deliverable_specs as Record<string, string> | null);
-    return existing.length > 0 ? existing : specsToEntries(formatTemplates[brief?.format || "reel"].fields);
+    return existing.length > 0 ? existing : specsToEntries(durationTemplates[brief?.duration_class || "short"].fields);
   });
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -196,13 +189,13 @@ export function BriefForm({ brief }: BriefFormProps) {
     }
   }
 
-  function applyTemplate(fmt: BriefFormat) {
-    const template = formatTemplates[fmt];
+  function applyTemplate(duration: BriefDurationClass) {
+    const template = durationTemplates[duration];
     const templateEntries = specsToEntries(template.fields);
 
     // Merge: keep existing custom fields, update/add template fields
     const existingCustom = specEntries.filter(
-      (e) => !(e.key in formatTemplates[format].fields) && !(e.key in template.fields)
+      (e) => !(e.key in durationTemplates[durationClass].fields) && !(e.key in template.fields)
     );
     setSpecEntries([...templateEntries, ...existingCustom]);
   }
@@ -219,25 +212,25 @@ export function BriefForm({ brief }: BriefFormProps) {
     setSpecEntries((prev) => [...prev, { key: "", value: "" }]);
   }
 
-  // When format changes, offer to apply template
+  // When duration class changes, offer to apply template
   const [showTemplatePrompt, setShowTemplatePrompt] = useState(false);
-  const [pendingFormat, setPendingFormat] = useState<BriefFormat | null>(null);
+  const [pendingDurationClass, setPendingDurationClass] = useState<BriefDurationClass | null>(null);
 
-  function handleFormatChange(newFormat: BriefFormat) {
-    if (newFormat !== format && specEntries.length > 0) {
-      setPendingFormat(newFormat);
+  function handleDurationChange(newDurationClass: BriefDurationClass) {
+    if (newDurationClass !== durationClass && specEntries.length > 0) {
+      setPendingDurationClass(newDurationClass);
       setShowTemplatePrompt(true);
     } else {
-      setFormat(newFormat);
-      applyTemplate(newFormat);
+      setDurationClass(newDurationClass);
+      applyTemplate(newDurationClass);
     }
   }
 
   function confirmTemplateApply(apply: boolean) {
-    if (pendingFormat) {
-      setFormat(pendingFormat);
-      if (apply) applyTemplate(pendingFormat);
-      setPendingFormat(null);
+    if (pendingDurationClass) {
+      setDurationClass(pendingDurationClass);
+      if (apply) applyTemplate(pendingDurationClass);
+      setPendingDurationClass(null);
     }
     setShowTemplatePrompt(false);
   }
@@ -260,7 +253,7 @@ export function BriefForm({ brief }: BriefFormProps) {
       title,
       description,
       category,
-      format,
+      duration_class: durationClass,
       price_dkk: parseInt(priceDkk) || 0,
       deadline: deadline || null,
       gym: gym || null,
@@ -272,13 +265,14 @@ export function BriefForm({ brief }: BriefFormProps) {
       created_by: user.id,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result;
     if (isEditing) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result = await (supabase.from("briefs") as any)
         .update(briefData)
         .eq("id", brief.id);
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result = await (supabase.from("briefs") as any).insert(briefData);
     }
 
@@ -370,7 +364,7 @@ export function BriefForm({ brief }: BriefFormProps) {
         )}
       </div>
 
-      {/* Category & Format */}
+      {/* Category & Duration */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="category" className="block text-sm font-medium mb-2">
@@ -390,29 +384,29 @@ export function BriefForm({ brief }: BriefFormProps) {
           </select>
         </div>
         <div>
-          <label htmlFor="format" className="block text-sm font-medium mb-2">
-            Format <span className="text-error">*</span>
+          <label htmlFor="durationClass" className="block text-sm font-medium mb-2">
+            Duration Class <span className="text-error">*</span>
           </label>
           <select
-            id="format"
-            value={format}
-            onChange={(e) => handleFormatChange(e.target.value as BriefFormat)}
+            id="durationClass"
+            value={durationClass}
+            onChange={(e) => handleDurationChange(e.target.value as BriefDurationClass)}
             className={inputClass}
           >
-            {formats.map((fmt) => (
-              <option key={fmt.value} value={fmt.value}>
-                {fmt.label}
+            {durationClasses.map((duration) => (
+              <option key={duration.value} value={duration.value}>
+                {duration.label}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Template prompt when format changes */}
-      {showTemplatePrompt && pendingFormat && (
+      {/* Template prompt when duration changes */}
+      {showTemplatePrompt && pendingDurationClass && (
         <div className="bg-accent-muted border border-accent/20 rounded-lg p-4">
           <p className="text-sm mb-3">
-            Apply <span className="font-semibold text-accent">{formats.find((f) => f.value === pendingFormat)?.label}</span> template to deliverable specs?
+            Apply <span className="font-semibold text-accent">{durationClasses.find((d) => d.value === pendingDurationClass)?.label}</span> template to deliverable specs?
           </p>
           <div className="flex gap-2">
             <button
@@ -444,6 +438,7 @@ export function BriefForm({ brief }: BriefFormProps) {
             type="number"
             value={priceDkk}
             onChange={(e) => setPriceDkk(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             required
             min="0"
             className={`${inputClass} font-mono`}
@@ -459,6 +454,7 @@ export function BriefForm({ brief }: BriefFormProps) {
             type="number"
             value={claimLimit}
             onChange={(e) => setClaimLimit(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
             min="1"
             className={`${inputClass} font-mono`}
             placeholder="1"
@@ -545,10 +541,10 @@ export function BriefForm({ brief }: BriefFormProps) {
           <label className="block text-sm font-medium">Deliverable Specs</label>
           <button
             type="button"
-            onClick={() => applyTemplate(format)}
+            onClick={() => applyTemplate(durationClass)}
             className="text-xs text-accent hover:underline"
           >
-            Reset to {formats.find((f) => f.value === format)?.label} template
+            Reset to {durationClasses.find((d) => d.value === durationClass)?.label} template
           </button>
         </div>
 

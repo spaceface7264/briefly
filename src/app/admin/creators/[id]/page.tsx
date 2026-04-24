@@ -25,7 +25,7 @@ export default async function CreatorDetailPage({
   // Get all claims for this creator
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: claims } = await (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category, format)")
+    .select("*, brief:briefs(id, title, price_dkk, category, duration_class)")
     .eq("user_id", id)
     .order("claimed_at", { ascending: false });
 

@@ -13,7 +13,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import type { BriefWithClaims, BriefCategory, BriefFormat } from "@/types/database";
+import type { BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -24,13 +24,12 @@ const categories: { value: BriefCategory | "all"; label: string }[] = [
   { value: "community", label: "Community" },
 ];
 
-const formats: { value: BriefFormat | "all"; label: string }[] = [
+const durations: { value: BriefDurationClass | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "reel", label: "Reel" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "youtube_short", label: "YT Short" },
-  { value: "long_form", label: "Long Form" },
-  { value: "photo", label: "Photo" },
+  { value: "short", label: "Short" },
+  { value: "medium", label: "Medium" },
+  { value: "long", label: "Long" },
+  { value: "static", label: "Static" },
 ];
 
 const priceRanges = [
@@ -45,16 +44,16 @@ const BRIEFS_PER_PAGE = 9;
 interface BriefsClientProps {
   briefs: BriefWithClaims[];
   initialCategory?: BriefCategory;
-  initialFormat?: BriefFormat;
+  initialDurationClass?: BriefDurationClass;
 }
 
-export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsClientProps) {
+export function BriefsClient({ briefs, initialCategory, initialDurationClass }: BriefsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasMountedRef = useRef(false);
 
   const categoryFilter = initialCategory || "all";
-  const formatFilter = initialFormat || "all";
+  const durationFilter = initialDurationClass || "all";
 
   const [priceFilter, setPriceFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("");
@@ -97,7 +96,7 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
 
   const hasActiveFilters =
     categoryFilter !== "all" ||
-    formatFilter !== "all" ||
+    durationFilter !== "all" ||
     priceFilter !== "all" ||
     gymFilter !== "";
   const totalCount = briefs.length;
@@ -183,11 +182,11 @@ export function BriefsClient({ briefs, initialCategory, initialFormat }: BriefsC
 
               <span className="hidden sm:block w-px h-4 bg-border" />
 
-              {/* Format pills */}
+              {/* Duration pills */}
               <FilterGroup
-                options={formats}
-                value={formatFilter}
-                onChange={(v) => updateFilter("format", v)}
+                options={durations}
+                value={durationFilter}
+                onChange={(v) => updateFilter("duration", v)}
               />
 
               <span className="hidden sm:block w-px h-4 bg-border" />

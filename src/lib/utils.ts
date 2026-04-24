@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { BriefCategory, BriefFormat, BriefStatus } from "@/types/database";
+import type { BriefCategory, BriefDurationClass, BriefStatus } from "@/types/database";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -31,15 +31,14 @@ export function categoryLabel(category: BriefCategory): string {
   return labels[category];
 }
 
-export function formatLabel(format: BriefFormat): string {
-  const labels: Record<BriefFormat, string> = {
-    reel: "Reel",
-    tiktok: "TikTok",
-    youtube_short: "YouTube Short",
-    long_form: "Long Form",
-    photo: "Photo",
+export function durationClassLabel(durationClass: BriefDurationClass): string {
+  const labels: Record<BriefDurationClass, string> = {
+    short: "Short",
+    medium: "Medium",
+    long: "Long",
+    static: "Static",
   };
-  return labels[format];
+  return labels[durationClass];
 }
 
 export function statusLabel(status: BriefStatus): string {

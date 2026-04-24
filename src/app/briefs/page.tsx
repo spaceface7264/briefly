@@ -1,16 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { BriefsClient } from "./briefs-client";
-import type { Brief, BriefWithClaims, BriefCategory, BriefFormat } from "@/types/database";
+import type { Brief, BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
 
 interface Props {
   searchParams: Promise<{
     category?: string;
-    format?: string;
+    duration?: string;
   }>;
 }
 
 export default async function BriefsPage({ searchParams }: Props) {
-  const { category, format } = await searchParams;
+  const { category, duration } = await searchParams;
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,8 +25,8 @@ export default async function BriefsPage({ searchParams }: Props) {
   if (category) {
     query = query.eq("category", category as BriefCategory);
   }
-  if (format) {
-    query = query.eq("format", format as BriefFormat);
+  if (duration) {
+    query = query.eq("duration_class", duration as BriefDurationClass);
   }
 
   const { data: briefs, error } = await query;
@@ -66,7 +66,7 @@ export default async function BriefsPage({ searchParams }: Props) {
     <BriefsClient
       briefs={briefsWithClaims}
       initialCategory={category as BriefCategory | undefined}
-      initialFormat={format as BriefFormat | undefined}
+      initialDurationClass={duration as BriefDurationClass | undefined}
     />
   );
 }

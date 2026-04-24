@@ -26,7 +26,7 @@ export type Database = {
           deadline: string | null
           deliverable_specs: Json | null
           description: string
-          format: Database["public"]["Enums"]["brief_format"]
+          duration_class: Database["public"]["Enums"]["brief_duration_class"]
           gym: string | null
           id: string
           is_ad_intended: boolean
@@ -48,7 +48,7 @@ export type Database = {
           deadline?: string | null
           deliverable_specs?: Json | null
           description: string
-          format: Database["public"]["Enums"]["brief_format"]
+          duration_class: Database["public"]["Enums"]["brief_duration_class"]
           gym?: string | null
           id?: string
           is_ad_intended?: boolean
@@ -70,7 +70,7 @@ export type Database = {
           deadline?: string | null
           deliverable_specs?: Json | null
           description?: string
-          format?: Database["public"]["Enums"]["brief_format"]
+          duration_class?: Database["public"]["Enums"]["brief_duration_class"]
           gym?: string | null
           id?: string
           is_ad_intended?: boolean
@@ -491,7 +491,7 @@ export type Database = {
     }
     Enums: {
       brief_category: "entertaining" | "ad" | "guide" | "event" | "community"
-      brief_format: "reel" | "tiktok" | "youtube_short" | "long_form" | "photo"
+      brief_duration_class: "short" | "medium" | "long" | "static"
       brief_status:
         | "open"
         | "claimed"
@@ -639,7 +639,7 @@ export const Constants = {
   public: {
     Enums: {
       brief_category: ["entertaining", "ad", "guide", "event", "community"],
-      brief_format: ["reel", "tiktok", "youtube_short", "long_form", "photo"],
+      brief_duration_class: ["short", "medium", "long", "static"],
       brief_status: [
         "open",
         "claimed",
@@ -674,7 +674,7 @@ export type NotificationOutbox = Tables<"notification_outbox">;
 export type Payment = Tables<"payments">;
 
 export type BriefCategory = Enums<"brief_category">;
-export type BriefFormat = Enums<"brief_format">;
+export type BriefDurationClass = Enums<"brief_duration_class">;
 export type BriefStatus = Enums<"brief_status">;
 export type PaymentStatus = Enums<"payment_status">;
 export type NotificationEventType = Enums<"notification_event_type">;

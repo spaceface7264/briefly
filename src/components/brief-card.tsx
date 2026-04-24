@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Brief, BriefWithClaims } from "@/types/database";
-import { formatPrice, formatDeadline, categoryLabel, formatLabel } from "@/lib/utils";
+import { formatPrice, formatDeadline, categoryLabel, durationClassLabel } from "@/lib/utils";
 
 interface BriefCardProps {
   brief: Brief | BriefWithClaims;
@@ -69,7 +69,7 @@ export function BriefCard({ brief }: BriefCardProps) {
           />
           <span className="whitespace-nowrap">{categoryLabel(brief.category)}</span>
           <span className="text-border select-none">/</span>
-          <span className="whitespace-nowrap">{formatLabel(brief.format)}</span>
+          <span className="whitespace-nowrap">{durationClassLabel(brief.duration_class)}</span>
           {brief.is_ad_intended && (
             <>
               <span className="text-border select-none">/</span>

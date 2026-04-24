@@ -1,32 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { formatPrice } from "@/lib/utils";
+import { categoryLabel, durationClassLabel, formatPrice } from "@/lib/utils";
 import type { Brief, BriefStatus } from "@/types/database";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
+import { ColumnsDropdown, type ColumnKey } from "./columns-dropdown";
+import {
+  badgeToneByCategory,
+  badgeToneByDurationClass,
+  badgeToneByStatus,
+} from "@/lib/admin-badge-tones";
 
 type SortField = "created_at" | "title" | "price_dkk";
 type SortOrder = "asc" | "desc";
 type StatusFilter = "all" | "open" | "claimed" | "archived";
-type PlatformFilter = "all" | "instagram" | "tiktok" | "youtube";
-type ColumnKey = "category" | "format" | "platform" | "price" | "claims" | "status" | "created" | "actions";
-
 const PAGE_SIZE = 10;
 const DEFAULT_COLUMNS: ColumnKey[] = [
   "category",
-  "format",
-  "platform",
+  "duration",
   "price",
   "claims",
   "status",
   "created",
   "actions",
 ];
-const PLATFORM_TO_FORMATS: Record<Exclude<PlatformFilter, "all">, Brief["format"][]> = {
-  instagram: ["reel", "photo"],
-  tiktok: ["tiktok"],
-  youtube: ["youtube_short", "long_form"],
-};
-
 function getSingleParam(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value[0];
   return value;
@@ -59,32 +55,6 @@ function getNextSortState(
   if (currentField !== clickedField) return { sort: clickedField, order: "asc" as const };
   if (currentOrder === "asc") return { sort: clickedField, order: "desc" as const };
   return { sort: undefined, order: undefined };
-}
-
-function getFormatLabel(format: Brief["format"]) {
-  const labels: Record<Brief["format"], string> = {
-    reel: "Reel",
-    tiktok: "TikTok",
-    youtube_short: "YouTube Short",
-    long_form: "Long Form",
-    photo: "Photo",
-  };
-  return labels[format];
-}
-
-function getPlatformForFormat(format: Brief["format"]): Exclude<PlatformFilter, "all"> {
-  if (format === "tiktok") return "tiktok";
-  if (format === "youtube_short" || format === "long_form") return "youtube";
-  return "instagram";
-}
-
-function getPlatformLabel(platform: Exclude<PlatformFilter, "all">) {
-  const labels: Record<Exclude<PlatformFilter, "all">, string> = {
-    instagram: "Instagram",
-    tiktok: "TikTok",
-    youtube: "YouTube",
-  };
-  return labels[platform];
 }
 
 function parseColumnsParam(raw: string | string[] | undefined) {
@@ -133,18 +103,14 @@ export default async function AdminBriefsPage({
   const sortParam = getSingleParam(params.sort);
   const orderParam = getSingleParam(params.order);
   const pageParam = Number.parseInt(getSingleParam(params.page) || "1", 10);
-  const formatParam = getSingleParam(params.format);
-  const platformParam = getSingleParam(params.platform);
+  const durationParam = getSingleParam(params.duration);
   const colsParam = params.cols;
 
   const statusFilter: StatusFilter = ["open", "claimed", "archived"].includes(statusParam || "")
     ? (statusParam as StatusFilter)
     : "all";
-  const formatFilter: Brief["format"] | "all" = ["reel", "tiktok", "youtube_short", "long_form", "photo"].includes(formatParam || "")
-    ? (formatParam as Brief["format"])
-    : "all";
-  const platformFilter: PlatformFilter = ["instagram", "tiktok", "youtube"].includes(platformParam || "")
-    ? (platformParam as PlatformFilter)
+  const durationFilter: Brief["duration_class"] | "all" = ["short", "medium", "long", "static"].includes(durationParam || "")
+    ? (durationParam as Brief["duration_class"])
     : "all";
   const parsedSortField = ["title", "price_dkk", "created_at"].includes(sortParam || "")
     ? (sortParam as SortField)
@@ -157,12 +123,12 @@ export default async function AdminBriefsPage({
   const baseParams = new URLSearchParams();
   if (statusFilter !== "all") baseParams.set("status", statusFilter);
   if (qParam) baseParams.set("q", qParam);
-  if (formatFilter !== "all") baseParams.set("format", formatFilter);
-  if (platformFilter !== "all") baseParams.set("platform", platformFilter);
+  if (durationFilter !== "all") baseParams.set("duration", durationFilter);
   if (sortField) baseParams.set("sort", sortField);
   if (sortOrder) baseParams.set("order", sortOrder);
   const visibleColumns = parseColumnsParam(colsParam);
-  const colsQueryValue = [...visibleColumns].join(",");
+  const visibleColumnsList = [...visibleColumns];
+  const colsQueryValue = visibleColumnsList.join(",");
   if (colsQueryValue !== DEFAULT_COLUMNS.join(",")) baseParams.set("cols", colsQueryValue);
 
   let countQuery = supabase.from("briefs").select("*", { count: "exact", head: true });
@@ -179,15 +145,9 @@ export default async function AdminBriefsPage({
     dataQuery = dataQuery.or(`title.ilike.${term},gym.ilike.${term}`);
   }
 
-  if (formatFilter !== "all") {
-    countQuery = countQuery.eq("format", formatFilter);
-    dataQuery = dataQuery.eq("format", formatFilter);
-  }
-
-  if (platformFilter !== "all") {
-    const platformFormats = PLATFORM_TO_FORMATS[platformFilter];
-    countQuery = countQuery.in("format", platformFormats);
-    dataQuery = dataQuery.in("format", platformFormats);
+  if (durationFilter !== "all") {
+    countQuery = countQuery.eq("duration_class", durationFilter);
+    dataQuery = dataQuery.eq("duration_class", durationFilter);
   }
 
   const { count: totalCount } = await countQuery;
@@ -255,6 +215,32 @@ export default async function AdminBriefsPage({
       <div className="flex flex-wrap gap-2 mb-4">
         {statusGroups.map((group) => {
           const isActive = statusFilter === group.status;
+          const colorDotStyles: Record<StatusFilter, string> = {
+            all: "bg-muted",
+            open: "bg-success",
+            claimed: "bg-accent",
+            archived: "bg-muted",
+          };
+
+          const tabStyles: Record<StatusFilter, { active: string; inactive: string }> = {
+            all: {
+              active: "bg-surface-raised text-foreground border-border-strong",
+              inactive: "bg-surface border-border text-foreground hover:border-brand/40",
+            },
+            open: {
+              active: "bg-surface-raised text-foreground border-border-strong",
+              inactive: "bg-surface border-border text-foreground hover:border-brand/40",
+            },
+            claimed: {
+              active: "bg-surface-raised text-foreground border-border-strong",
+              inactive: "bg-surface border-border text-foreground hover:border-brand/40",
+            },
+            archived: {
+              active: "bg-surface-raised text-foreground border-border-strong",
+              inactive: "bg-surface border-border text-foreground hover:border-brand/40",
+            },
+          };
+
           return (
             <Link
               key={group.status}
@@ -263,22 +249,23 @@ export default async function AdminBriefsPage({
                 page: undefined,
               })}
               className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-surface-raised text-foreground border-border-strong"
-                  : "bg-surface border-border hover:border-accent/50"
+                isActive ? tabStyles[group.status].active : tabStyles[group.status].inactive
               }`}
             >
-              {group.label} ({group.count})
+              <span className="inline-flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${colorDotStyles[group.status]}`} />
+                {group.label} ({group.count})
+              </span>
             </Link>
           );
         })}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <form action="/admin/briefs" method="get" className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          <form action="/admin/briefs" method="get" className="flex items-center gap-2">
           {statusFilter !== "all" && <input type="hidden" name="status" value={statusFilter} />}
-          {formatFilter !== "all" && <input type="hidden" name="format" value={formatFilter} />}
-          {platformFilter !== "all" && <input type="hidden" name="platform" value={platformFilter} />}
+          {durationFilter !== "all" && <input type="hidden" name="duration" value={durationFilter} />}
           {colsQueryValue !== DEFAULT_COLUMNS.join(",") && <input type="hidden" name="cols" value={colsQueryValue} />}
           {sortField && <input type="hidden" name="sort" value={sortField} />}
           {sortOrder && <input type="hidden" name="order" value={sortOrder} />}
@@ -289,12 +276,6 @@ export default async function AdminBriefsPage({
             placeholder="Search title or gym..."
             className="w-64 rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
-          <button
-            type="submit"
-            className="px-3 py-2 rounded-lg border border-border text-sm hover:border-accent/50 transition-colors"
-          >
-            Filter
-          </button>
         </form>
 
         <form action="/admin/briefs" method="get" className="flex items-center gap-2">
@@ -304,26 +285,15 @@ export default async function AdminBriefsPage({
           {sortField && <input type="hidden" name="sort" value={sortField} />}
           {sortOrder && <input type="hidden" name="order" value={sortOrder} />}
           <select
-            name="format"
-            defaultValue={formatFilter}
+            name="duration"
+            defaultValue={durationFilter}
             className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
           >
-            <option value="all">All formats</option>
-            <option value="reel">Reel</option>
-            <option value="tiktok">TikTok</option>
-            <option value="youtube_short">YouTube Short</option>
-            <option value="long_form">Long Form</option>
-            <option value="photo">Photo</option>
-          </select>
-          <select
-            name="platform"
-            defaultValue={platformFilter}
-            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-          >
-            <option value="all">All platforms</option>
-            <option value="instagram">Instagram</option>
-            <option value="tiktok">TikTok</option>
-            <option value="youtube">YouTube</option>
+            <option value="all">All durations</option>
+            <option value="short">Short</option>
+            <option value="medium">Medium</option>
+            <option value="long">Long</option>
+            <option value="static">Static</option>
           </select>
           <button
             type="submit"
@@ -332,44 +302,21 @@ export default async function AdminBriefsPage({
             Apply
           </button>
         </form>
+        </div>
 
-        <details className="relative">
-          <summary className="list-none cursor-pointer px-3 py-2 rounded-lg border border-border text-sm hover:border-accent/50 transition-colors">
-            Columns
-          </summary>
-          <form
-            action="/admin/briefs"
-            method="get"
-            className="absolute right-0 mt-2 z-10 min-w-56 rounded-lg border border-border bg-surface p-3 shadow-lg space-y-2"
-          >
-            {statusFilter !== "all" && <input type="hidden" name="status" value={statusFilter} />}
-            {qParam && <input type="hidden" name="q" value={qParam} />}
-            {formatFilter !== "all" && <input type="hidden" name="format" value={formatFilter} />}
-            {platformFilter !== "all" && <input type="hidden" name="platform" value={platformFilter} />}
-            {sortField && <input type="hidden" name="sort" value={sortField} />}
-            {sortOrder && <input type="hidden" name="order" value={sortOrder} />}
-            {DEFAULT_COLUMNS.map((column) => (
-              <label key={column} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="cols"
-                  value={column}
-                  defaultChecked={visibleColumns.has(column)}
-                  className="accent-accent"
-                />
-                <span className="capitalize">{column}</span>
-              </label>
-            ))}
-            <button
-              type="submit"
-              className="mt-1 w-full px-3 py-2 rounded-lg border border-border text-sm hover:border-accent/50 transition-colors"
-            >
-              Update columns
-            </button>
-          </form>
-        </details>
+        <ColumnsDropdown
+          columns={DEFAULT_COLUMNS}
+          visibleColumns={visibleColumnsList}
+          hiddenFields={[
+            ...(statusFilter !== "all" ? [{ name: "status", value: statusFilter }] : []),
+            ...(qParam ? [{ name: "q", value: qParam }] : []),
+            ...(durationFilter !== "all" ? [{ name: "duration", value: durationFilter }] : []),
+            ...(sortField ? [{ name: "sort", value: sortField }] : []),
+            ...(sortOrder ? [{ name: "order", value: sortOrder }] : []),
+          ]}
+        />
 
-        {(qParam || statusFilter !== "all" || formatFilter !== "all" || platformFilter !== "all" || sortField || sortOrder || colsQueryValue !== DEFAULT_COLUMNS.join(",")) && (
+        {(qParam || statusFilter !== "all" || durationFilter !== "all" || sortField || sortOrder || colsQueryValue !== DEFAULT_COLUMNS.join(",")) && (
           <Link href="/admin/briefs" className="text-sm text-accent hover:underline">
             Clear filters
           </Link>
@@ -397,11 +344,8 @@ export default async function AdminBriefsPage({
                 {visibleColumns.has("category") && (
                   <th className="text-left text-sm font-medium text-muted px-4 py-3">Category</th>
                 )}
-                {visibleColumns.has("format") && (
-                  <th className="text-left text-sm font-medium text-muted px-4 py-3">Format</th>
-                )}
-                {visibleColumns.has("platform") && (
-                  <th className="text-left text-sm font-medium text-muted px-4 py-3">Platform</th>
+                {visibleColumns.has("duration") && (
+                  <th className="text-left text-sm font-medium text-muted px-4 py-3">Duration</th>
                 )}
                 {visibleColumns.has("price") && (
                   <th className="text-left text-sm font-medium text-muted px-4 py-3">
@@ -455,17 +399,16 @@ export default async function AdminBriefsPage({
                   </td>
                   {visibleColumns.has("category") && (
                     <td className="px-4 py-3">
-                      <span className="px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full capitalize">
-                        {brief.category}
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${badgeToneByCategory[brief.category]}`}>
+                        {categoryLabel(brief.category)}
                       </span>
                     </td>
                   )}
-                  {visibleColumns.has("format") && (
-                    <td className="px-4 py-3 text-sm">{getFormatLabel(brief.format)}</td>
-                  )}
-                  {visibleColumns.has("platform") && (
-                    <td className="px-4 py-3 text-sm">
-                      {getPlatformLabel(getPlatformForFormat(brief.format))}
+                  {visibleColumns.has("duration") && (
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${badgeToneByDurationClass[brief.duration_class]}`}>
+                        {durationClassLabel(brief.duration_class)}
+                      </span>
                     </td>
                   )}
                   {visibleColumns.has("price") && (
@@ -552,17 +495,8 @@ export default async function AdminBriefsPage({
 }
 
 function BriefStatusBadge({ status }: { status: BriefStatus }) {
-  const styles: Record<BriefStatus, string> = {
-    open: "bg-success/20 text-success",
-    claimed: "bg-accent-muted text-accent",
-    submitted: "bg-warning/20 text-warning",
-    approved: "bg-success/20 text-success",
-    paid: "bg-muted/20 text-muted",
-    archived: "bg-muted/20 text-muted",
-  };
-
   return (
-    <span className={`px-2.5 py-1 text-xs font-medium rounded-full capitalize ${styles[status]}`}>
+    <span className={`px-2.5 py-1 text-xs font-medium rounded-full capitalize ${badgeToneByStatus[status]}`}>
       {status}
     </span>
   );

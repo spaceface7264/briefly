@@ -13,7 +13,7 @@ interface WebhookPayload {
     title: string;
     description: string;
     category: string;
-    format: string;
+    duration_class: string;
     payout_amount: number;
     gym_location: string | null;
     status: string;
@@ -77,7 +77,7 @@ serve(async (req) => {
           <h3>${payload.record.title}</h3>
           <p>${payload.record.description}</p>
           <p><strong>Category:</strong> ${payload.record.category}</p>
-          <p><strong>Format:</strong> ${payload.record.format}</p>
+          <p><strong>Duration:</strong> ${payload.record.duration_class}</p>
           <p><strong>Payout:</strong> ${payout}</p>
           ${payload.record.gym_location ? `<p><strong>Location:</strong> ${payload.record.gym_location}</p>` : ""}
           <p style="margin-top: 20px;">

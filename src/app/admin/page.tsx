@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { badgeToneByStatus, claimStatusLabel } from "@/lib/admin-badge-tones";
+import type { ClaimStatus } from "@/types/database";
 
 export default async function AdminDashboard() {
   const supabase = await createClient();
@@ -144,26 +146,10 @@ export default async function AdminDashboard() {
   );
 }
 
-function ClaimStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active: "bg-accent-muted text-accent",
-    submitted: "bg-info-muted text-info",
-    approved: "bg-success/20 text-success",
-    paid: "bg-success-muted text-success",
-    cancelled: "bg-error/20 text-error",
-  };
-
-  const labels: Record<string, string> = {
-    active: "Active",
-    submitted: "Pending Review",
-    approved: "Approved",
-    paid: "Paid",
-    cancelled: "Cancelled",
-  };
-
+function ClaimStatusBadge({ status }: { status: ClaimStatus }) {
   return (
-    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${styles[status] || styles.active}`}>
-      {labels[status] || status}
+    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${badgeToneByStatus[status]}`}>
+      {claimStatusLabel[status]}
     </span>
   );
 }
