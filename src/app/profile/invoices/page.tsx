@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
+import { getT } from "@/lib/i18n/server";
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
+  const t = await getT();
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -22,8 +24,8 @@ export default async function InvoicesPage() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Invoice History</h1>
-        <p className="text-muted">Your payment and invoice records</p>
+        <h1 className="text-3xl font-bold mb-2">{t("profile.invoicesTitle")}</h1>
+        <p className="text-muted">{t("profile.invoicesSubtitle")}</p>
       </div>
 
       {invoices.length > 0 ? (
@@ -31,24 +33,25 @@ export default async function InvoicesPage() {
           <table className="w-full min-w-[560px]">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Invoice</th>
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Brief</th>
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Status</th>
-                <th className="text-right text-sm font-medium text-muted px-4 py-3">Amount</th>
-                <th className="text-right text-sm font-medium text-muted px-4 py-3">Date</th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">{t("profile.invoiceHeaders.invoice")}</th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">{t("profile.invoiceHeaders.brief")}</th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">{t("profile.invoiceHeaders.status")}</th>
+                <th className="text-right text-sm font-medium text-muted px-4 py-3">{t("profile.invoiceHeaders.amount")}</th>
+                <th className="text-right text-sm font-medium text-muted px-4 py-3">{t("profile.invoiceHeaders.date")}</th>
               </tr>
             </thead>
             <tbody>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {invoices.map((payment: any) => (
                 <tr key={payment.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
                   <td className="px-4 py-3 font-mono text-sm">
                     {payment.invoice_number || "—"}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {payment.claim?.brief?.title || "Unknown"}
+                    {payment.claim?.brief?.title || "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <InvoiceStatusBadge status={payment.status} />
+                    <InvoiceStatusBadge status={payment.status} label={invoiceStatusLabel(payment.status, t)} />
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-sm">
                     {formatPrice(payment.claim?.brief?.price_dkk)}
@@ -63,9 +66,9 @@ export default async function InvoicesPage() {
         </div>
       ) : (
         <div className="text-center py-12 bg-surface border border-border rounded-xl">
-          <p className="text-muted">No invoices yet</p>
+          <p className="text-muted">{t("profile.noInvoices")}</p>
           <p className="text-muted text-sm mt-1">
-            Invoices will appear here after your submissions are approved and paid
+            {t("profile.noInvoicesHint")}
           </p>
         </div>
       )}
@@ -73,22 +76,25 @@ export default async function InvoicesPage() {
   );
 }
 
-function InvoiceStatusBadge({ status }: { status: string }) {
+function invoiceStatusLabel(status: string, t: (key: string) => string): string {
+  const map: Record<string, string> = {
+    succeeded: t("profile.invoiceStatus.paid"),
+    pending: t("profile.invoiceStatus.pending"),
+    failed: t("profile.invoiceStatus.failed"),
+  };
+  return map[status] || status;
+}
+
+function InvoiceStatusBadge({ status, label }: { status: string; label: string }) {
   const styles: Record<string, string> = {
     succeeded: "bg-success/20 text-success",
     pending: "bg-warning/20 text-warning",
     failed: "bg-error/20 text-error",
   };
 
-  const labels: Record<string, string> = {
-    succeeded: "Paid",
-    pending: "Pending",
-    failed: "Failed",
-  };
-
   return (
     <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${styles[status] || "bg-muted/20 text-muted"}`}>
-      {labels[status] || status}
+      {label}
     </span>
   );
 }

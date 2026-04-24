@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslate } from "@/lib/i18n/provider";
 
 type Mode = "login" | "signup";
 
@@ -18,6 +19,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslate();
   const [mode, setMode] = useState<Mode>(
     searchParams.get("mode") === "signup" ? "signup" : "login"
   );
@@ -53,12 +55,12 @@ function LoginForm() {
     } else {
       // Signup mode - validate invite code first
       if (!inviteCode.trim()) {
-        setError("Invite code is required");
+        setError(t("login.inviteCodeRequired"));
         setLoading(false);
         return;
       }
 
-      // Check if invite code is valid
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: codeData } = await (supabase as any)
         .from("invite_codes")
         .select("id")
@@ -68,7 +70,7 @@ function LoginForm() {
         .single();
 
       if (!codeData) {
-        setError("Invalid or expired invite code");
+        setError(t("login.inviteCodeInvalid"));
         setLoading(false);
         return;
       }
@@ -92,13 +94,14 @@ function LoginForm() {
 
       // Mark invite code as used
       if (authData.user) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any).rpc("use_invite_code", {
           invite_code: inviteCode.trim().toUpperCase(),
           user_uuid: authData.user.id,
         });
       }
 
-      setSuccess("Check your email to confirm your account");
+      setSuccess(t("login.signupCheckEmail"));
       setLoading(false);
     }
   }
@@ -116,7 +119,7 @@ function LoginForm() {
             priority
           />
           <p className="text-muted">
-            {mode === "login" ? "Sign in to access your briefs" : "Create your account"}
+            {mode === "login" ? t("login.subtitleLogin") : t("login.subtitleSignup")}
           </p>
         </div>
 
@@ -131,7 +134,7 @@ function LoginForm() {
                 : "text-muted hover:text-foreground"
             }`}
           >
-            Sign In
+            {t("login.modeLogin")}
           </button>
           <button
             type="button"
@@ -142,7 +145,7 @@ function LoginForm() {
                 : "text-muted hover:text-foreground"
             }`}
           >
-            Sign Up
+            {t("login.modeSignup")}
           </button>
         </div>
 
@@ -153,7 +156,7 @@ function LoginForm() {
                 htmlFor="inviteCode"
                 className="block text-sm font-medium mb-2"
               >
-                Invite Code <span className="text-error">*</span>
+                {t("login.inviteCodeLabel")} <span className="text-error">*</span>
               </label>
               <input
                 id="inviteCode"
@@ -162,7 +165,7 @@ function LoginForm() {
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 required
                 className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
-                placeholder="XXXX-XXXX"
+                placeholder={t("login.invitePlaceholder")}
               />
             </div>
           )}
@@ -172,7 +175,7 @@ function LoginForm() {
               htmlFor="email"
               className="block text-sm font-medium mb-2"
             >
-              Email
+              {t("login.emailLabel")}
             </label>
             <input
               id="email"
@@ -182,7 +185,7 @@ function LoginForm() {
               required
               autoComplete="email"
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-              placeholder="you@example.com"
+              placeholder={t("login.emailPlaceholder")}
             />
           </div>
 
@@ -191,7 +194,7 @@ function LoginForm() {
               htmlFor="password"
               className="block text-sm font-medium mb-2"
             >
-              Password
+              {t("login.passwordLabel")}
             </label>
             <input
               id="password"
@@ -202,7 +205,7 @@ function LoginForm() {
               minLength={6}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-              placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
+              placeholder={mode === "signup" ? t("login.passwordSignupPlaceholder") : t("login.passwordLoginPlaceholder")}
             />
           </div>
 
@@ -230,16 +233,16 @@ function LoginForm() {
             className="w-full py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
           >
             {loading
-              ? mode === "login" ? "Signing in..." : "Creating account..."
-              : mode === "login" ? "Sign In" : "Create Account"
+              ? mode === "login" ? t("login.signingIn") : t("login.signingUp")
+              : mode === "login" ? t("login.signIn") : t("login.signUp")
             }
           </button>
         </form>
 
         <p className="text-center text-muted text-sm mt-6">
           {mode === "signup"
-            ? "Need an invite code? Contact your admin."
-            : "This platform is invite-only."
+            ? t("login.footerInviteHint")
+            : t("login.footerInviteOnly")
           }
         </p>
       </div>

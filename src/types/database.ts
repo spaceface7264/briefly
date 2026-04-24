@@ -271,6 +271,7 @@ export type Database = {
           notify_new_briefs: boolean
           notify_payments: boolean
           notify_submissions: boolean
+          preferred_language: string | null
           role: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at: string | null
           self_billing_agreement_version: string | null
@@ -299,6 +300,7 @@ export type Database = {
           notify_new_briefs?: boolean
           notify_payments?: boolean
           notify_submissions?: boolean
+          preferred_language?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null
@@ -327,6 +329,7 @@ export type Database = {
           notify_new_briefs?: boolean
           notify_payments?: boolean
           notify_submissions?: boolean
+          preferred_language?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null

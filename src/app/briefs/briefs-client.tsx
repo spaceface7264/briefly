@@ -13,31 +13,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useTranslate } from "@/lib/i18n/provider";
 import type { BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
-
-const categories: { value: BriefCategory | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "entertaining", label: "Entertaining" },
-  { value: "ad", label: "Ad" },
-  { value: "guide", label: "Guide" },
-  { value: "event", label: "Event" },
-  { value: "community", label: "Community" },
-];
-
-const durations: { value: BriefDurationClass | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "short", label: "Short" },
-  { value: "medium", label: "Medium" },
-  { value: "long", label: "Long" },
-  { value: "static", label: "Static" },
-];
-
-const priceRanges = [
-  { value: "all", label: "Any" },
-  { value: "0-2000", label: "<2k" },
-  { value: "2000-3000", label: "2-3k" },
-  { value: "3000+", label: "3k+" },
-];
 
 const BRIEFS_PER_PAGE = 9;
 
@@ -50,7 +27,32 @@ interface BriefsClientProps {
 export function BriefsClient({ briefs, initialCategory, initialDurationClass }: BriefsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslate();
   const hasMountedRef = useRef(false);
+
+  const categories: { value: BriefCategory | "all"; label: string }[] = [
+    { value: "all", label: t("briefs.filters.all") },
+    { value: "entertaining", label: t("categories.entertaining") },
+    { value: "ad", label: t("categories.ad") },
+    { value: "guide", label: t("categories.guide") },
+    { value: "event", label: t("categories.event") },
+    { value: "community", label: t("categories.community") },
+  ];
+
+  const durations: { value: BriefDurationClass | "all"; label: string }[] = [
+    { value: "all", label: t("briefs.filters.all") },
+    { value: "short", label: t("durations.short") },
+    { value: "medium", label: t("durations.medium") },
+    { value: "long", label: t("durations.long") },
+    { value: "static", label: t("durations.static") },
+  ];
+
+  const priceRanges = [
+    { value: "all", label: t("briefs.filters.priceAny") },
+    { value: "0-2000", label: t("briefs.filters.priceLow2k") },
+    { value: "2000-3000", label: t("briefs.filters.priceMid") },
+    { value: "3000+", label: t("briefs.filters.priceHigh3k") },
+  ];
 
   const categoryFilter = initialCategory || "all";
   const durationFilter = initialDurationClass || "all";
@@ -155,7 +157,7 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex items-baseline justify-between gap-4">
               <div className="flex items-baseline gap-3">
-                <h1 className="text-2xl font-bold tracking-tight">Briefs</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{t("briefs.pageTitle")}</h1>
                 <span className="value-text text-sm text-muted">
                   {hasActiveFilters ? `${shownCount}/${totalCount}` : totalCount}
                 </span>
@@ -166,7 +168,7 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
                   onClick={clearAll}
                   className="text-xs text-muted hover:text-foreground transition-colors"
                 >
-                  Clear
+                  {t("briefs.clear")}
                 </button>
               )}
             </div>
@@ -207,7 +209,7 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
                     onChange={(e) => setGymFilter(e.target.value)}
                     className="no-global-focus-ring px-2.5 py-1 bg-transparent border border-border rounded-md text-xs text-muted hover:text-foreground hover:border-border-strong focus-visible:outline-none focus:border-accent transition-colors cursor-pointer"
                   >
-                    <option value="">Gym</option>
+                    <option value="">{t("briefs.gym")}</option>
                     {gyms.map((gym) => (
                       <option key={gym} value={gym}>
                         {gym}
@@ -231,7 +233,7 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
               {totalPages > 1 && (
                 <Pagination className="mt-6 flex-col items-center gap-2">
                   <p className="value-text text-xs text-muted">
-                    Showing {showingStart}-{showingEnd} of {shownCount}
+                    {t("briefs.pagination", { start: showingStart, end: showingEnd, total: shownCount })}
                   </p>
                   <PaginationContent>
                     <PaginationItem>
@@ -271,21 +273,21 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
             <div className="text-center py-20 border border-dashed border-border rounded-lg">
               {totalCount === 0 ? (
                 <>
-                  <p className="font-medium text-sm mb-1">No open briefs</p>
-                  <p className="text-muted text-xs">Check back soon.</p>
+                  <p className="font-medium text-sm mb-1">{t("briefs.noOpen")}</p>
+                  <p className="text-muted text-xs">{t("briefs.noOpenHint")}</p>
                 </>
               ) : (
                 <>
-                  <p className="font-medium text-sm mb-1">No matches</p>
+                  <p className="font-medium text-sm mb-1">{t("briefs.noMatches")}</p>
                   <p className="text-muted text-xs mb-4">
-                    Try removing a filter.
+                    {t("briefs.noMatchesHint")}
                   </p>
                   <button
                     type="button"
                     onClick={clearAll}
                     className="inline-flex px-3 py-1.5 border border-border-strong hover:bg-surface-hover text-xs font-medium rounded-md transition-colors"
                   >
-                    Clear filters
+                    {t("briefs.clearFilters")}
                   </button>
                 </>
               )}

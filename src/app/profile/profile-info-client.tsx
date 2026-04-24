@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { LanguageSelector } from "@/components/language-selector";
+import { useTranslate } from "@/lib/i18n/provider";
 import type { Profile } from "@/types/database";
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 
 export function ProfileInfoClient({ profile, userEmail }: Props) {
   const router = useRouter();
+  const t = useTranslate();
   const [name, setName] = useState(profile?.name || "");
   const [instagram, setInstagram] = useState(profile?.instagram_handle || "");
   const [tagsInput, setTagsInput] = useState(profile?.tags?.join(", ") || "");
@@ -29,7 +32,7 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      setError("You must be logged in");
+      setError(t("errors.unauthorized"));
       setSaving(false);
       return;
     }
@@ -50,7 +53,7 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
       .eq("id", user.id);
 
     if (updateError) {
-      setError("Failed to save changes");
+      setError(t("errors.generic"));
       setSaving(false);
       return;
     }
@@ -71,13 +74,13 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Profile</h1>
-        <p className="text-text-secondary">Update your creator information</p>
+        <h1 className="text-3xl font-bold mb-2">{t("profile.title")}</h1>
+        <p className="text-text-secondary">{t("profile.subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium mb-2">Email</label>
+          <label className="block text-sm font-medium mb-2">{t("profile.emailLabel")}</label>
           <input
             type="email"
             value={userEmail}
@@ -85,13 +88,13 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
             className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-muted cursor-not-allowed"
           />
           <p className="text-muted text-sm mt-1">
-            Contact an admin to change your email
+            {t("profile.emailHint")}
           </p>
         </div>
 
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-2">
-            Display Name
+            {t("profile.displayName")}
           </label>
           <input
             id="name"
@@ -99,13 +102,13 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-            placeholder="Your name"
+            placeholder={t("login.namePlaceholder")}
           />
         </div>
 
         <div>
           <label htmlFor="instagram" className="block text-sm font-medium mb-2">
-            Instagram Handle
+            {t("profile.instagramHandle")}
           </label>
           <input
             id="instagram"
@@ -115,11 +118,12 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
             className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             placeholder="@yourhandle"
           />
+          <p className="text-muted text-sm mt-1">{t("profile.instagramHint")}</p>
         </div>
 
         <div>
           <label htmlFor="tags" className="block text-sm font-medium mb-2">
-            Content Tags
+            {t("profile.tags")}
           </label>
           <input
             id="tags"
@@ -129,12 +133,11 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
             className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
             placeholder="reels, tutorials, comedy"
           />
-          <p className="text-muted text-sm mt-1">Separate tags with commas</p>
+          <p className="text-muted text-sm mt-1">{t("profile.tagsHint")}</p>
         </div>
 
         {tagsInput && (
           <div>
-            <label className="block text-sm font-medium mb-2">Tag Preview</label>
             <div className="flex flex-wrap gap-2">
               {tagsInput
                 .split(",")
@@ -160,25 +163,33 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
             disabled={saving}
             className="px-6 py-3 bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? t("common.saving") : t("profile.saveChanges")}
           </button>
           {saved && (
             <span className="inline-flex items-center gap-1.5 text-success text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              Changes saved
+              {t("profile.saved")}
             </span>
           )}
         </div>
       </form>
+
+      <section className="mt-12 pt-8 border-t border-border space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold mb-1">{t("settings.languageHeading")}</h2>
+          <p className="text-muted text-sm">{t("settings.languageDescription")}</p>
+        </div>
+        <LanguageSelector />
+      </section>
 
       <div className="mt-12 pt-8 border-t border-border">
         <button
           onClick={handleLogout}
           className="text-muted hover:text-error transition-colors text-sm"
         >
-          Sign out
+          {t("profile.signOut")}
         </button>
       </div>
     </>

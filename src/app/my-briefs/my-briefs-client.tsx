@@ -3,14 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
+import { useTranslate } from "@/lib/i18n/provider";
 import type { StatusTone } from "@/components/status-pill";
 import type { ClaimStatus } from "@/types/database";
 import type { ClaimWithBrief } from "./page";
-import {
-  formatPrice,
-  categoryLabel,
-  durationClassLabel,
-} from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 
 function formatShortDate(date: string | null | undefined) {
   if (!date) return "";
@@ -20,34 +17,34 @@ function formatShortDate(date: string | null | undefined) {
   });
 }
 
-const statusGroups: {
+const statusGroupsConfig: {
   status: ClaimStatus;
-  title: string;
-  description: string;
+  titleKey: string;
+  descKey: string;
   tone: StatusTone;
 }[] = [
   {
     status: "active",
-    title: "In Progress",
-    description: "Briefs you are currently working on",
+    titleKey: "myBriefs.groupActiveTitle",
+    descKey: "myBriefs.groupActiveDesc",
     tone: "brand",
   },
   {
     status: "submitted",
-    title: "Under Review",
-    description: "Waiting for admin approval",
+    titleKey: "myBriefs.groupSubmittedTitle",
+    descKey: "myBriefs.groupSubmittedDesc",
     tone: "info",
   },
   {
     status: "approved",
-    title: "Approved",
-    description: "Ready for payment",
+    titleKey: "myBriefs.groupApprovedTitle",
+    descKey: "myBriefs.groupApprovedDesc",
     tone: "info",
   },
   {
     status: "paid",
-    title: "Completed",
-    description: "Paid and closed",
+    titleKey: "myBriefs.groupPaidTitle",
+    descKey: "myBriefs.groupPaidDesc",
     tone: "success",
   },
 ];
@@ -93,8 +90,11 @@ interface Props {
 
 export function MyBriefsClient({ claims }: Props) {
   const router = useRouter();
-  const groupedClaims = statusGroups.map((group) => ({
+  const t = useTranslate();
+  const groupedClaims = statusGroupsConfig.map((group) => ({
     ...group,
+    title: t(group.titleKey),
+    description: t(group.descKey),
     claims: claims.filter((c) => c.status === group.status),
   }));
 
@@ -106,24 +106,23 @@ export function MyBriefsClient({ claims }: Props) {
       <main className="flex-1">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">My Briefs</h1>
-            <p className="text-sm text-text-secondary">Track your claimed briefs and submissions</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">{t("myBriefs.pageTitle")}</h1>
+            <p className="text-sm text-text-secondary">{t("myBriefs.pageSubtitle")}</p>
           </div>
 
           {!hasAnyClaims ? (
             <div className="bg-surface border border-border rounded-xl p-8 sm:p-12 text-center">
               <h2 className="text-xl font-semibold mb-2">
-                Nothing here yet
+                {t("myBriefs.empty")}
               </h2>
               <p className="text-text-secondary max-w-md mx-auto mb-6">
-                Claim a brief, submit your work within 7 days, and get paid in
-                DKK once it&apos;s approved.
+                {t("myBriefs.emptyDescription")}
               </p>
               <Link
                 href="/briefs"
                 className="inline-flex px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
               >
-                Browse Available Briefs
+                {t("myBriefs.emptyCta")}
               </Link>
             </div>
           ) : (
@@ -179,7 +178,7 @@ export function MyBriefsClient({ claims }: Props) {
                     {group.claims.length === 0 ? (
                       <div className="bg-surface/40 border border-dashed border-border rounded-xl p-6 text-center">
                         <p className="text-text-secondary text-sm">
-                          Nothing in this stage
+                          {t("myBriefs.nothingInStage")}
                         </p>
                       </div>
                     ) : (
@@ -189,7 +188,7 @@ export function MyBriefsClient({ claims }: Props) {
                             key={claim.id}
                             role="link"
                             tabIndex={0}
-                            aria-label={`Open brief: ${claim.brief.title}`}
+                            aria-label={t("myBriefs.openAria", { title: claim.brief.title })}
                             onClick={() => router.push(`/briefs/${claim.brief_id}`)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
@@ -205,10 +204,10 @@ export function MyBriefsClient({ claims }: Props) {
                               </h3>
 
                               <span className="px-2 py-0.5 bg-surface-raised text-foreground text-[0.78rem] font-medium rounded-full border border-border">
-                                {categoryLabel(claim.brief.category)}
+                                {t(`categories.${claim.brief.category}`)}
                               </span>
                               <span className="px-2 py-0.5 bg-surface-raised text-text-secondary text-[0.78rem] font-mono rounded-full border border-border">
-                                {durationClassLabel(claim.brief.duration_class)}
+                                {t(`durations.${claim.brief.duration_class}`)}
                               </span>
                               {claim.brief.gym && (
                                 <span className="px-2 py-0.5 bg-surface-raised text-text-secondary text-[0.78rem] rounded-full border border-border">
@@ -218,13 +217,13 @@ export function MyBriefsClient({ claims }: Props) {
 
                               {claim.status === "active" && (
                                 <span className="font-mono text-xs text-muted/90">
-                                  Expires {formatShortDate(claim.expires_at)}
+                                  {t("myBriefs.expires", { date: formatShortDate(claim.expires_at) })}
                                 </span>
                               )}
 
                               {claim.brief.deadline && (
                                 <span className="font-mono text-xs text-muted/90">
-                                  Due {formatShortDate(claim.brief.deadline)}
+                                  {t("myBriefs.due", { date: formatShortDate(claim.brief.deadline) })}
                                 </span>
                               )}
 
@@ -243,7 +242,7 @@ export function MyBriefsClient({ claims }: Props) {
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
                                   </svg>
-                                  Invoice {claim.invoice.invoice_number}
+                                  {t("myBriefs.invoiceLink", { number: claim.invoice.invoice_number || "" })}
                                 </a>
                               )}
                             </div>

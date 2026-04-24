@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import type { Brief, BriefWithClaims } from "@/types/database";
-import { formatPrice, formatDeadline, categoryLabel, durationClassLabel } from "@/lib/utils";
+import { formatPrice, formatDeadline } from "@/lib/utils";
+import { useTranslate } from "@/lib/i18n/provider";
 
 interface BriefCardProps {
   brief: Brief | BriefWithClaims;
@@ -40,6 +43,7 @@ function stripMarkdown(md: string): string {
 }
 
 export function BriefCard({ brief }: BriefCardProps) {
+  const t = useTranslate();
   const claimCount = hasClaimInfo(brief) ? brief.claim_count : 0;
   const claimLimit = brief.claim_limit || 1;
   const slotsAvailable = claimLimit - claimCount;
@@ -67,13 +71,13 @@ export function BriefCard({ brief }: BriefCardProps) {
             aria-hidden="true"
             className={`w-1.5 h-1.5 rounded-full shrink-0 ${categoryDot[brief.category] || "bg-muted"}`}
           />
-          <span className="whitespace-nowrap">{categoryLabel(brief.category)}</span>
+          <span className="whitespace-nowrap">{t(`categories.${brief.category}`)}</span>
           <span className="text-border select-none">/</span>
-          <span className="whitespace-nowrap">{durationClassLabel(brief.duration_class)}</span>
+          <span className="whitespace-nowrap">{t(`durations.${brief.duration_class}`)}</span>
         </div>
         {brief.is_ad_intended && (
           <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-warning">
-            Ad
+            {t("categories.ad")}
           </span>
         )}
         <span className="value-text inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-1.5 py-px text-accent text-xs font-semibold whitespace-nowrap">
@@ -102,23 +106,23 @@ export function BriefCard({ brief }: BriefCardProps) {
         <div className="flex items-center gap-2">
           {brief.deadline ? (
             <span className="value-text text-muted text-[0.7rem]">
-              Due {formatDeadline(brief.deadline)}
+              {t("briefs.card.due", { date: formatDeadline(brief.deadline) })}
             </span>
           ) : (
-            <span className="text-muted text-[0.7rem]">No due date</span>
+            <span className="text-muted text-[0.7rem]">{t("briefs.card.noDue")}</span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
           {userHasClaimed ? (
             <span className="text-brand font-semibold flex items-center gap-1">
-              Claimed
+              {t("briefs.card.claimed")}
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
               </svg>
             </span>
           ) : isFull ? (
-            <span className="text-disabled">Full</span>
+            <span className="text-disabled">{t("briefs.card.fullBrief")}</span>
           ) : (
             brief.gym ? <span className="text-muted truncate max-w-[10rem]">{brief.gym}</span> : null
           )}

@@ -14,25 +14,29 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationCenter } from "@/components/notification-center";
+import { useTranslate } from "@/lib/i18n/provider";
 import type { NotificationRow } from "@/lib/notification-center";
 
-const navItems = [
-  { href: "/briefs", label: "Briefs" },
-  { href: "/my-briefs", label: "My Briefs" },
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/guide", label: "Guide" },
-];
+const navItemDefs = [
+  { href: "/briefs", key: "nav.briefs" },
+  { href: "/my-briefs", key: "nav.myBriefs" },
+  { href: "/how-it-works", key: "nav.howItWorks" },
+  { href: "/guide", key: "nav.guide" },
+] as const;
 
-const profileItems = [
-  { href: "/profile", label: "Profile" },
-  { href: "/profile/payouts", label: "Payouts" },
-  { href: "/profile/invoices", label: "Invoices" },
-  { href: "/profile/notifications", label: "Notifications" },
-];
+const profileItemDefs = [
+  { href: "/profile", key: "nav.profile" },
+  { href: "/profile/payouts", key: "nav.payouts" },
+  { href: "/profile/invoices", key: "nav.invoices" },
+  { href: "/profile/notifications", key: "nav.notifications" },
+] as const;
 
 export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useTranslate();
+  const navItems = navItemDefs.map((item) => ({ href: item.href, label: t(item.key) }));
+  const profileItems = profileItemDefs.map((item) => ({ href: item.href, label: t(item.key) }));
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -153,7 +157,7 @@ export function Nav() {
             />
             <button
               type="button"
-              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-label={mobileOpen ? t("common.closeMenu") : t("common.openMenu")}
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((v) => !v)}
               className="inline-flex items-center justify-center w-10 h-10 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
@@ -239,7 +243,7 @@ export function Nav() {
                   onClick={handleLogout}
                   className="text-muted focus:text-error"
                 >
-                  Sign out
+                  {t("nav.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -257,7 +261,7 @@ export function Nav() {
                   adminChecked ? "opacity-100" : "opacity-0"
                 }`}
               >
-                Admin
+                {t("nav.admin")}
               </Link>
             )}
           </nav>
@@ -307,7 +311,7 @@ export function Nav() {
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-3 rounded-md text-base font-medium text-accent hover:bg-surface transition-colors"
                 >
-                  Admin
+                  {t("nav.admin")}
                 </Link>
               )}
               <button
@@ -318,7 +322,7 @@ export function Nav() {
                 }}
                 className="w-full text-left px-3 py-3 rounded-md text-base font-medium text-muted hover:text-error hover:bg-surface transition-colors"
               >
-                Sign out
+                {t("nav.signOut")}
               </button>
             </div>
           </nav>

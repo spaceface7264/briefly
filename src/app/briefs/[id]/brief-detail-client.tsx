@@ -8,12 +8,11 @@ import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
 import { ConfirmDialog } from "@/components/modal";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslate } from "@/lib/i18n/provider";
 import type { Brief, Claim } from "@/types/database";
 import {
   formatPrice,
   formatDeadline,
-  categoryLabel,
-  durationClassLabel,
   humanizeKey,
 } from "@/lib/utils";
 
@@ -33,12 +32,6 @@ const categoryDot: Record<string, string> = {
   community: "bg-brand/60",
 };
 
-const terminalClaimStatusLabel: Partial<Record<Claim["status"], string>> = {
-  submitted: "Under review",
-  approved: "Approved",
-  paid: "Paid",
-};
-
 function formatShortDate(date: string | null | undefined) {
   if (!date) return "";
 
@@ -56,9 +49,16 @@ export function BriefDetailClient({
   reclaimCooldownDays,
 }: Props) {
   const router = useRouter();
+  const t = useTranslate();
   const [claiming, setClaiming] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
+
+  const terminalClaimStatusLabel: Partial<Record<Claim["status"], string>> = {
+    submitted: t("briefDetail.underReview"),
+    approved: t("briefDetail.approved"),
+    paid: t("briefDetail.paid"),
+  };
 
   const claimLimit = brief.claim_limit || 1;
   const slotsAvailable = claimLimit - claimCount;
@@ -78,17 +78,20 @@ export function BriefDetailClient({
       userClaim.status !== "paid" &&
       userClaim.status !== "cancelled"
   );
-  const dueLabel = brief.deadline ? ` · Due ${formatShortDate(brief.deadline)}` : "";
+  const dueLabel = brief.deadline ? ` · ${t("briefDetail.due", { date: formatShortDate(brief.deadline) })}` : "";
   const claimStatusLabel = userClaim
     ? isActiveClaim
-      ? `Claimed${userClaim.expires_at ? ` until ${formatShortDate(userClaim.expires_at)}` : ""}${dueLabel}`
-      : `${terminalClaimStatusLabel[userClaim.status] || "Claimed"}${dueLabel}`
+      ? `${t("briefDetail.claim")}${userClaim.expires_at ? ` ${t("briefDetail.until", { date: formatShortDate(userClaim.expires_at) })}` : ""}${dueLabel}`
+      : `${terminalClaimStatusLabel[userClaim.status] || t("briefDetail.claim")}${dueLabel}`
     : "";
 
   async function handleClaim() {
     if (isReclaimBlocked && reclaimBlockedUntil) {
       setError(
-        `You can reclaim this brief after ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown).`
+        t("briefDetail.reclaimBlocked", {
+          date: formatDeadline(reclaimBlockedUntil),
+          days: reclaimCooldownDays,
+        })
       );
       return;
     }
@@ -100,7 +103,7 @@ export function BriefDetailClient({
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      setError("You must be logged in to claim a brief");
+      setError(t("errors.unauthorized"));
       setClaiming(false);
       return;
     }
@@ -119,7 +122,7 @@ export function BriefDetailClient({
 
     if (insertError) {
       console.error("Claim error:", insertError);
-      setError("Failed to claim brief. It may be full or you already claimed it.");
+      setError(t("briefDetail.claimFailed"));
       setClaiming(false);
       return;
     }
@@ -143,7 +146,7 @@ export function BriefDetailClient({
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            briefs
+            {t("briefDetail.back")}
           </Link>
 
           {/* Header — full width, compact */}
@@ -154,9 +157,9 @@ export function BriefDetailClient({
                 aria-hidden="true"
                 className={`w-1.5 h-1.5 rounded-full ${categoryDot[brief.category] || "bg-muted"}`}
               />
-              <span className="text-muted">{categoryLabel(brief.category)}</span>
+              <span className="text-muted">{t(`categories.${brief.category}`)}</span>
               <span className="text-border">/</span>
-              <span className="text-muted">{durationClassLabel(brief.duration_class)}</span>
+              <span className="text-muted">{t(`durations.${brief.duration_class}`)}</span>
               {brief.gym && (
                 <>
                   <span className="text-border">/</span>
@@ -178,7 +181,7 @@ export function BriefDetailClient({
               {brief.is_ad_intended && (
                 <>
                   <span className="text-border">·</span>
-                  <span className="text-warning font-medium">For Ads</span>
+                  <span className="text-warning font-medium">{t("briefDetail.forAds")}</span>
                 </>
               )}
             </div>
@@ -193,7 +196,7 @@ export function BriefDetailClient({
                   {formatPrice(brief.price_dkk)}
                 </p>
                 <p className="mt-2 text-xs font-medium text-info">
-                  Payout after submission approval
+                  {t("briefDetail.payoutNote")}
                 </p>
               </div>
             </div>
@@ -205,7 +208,7 @@ export function BriefDetailClient({
             <div className="space-y-8 min-w-0">
               {/* Description */}
               <section>
-                <SectionLabel>Description</SectionLabel>
+                <SectionLabel>{t("briefDetail.description")}</SectionLabel>
                 <div className="prose-brief">
                   <ReactMarkdown
                     components={{
@@ -222,7 +225,7 @@ export function BriefDetailClient({
               {/* Deliverable Specs */}
               {specs && Object.keys(specs).length > 0 && (
                 <section>
-                  <SectionLabel>Specs</SectionLabel>
+                  <SectionLabel>{t("briefDetail.specs")}</SectionLabel>
                   <div className="grid gap-px bg-border rounded-lg overflow-hidden border border-border">
                     {Object.entries(specs).map(([key, value]) => (
                       <div key={key} className="flex items-baseline gap-4 bg-surface px-4 py-3">
@@ -239,7 +242,7 @@ export function BriefDetailClient({
               {/* Usage Rights */}
               {brief.usage_rights && (
                 <section>
-                  <SectionLabel>Usage Rights</SectionLabel>
+                  <SectionLabel>{t("briefDetail.usageRights")}</SectionLabel>
                   <p className="text-text-secondary text-base leading-relaxed">{brief.usage_rights}</p>
                 </section>
               )}
@@ -247,7 +250,7 @@ export function BriefDetailClient({
               {/* Reference URLs */}
               {brief.reference_urls && brief.reference_urls.length > 0 && (
                 <section>
-                  <SectionLabel>References</SectionLabel>
+                  <SectionLabel>{t("briefDetail.references")}</SectionLabel>
                   <div className="space-y-2">
                     {brief.reference_urls.map((url, i) => (
                       <a
@@ -275,7 +278,7 @@ export function BriefDetailClient({
                 <div className="bg-surface border border-border rounded-lg overflow-hidden">
                   {/* Availability bar */}
                   <div className="flex items-center justify-between px-4 py-3 bg-surface-raised border-b border-border">
-                    <span className="text-xs text-muted uppercase tracking-wider font-medium">Slots</span>
+                    <span className="text-xs text-muted uppercase tracking-wider font-medium">{t("briefDetail.slots")}</span>
                     <span className="value-text text-sm">
                       <span className={slotsAvailable > 0 ? "text-foreground" : "text-warning"}>
                         {slotsAvailable}
@@ -295,7 +298,7 @@ export function BriefDetailClient({
                     ) : canClaim ? (
                       <>
                         <p className="text-text-secondary text-xs mb-4 leading-relaxed">
-                          Claim to reserve a slot for 7 days.
+                          {t("briefDetail.claimInfo")}
                         </p>
 
                         {error && (
@@ -307,27 +310,27 @@ export function BriefDetailClient({
                             onClick={() => setShowConfirm(true)}
                             className="w-full min-h-11 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold text-sm rounded-md transition-colors"
                           >
-                            Claim Brief
+                            {t("briefDetail.claimBrief")}
                           </button>
                         ) : (
                           <div className="space-y-2.5 bg-warning/5 border border-warning/20 rounded-md p-3">
                             <p className="text-sm text-text-secondary">
-                              <span className="font-medium text-warning">Heads up:</span>{" "}
-                              reserves for 7 days. Release anytime.
+                              <span className="font-medium text-warning">{t("briefDetail.claimHeadsUpTitle")}</span>{" "}
+                              {t("briefDetail.claimHeadsUpBody")}
                             </p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setShowConfirm(false)}
                                 className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors"
                               >
-                                Cancel
+                                {t("common.cancel")}
                               </button>
                               <button
                                 onClick={handleClaim}
                                 disabled={claiming}
                                 className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-md transition-colors"
                               >
-                                {claiming ? "Claiming..." : "Confirm"}
+                                {claiming ? t("briefDetail.claiming") : t("common.confirm")}
                               </button>
                             </div>
                           </div>
@@ -336,10 +339,13 @@ export function BriefDetailClient({
                     ) : (
                       <p className="text-warning text-sm text-center py-2">
                         {isReclaimBlocked && reclaimBlockedUntil
-                          ? `Reclaim available ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown after release)`
+                          ? t("briefDetail.reclaimBlocked", {
+                              date: formatDeadline(reclaimBlockedUntil),
+                              days: reclaimCooldownDays,
+                            })
                           : brief.status !== "open"
-                            ? "Brief is no longer open"
-                            : "All slots claimed"}
+                            ? t("briefDetail.briefNoLongerOpen")
+                            : t("briefDetail.allSlotsClaimed")}
                       </p>
                     )}
                   </div>
@@ -374,6 +380,7 @@ function ClaimedState({
   onCancelled: () => void;
 }) {
   const router = useRouter();
+  const t = useTranslate();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -395,7 +402,7 @@ function ClaimedState({
 
     if (updateError) {
       console.error("Cancel error:", updateError);
-      setError("Failed to cancel claim");
+      setError(t("briefDetail.cancelFailed"));
       setCancelling(false);
       return;
     }
@@ -406,7 +413,7 @@ function ClaimedState({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!submissionUrl.trim()) {
-      setError("Please enter a submission URL");
+      setError(t("briefDetail.urlRequiredError"));
       return;
     }
 
@@ -415,6 +422,7 @@ function ClaimedState({
 
     const supabase = createClient();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: updateError } = await (supabase as any)
       .from("claims")
       .update({
@@ -427,7 +435,7 @@ function ClaimedState({
 
     if (updateError) {
       console.error("Submit error:", updateError);
-      setError("Failed to submit");
+      setError(t("briefDetail.submissionError"));
       setSubmitting(false);
       return;
     }
@@ -443,24 +451,24 @@ function ClaimedState({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         ),
         color: "text-info bg-info/10",
-        label: "Under review",
-        desc: "We'll email you when reviewed.",
+        label: t("briefDetail.underReview"),
+        desc: t("briefDetail.reviewDesc"),
       },
       approved: {
         icon: (
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         ),
         color: "text-success bg-success/10",
-        label: "Approved",
-        desc: "Payment is on its way.",
+        label: t("briefDetail.approved"),
+        desc: t("briefDetail.approvedDesc"),
       },
       paid: {
         icon: (
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         ),
         color: "text-success bg-success/10",
-        label: "Completed",
-        desc: "Payment sent.",
+        label: t("briefDetail.completed"),
+        desc: t("briefDetail.paidDesc"),
       },
     }[claim.status]!;
 
@@ -477,7 +485,7 @@ function ClaimedState({
           href="/my-briefs"
           className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
         >
-          My Briefs
+          {t("briefDetail.myBriefs")}
         </Link>
       </div>
     );
@@ -491,10 +499,10 @@ function ClaimedState({
           <div className="flex items-center justify-between mb-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-accent">
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-status-pulse" />
-              Claimed
+              {t("briefDetail.claim")}
             </span>
             <span className="value-text text-muted text-sm">
-              exp {formatDeadline(claim.expires_at)}
+              {t("briefDetail.expires", { date: formatDeadline(claim.expires_at) })}
             </span>
           </div>
 
@@ -507,19 +515,19 @@ function ClaimedState({
               onClick={() => setShowSubmitForm(true)}
               className="w-full min-h-11 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-md transition-colors"
             >
-              Submit work
+              {t("briefDetail.submitWork")}
             </button>
             <Link
               href="/my-briefs"
               className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
             >
-              My Briefs
+              {t("briefDetail.myBriefs")}
             </Link>
             <button
               onClick={() => setShowCancelConfirm(true)}
               className="w-full min-h-11 py-2 text-muted hover:text-error text-sm transition-colors"
             >
-              Release claim
+              {t("briefDetail.releaseClaim")}
             </button>
           </div>
         </>
@@ -529,10 +537,10 @@ function ClaimedState({
         open={showCancelConfirm}
         onClose={() => !cancelling && setShowCancelConfirm(false)}
         onConfirm={handleCancel}
-        title="Release claim?"
-        description={`Your slot will open for other creators. You can reclaim this brief again after ${reclaimCooldownDays} days.`}
-        confirmLabel={cancelling ? "Releasing..." : "Release claim"}
-        cancelLabel="Cancel"
+        title={t("briefDetail.releaseTitle")}
+        description={t("briefDetail.releaseDescription", { days: reclaimCooldownDays })}
+        confirmLabel={cancelling ? t("briefDetail.releasing") : t("briefDetail.releaseClaim")}
+        cancelLabel={t("common.cancel")}
         tone="danger"
         loading={cancelling}
       />
@@ -541,27 +549,27 @@ function ClaimedState({
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label htmlFor="submissionUrl" className="block text-sm font-medium mb-1.5">
-              URL <span className="text-error">*</span>
+              {t("briefDetail.urlLabel")} <span className="text-error">*</span>
             </label>
             <input
               id="submissionUrl"
               type="url"
               value={submissionUrl}
               onChange={(e) => setSubmissionUrl(e.target.value)}
-              placeholder="https://instagram.com/reel/..."
+              placeholder={t("briefDetail.urlPlaceholder")}
               required
               className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent"
             />
           </div>
           <div>
             <label htmlFor="submissionNotes" className="block text-sm font-medium mb-1.5">
-              Notes
+              {t("briefDetail.notesLabel")}
             </label>
             <textarea
               id="submissionNotes"
               value={submissionNotes}
               onChange={(e) => setSubmissionNotes(e.target.value)}
-              placeholder="Optional context..."
+              placeholder={t("briefDetail.notesPlaceholder")}
               rows={2}
               className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
             />
@@ -579,14 +587,14 @@ function ClaimedState({
               onClick={() => setShowSubmitForm(false)}
               className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors"
             >
-              Back
+              {t("common.back")}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-md transition-colors"
             >
-              {submitting ? "Submitting..." : "Submit"}
+              {submitting ? t("common.submitting") : t("common.submit")}
             </button>
           </div>
         </form>
@@ -596,6 +604,7 @@ function ClaimedState({
 }
 
 function SubmissionChecklist() {
+  const t = useTranslate();
   const [checks, setChecks] = useState({
     hook: false,
     subtitles: false,
@@ -606,16 +615,16 @@ function SubmissionChecklist() {
   const allChecked = Object.values(checks).every(Boolean);
 
   const items = [
-    { key: "hook" as const, label: "Stærk hook i første 2-3 sek" },
-    { key: "subtitles" as const, label: "Undertekster tilføjet (centreret)" },
-    { key: "length" as const, label: "Passende længde (8-30 sek)" },
-    { key: "branding" as const, label: "Boulders branding synlig" },
+    { key: "hook" as const, label: t("contentTips.checkHook") },
+    { key: "subtitles" as const, label: t("contentTips.checkSubtitles") },
+    { key: "length" as const, label: t("contentTips.checkLength") },
+    { key: "branding" as const, label: t("contentTips.checkBranding") },
   ];
 
   return (
     <div className="bg-surface-raised border border-border rounded-md p-3">
       <p className="text-xs font-medium text-muted uppercase tracking-[0.12em] mb-2">
-        Checklist
+        {t("briefDetail.checklist")}
       </p>
       <div className="space-y-1.5">
         {items.map((item) => (
@@ -637,7 +646,7 @@ function SubmissionChecklist() {
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
-          Klar til at indsende!
+          {t("briefDetail.checklistReady")}
         </p>
       )}
     </div>

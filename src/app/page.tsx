@@ -1,24 +1,29 @@
 import Link from "next/link";
+import { LanguagePickerModal } from "@/components/language-picker";
+import { getT, hasLocalePreference } from "@/lib/i18n/server";
 
-const steps = [
-  {
-    number: "01",
-    title: "Get invited",
-    body: "The platform is invite-only. If you create content and want in, reach out to the Boulders marketing team for a code.",
-  },
-  {
-    number: "02",
-    title: "Claim a brief",
-    body: "Browse open briefs across Boulders gyms. Pick one that fits your style and reserve the slot for 7 days.",
-  },
-  {
-    number: "03",
-    title: "Submit and get paid",
-    body: "Deliver your reel, TikTok, or photo. Once approved, you get paid in DKK with a self-billed invoice.",
-  },
-];
+export default async function Home() {
+  const t = await getT();
+  const hasLocale = await hasLocalePreference();
 
-export default function Home() {
+  const steps = [
+    {
+      number: t("home.step1Number"),
+      title: t("home.step1Title"),
+      body: t("home.step1Body"),
+    },
+    {
+      number: t("home.step2Number"),
+      title: t("home.step2Title"),
+      body: t("home.step2Body"),
+    },
+    {
+      number: t("home.step3Number"),
+      title: t("home.step3Title"),
+      body: t("home.step3Body"),
+    },
+  ];
+
   return (
     <main className="flex-1 relative overflow-hidden">
       {/* Ambient brand glow */}
@@ -31,27 +36,26 @@ export default function Home() {
         <div className="text-center space-y-6">
           <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-muted px-3 py-1.5 rounded-md border border-border bg-surface">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-status-pulse" />
-            Invite-only
+            {t("home.inviteOnly")}
           </p>
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
             Boulders <span className="text-brand-pure">Creators</span>
           </h1>
           <p className="text-lg text-muted max-w-lg mx-auto leading-relaxed">
-            Get paid to make content for Boulders climbing gyms. Reels, TikToks,
-            photos, long-form — real briefs with real budgets.
+            {t("home.tagline")}
           </p>
           <div className="flex flex-wrap gap-3 justify-center pt-4">
             <Link
               href="/login"
               className="px-6 py-3 bg-accent hover:bg-accent-hover text-background font-bold rounded-lg transition-colors text-sm"
             >
-              Log in
+              {t("home.ctaLogin")}
             </Link>
             <Link
               href="/login?mode=signup"
               className="px-6 py-3 border border-border-strong hover:border-foreground/30 hover:bg-surface-hover font-semibold rounded-lg transition-colors text-sm"
             >
-              Redeem invite code
+              {t("home.ctaRedeem")}
             </Link>
           </div>
         </div>
@@ -69,6 +73,8 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      {!hasLocale && <LanguagePickerModal />}
     </main>
   );
 }
