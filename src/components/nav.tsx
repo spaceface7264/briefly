@@ -64,6 +64,7 @@ export function Nav() {
 
   useEffect(() => {
     if (!userId) return;
+    const currentUserId = userId;
     const supabase = createClient();
     let channel: RealtimeChannel | null = null;
 
@@ -71,7 +72,7 @@ export function Nav() {
       const { data } = await supabase
         .from("notifications")
         .select("*")
-        .eq("recipient_id", userId)
+        .eq("recipient_id", currentUserId)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -82,14 +83,14 @@ export function Nav() {
 
     function subscribe() {
       channel = supabase
-        .channel(`notifications:${userId}`)
+        .channel(`notifications:${currentUserId}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
             table: "notifications",
-            filter: `recipient_id=eq.${userId}`,
+            filter: `recipient_id=eq.${currentUserId}`,
           },
           () => {
             loadNotifications();
