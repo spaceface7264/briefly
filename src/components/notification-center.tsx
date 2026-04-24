@@ -122,7 +122,7 @@ export function NotificationCenter({
           </span>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[360px] bg-surface border-border">
+      <DropdownMenuContent align="end" sideOffset={8} className="w-[min(92vw,360px)] bg-surface border-border">
         <DropdownMenuGroup>
           <div className="flex items-center justify-between px-2 py-1.5">
             <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>

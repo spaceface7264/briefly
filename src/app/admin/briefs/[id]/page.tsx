@@ -113,12 +113,12 @@ export default function EditBriefPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
         <div>
           <Link href="/admin/briefs" className="text-muted hover:text-foreground text-sm mb-2 inline-block">
             &larr; Back to Briefs
           </Link>
-          <h1 className="text-3xl font-bold">Edit Brief</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Edit Brief</h1>
         </div>
         <div className="flex gap-3">
           {brief.status === "archived" ? (

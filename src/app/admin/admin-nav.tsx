@@ -133,8 +133,25 @@ export function AdminNav() {
     };
   }, [userId]);
 
-  return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const { style } = document.body;
+    const prev = style.overflow;
+    style.overflow = "hidden";
+    return () => {
+      style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
+  const navContent = (
+    <>
       <div className="p-6 border-b border-border">
         <Link href="/admin" className="flex items-center gap-2">
           <Image
@@ -148,7 +165,7 @@ export function AdminNav() {
         </Link>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive =
             item.href === "/admin"
@@ -188,6 +205,65 @@ export function AdminNav() {
           Back to Creator View
         </Link>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile / tablet top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 flex items-center justify-between px-4 bg-background/90 backdrop-blur-xl border-b border-border">
+        <Link href="/admin" className="flex items-center gap-2">
+          <Image
+            src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
+            alt="Boulders"
+            width={100}
+            height={28}
+            className="h-6 w-auto"
+          />
+          <span className="text-[10px] font-medium text-accent uppercase tracking-wider">Admin</span>
+        </Link>
+        <button
+          type="button"
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen(true)}
+          className="inline-flex items-center justify-center w-10 h-10 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setMobileOpen(false)}
+            className="absolute inset-0 bg-black/60"
+          />
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-surface border-r border-border">
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-3 right-3 inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {navContent}
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar (lg+) */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex-col">
+        {navContent}
+      </aside>
+    </>
   );
 }

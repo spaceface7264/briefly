@@ -365,7 +365,7 @@ export function BriefForm({ brief }: BriefFormProps) {
       </div>
 
       {/* Category & Duration */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="category" className="block text-sm font-medium mb-2">
             Category <span className="text-error">*</span>
@@ -428,7 +428,7 @@ export function BriefForm({ brief }: BriefFormProps) {
       )}
 
       {/* Price & Claim Limit */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="price" className="block text-sm font-medium mb-2">
             Price (DKK) <span className="text-error">*</span>
@@ -464,7 +464,7 @@ export function BriefForm({ brief }: BriefFormProps) {
       </div>
 
       {/* Deadline & Gym */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="deadline" className="block text-sm font-medium mb-2">
             Deadline
@@ -552,9 +552,9 @@ export function BriefForm({ brief }: BriefFormProps) {
           {specEntries.map((entry, i) => {
             const isKnown = entry.key in specFieldLabels;
             return (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2">
                 {isKnown ? (
-                  <span className="w-40 shrink-0 px-3 py-2.5 bg-surface-raised border border-border rounded-lg text-sm text-muted">
+                  <span className="w-full sm:w-40 sm:shrink-0 px-3 py-2.5 bg-surface-raised border border-border rounded-lg text-sm text-muted">
                     {specFieldLabels[entry.key]}
                   </span>
                 ) : (
@@ -563,7 +563,7 @@ export function BriefForm({ brief }: BriefFormProps) {
                     value={entry.key}
                     onChange={(e) => updateEntry(i, "key", e.target.value)}
                     placeholder="Field name"
-                    className="w-40 shrink-0 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                    className="w-full sm:w-40 sm:shrink-0 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
                   />
                 )}
                 <input

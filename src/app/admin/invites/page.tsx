@@ -14,9 +14,9 @@ export default async function AdminInvitesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Invite Codes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Invite Codes</h1>
           <p className="text-muted mt-1">
             {unusedCount} available, {usedCount} used
           </p>
@@ -25,8 +25,8 @@ export default async function AdminInvitesPage() {
       </div>
 
       {invites && invites.length > 0 ? (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <table className="w-full">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <table className="w-full min-w-[760px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">Code</th>

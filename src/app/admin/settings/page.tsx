@@ -161,8 +161,8 @@ export default async function AdminSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
+          <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[560px]">
               <tbody>
                 {platformRows.map((row, i) => (
                   <tr
@@ -209,8 +209,8 @@ export default async function AdminSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
+          <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[560px]">
               <tbody>
                 {constantRows.map((row, i) => (
                   <tr

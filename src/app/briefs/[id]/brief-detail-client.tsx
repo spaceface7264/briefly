@@ -270,7 +270,7 @@ export function BriefDetailClient({
 
             {/* Sidebar */}
             <aside className="space-y-4">
-              <div className="sticky top-20 space-y-4">
+              <div className="lg:sticky lg:top-20 space-y-4">
                 {/* Action card */}
                 <div className="bg-surface border border-border rounded-lg overflow-hidden">
                   {/* Availability bar */}

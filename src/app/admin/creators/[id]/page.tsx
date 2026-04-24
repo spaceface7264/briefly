@@ -47,10 +47,10 @@ export default async function CreatorDetailPage({
         &larr; Back to Creators
       </Link>
 
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">{profile.name || "Unnamed Creator"}</h1>
-          <p className="text-muted">{profile.email}</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-8">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold break-words">{profile.name || "Unnamed Creator"}</h1>
+          <p className="text-muted break-all">{profile.email}</p>
           {profile.instagram_handle && (
             <a
               href={`https://instagram.com/${profile.instagram_handle}`}
@@ -62,7 +62,9 @@ export default async function CreatorDetailPage({
             </a>
           )}
         </div>
-        <RoleBadge role={profile.role} />
+        <div className="shrink-0">
+          <RoleBadge role={profile.role} />
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -88,8 +90,8 @@ export default async function CreatorDetailPage({
       {/* Claims History */}
       <h2 className="text-xl font-semibold mb-4">Claims History ({claims?.length || 0})</h2>
       {claims && claims.length > 0 ? (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <table className="w-full">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">Brief</th>
