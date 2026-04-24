@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
+import { MailCheck, MailOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -27,6 +29,15 @@ interface NotificationCenterProps {
   onUnreadCountChange: (count: number) => void;
 }
 
+function sortByReceivedAt(rows: NotificationRow[]): NotificationRow[] {
+  return [...rows].sort((a, b) => {
+    const createdAtDiff =
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    if (createdAtDiff !== 0) return createdAtDiff;
+    return b.id.localeCompare(a.id);
+  });
+}
+
 export function NotificationCenter({
   notifications,
   unreadCount,
@@ -34,6 +45,7 @@ export function NotificationCenter({
   onUnreadCountChange,
 }: NotificationCenterProps) {
   const [pending, startTransition] = useTransition();
+  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hasUnread = unreadCount > 0;
@@ -47,22 +59,30 @@ export function NotificationCenter({
   }
 
   function toggleRead(row: NotificationRow) {
+    if (pendingToggleId === row.id) return;
     setError(null);
+    setPendingToggleId(row.id);
     const nextRead = !row.read_at;
     const nextRows = notifications.map((n) =>
       n.id === row.id
         ? { ...n, read_at: nextRead ? new Date().toISOString() : null }
         : n
     );
-    onNotificationsChange(nextRows);
-    updateUnreadFromRows(nextRows);
+    const sortedRows = sortByReceivedAt(nextRows);
+    onNotificationsChange(sortedRows);
+    updateUnreadFromRows(sortedRows);
 
     startTransition(async () => {
-      const result = await markNotificationRead(row.id, nextRead);
-      if (!result.ok) {
-        setError(result.error);
-        onNotificationsChange(notifications);
-        updateUnreadFromRows(notifications);
+      try {
+        const result = await markNotificationRead(row.id, nextRead);
+        if (!result.ok) {
+          setError(result.error);
+          const sortedCurrentRows = sortByReceivedAt(notifications);
+          onNotificationsChange(sortedCurrentRows);
+          updateUnreadFromRows(sortedCurrentRows);
+        }
+      } finally {
+        setPendingToggleId((current) => (current === row.id ? null : current));
       }
     });
   }
@@ -74,15 +94,17 @@ export function NotificationCenter({
       ...n,
       read_at: n.read_at ?? new Date().toISOString(),
     }));
-    onNotificationsChange(nextRows);
+    const sortedRows = sortByReceivedAt(nextRows);
+    onNotificationsChange(sortedRows);
     onUnreadCountChange(0);
 
     startTransition(async () => {
       const result = await markAllNotificationsRead();
       if (!result.ok) {
         setError(result.error);
-        onNotificationsChange(notifications);
-        updateUnreadFromRows(notifications);
+        const sortedCurrentRows = sortByReceivedAt(notifications);
+        onNotificationsChange(sortedCurrentRows);
+        updateUnreadFromRows(sortedCurrentRows);
       }
     });
   }
@@ -95,23 +117,29 @@ export function NotificationCenter({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {hasUnread && (
-          <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-accent text-background text-[10px] leading-4 font-semibold text-center">
+          <span className="absolute top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-accent text-background text-[10px] leading-4 font-semibold text-center ring-2 ring-background">
             {label}
           </span>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[360px] bg-surface border-border">
-        <div className="flex items-center justify-between px-2 py-1.5">
-          <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
-          <button
-            type="button"
-            disabled={!hasUnread || pending}
-            onClick={markAllRead}
-            className="text-xs text-accent disabled:text-muted"
-          >
-            Mark all read
-          </button>
-        </div>
+        <DropdownMenuGroup>
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+            <button
+              type="button"
+              disabled={!hasUnread || pending}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                markAllRead();
+              }}
+              className="text-xs text-accent disabled:text-muted"
+            >
+              Mark all read
+            </button>
+          </div>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {notifications.length === 0 ? (
           <div className="px-3 py-8 text-center text-sm text-muted">
@@ -122,7 +150,7 @@ export function NotificationCenter({
             {notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className="cursor-default focus:bg-surface-hover"
+                className="cursor-default !rounded-none border-b border-border/60 pr-3 last:border-b-0 focus:bg-surface-hover data-[highlighted]:outline-none data-[highlighted]:ring-0 data-[highlighted]:shadow-none data-[highlighted]:[box-shadow:inset_0_0_0_1px_rgb(163_230_53_/_0.45)]"
                 onSelect={(e) => e.preventDefault()}
               >
                 <div className="w-full space-y-1 py-1.5">
@@ -146,11 +174,21 @@ export function NotificationCenter({
                     </p>
                     <button
                       type="button"
-                      disabled={pending}
-                      onClick={() => toggleRead(notification)}
-                      className="text-xs text-accent disabled:text-muted"
+                      disabled={pendingToggleId === notification.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleRead(notification);
+                      }}
+                      aria-label={notification.read_at ? "Mark as unread" : "Mark as read"}
+                      title={notification.read_at ? "Mark as unread" : "Mark as read"}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-accent transition-colors hover:bg-surface-hover disabled:text-muted"
                     >
-                      {notification.read_at ? "Mark unread" : "Mark read"}
+                      {notification.read_at ? (
+                        <MailOpen className="h-3.5 w-3.5" />
+                      ) : (
+                        <MailCheck className="h-3.5 w-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>

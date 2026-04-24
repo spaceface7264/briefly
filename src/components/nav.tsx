@@ -24,7 +24,7 @@ const navItems = [
 ];
 
 const profileItems = [
-  { href: "/profile", label: "Profile Info" },
+  { href: "/profile", label: "Profile" },
   { href: "/profile/payouts", label: "Payouts" },
   { href: "/profile/invoices", label: "Invoices" },
   { href: "/profile/notifications", label: "Notifications" },
@@ -74,6 +74,7 @@ export function Nav() {
         .select("*")
         .eq("recipient_id", currentUserId)
         .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(20);
 
       const rows = (data ?? []) as NotificationRow[];
@@ -136,7 +137,7 @@ export function Nav() {
             />
           </Link>
 
-          <nav className="flex items-center gap-1 scrollbar-hide overflow-x-auto">
+          <nav className="flex items-center gap-1 overflow-visible">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -158,13 +159,28 @@ export function Nav() {
 
             <DropdownMenu>
               <DropdownMenuTrigger
-                className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1 cursor-pointer ${
+                className={`relative px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer ${
                   isProfileActive
                     ? "text-brand"
                     : "text-muted hover:text-foreground"
                 }`}
               >
-                Profile
+                <span className="inline-flex items-center justify-center w-5 h-5">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5.121 17.804A9.963 9.963 0 0112 15c2.53 0 4.84.94 6.879 2.485M15 9a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </span>
                 <svg
                   className="w-3.5 h-3.5 opacity-60"
                   fill="none"
