@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { BriefCard } from "@/components/brief-card";
@@ -29,6 +29,7 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
   const searchParams = useSearchParams();
   const t = useTranslate();
   const hasMountedRef = useRef(false);
+  const [isPending, startTransition] = useTransition();
 
   const categories: { value: BriefCategory | "all"; label: string }[] = [
     { value: "all", label: t("briefs.filters.all") },
@@ -54,8 +55,14 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
     { value: "3000+", label: t("briefs.filters.priceHigh3k") },
   ];
 
-  const categoryFilter = initialCategory || "all";
-  const durationFilter = initialDurationClass || "all";
+  const categoryFilter =
+    (searchParams.get("category") as BriefCategory | null) ||
+    initialCategory ||
+    "all";
+  const durationFilter =
+    (searchParams.get("duration") as BriefDurationClass | null) ||
+    initialDurationClass ||
+    "all";
 
   const [priceFilter, setPriceFilter] = useState("all");
   const [gymFilter, setGymFilter] = useState("");
@@ -73,13 +80,17 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
       params.set(key, value);
     }
     params.delete("page");
-    router.push(`/briefs${params.toString() ? `?${params.toString()}` : ""}`);
+    startTransition(() => {
+      router.push(`/briefs${params.toString() ? `?${params.toString()}` : ""}`);
+    });
   }
 
   function clearAll() {
     setPriceFilter("all");
     setGymFilter("");
-    router.push("/briefs");
+    startTransition(() => {
+      router.push("/briefs");
+    });
   }
 
   const filteredBriefs = useMemo(() => {
@@ -158,8 +169,19 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
             <div className="flex items-baseline justify-between gap-4">
               <div className="flex items-baseline gap-3">
                 <h1 className="text-2xl font-bold tracking-tight">{t("briefs.pageTitle")}</h1>
-                <span className="value-text text-sm text-muted">
+                <span className="value-text text-sm text-muted inline-flex items-center gap-2">
                   {hasActiveFilters ? `${shownCount}/${totalCount}` : totalCount}
+                  {isPending && (
+                    <svg
+                      aria-hidden="true"
+                      className="w-3.5 h-3.5 animate-spin text-muted"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                    </svg>
+                  )}
                 </span>
               </div>
               {hasActiveFilters && (
@@ -224,7 +246,11 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
           {/* Brief Grid */}
           {filteredBriefs.length > 0 ? (
             <>
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
+              <div
+                className={`grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in transition-opacity duration-200 ${
+                  isPending ? "opacity-50" : "opacity-100"
+                }`}
+              >
                 {paginatedBriefs.map((brief) => (
                   <BriefCard key={brief.id} brief={brief} />
                 ))}
@@ -316,7 +342,7 @@ function FilterGroup({
           type="button"
           onClick={() => onChange(opt.value)}
           className={[
-            "px-2 py-1 text-xs rounded-md transition-all duration-100",
+            "min-h-8 px-2.5 py-1.5 text-xs rounded-md transition-all duration-100 active:scale-95",
             value === opt.value
               ? "bg-surface-raised text-foreground font-medium border border-border-strong"
               : "text-muted hover:text-text-secondary border border-transparent",
