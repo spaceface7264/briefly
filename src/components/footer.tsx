@@ -17,8 +17,7 @@ const legalLinks = [
 export function Footer() {
   const platform = platformDetails();
   const year = new Date().getFullYear();
-  const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL || "creators@boulders.dk";
+  const contactEmail = platform.contactEmail;
 
   return (
     <footer className="mt-16 border-t border-border bg-surface/30">

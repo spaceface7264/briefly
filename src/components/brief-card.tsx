@@ -120,7 +120,7 @@ export function BriefCard({ brief }: BriefCardProps) {
           ) : isFull ? (
             <span className="text-disabled">Full</span>
           ) : (
-            brief.gym ? <span className="text-muted truncate max-w-[10rem]">{brief.gym}</span> : null
+            brief.location ? <span className="text-muted truncate max-w-[10rem]">{brief.location}</span> : null
           )}
         </div>
       </div>

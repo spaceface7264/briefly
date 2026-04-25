@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { PlatformLogo } from "@/components/platform-logo";
+import { OrgSwitcher } from "@/components/org-switcher";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -50,13 +51,25 @@ export function Nav() {
       }
       setUserId(user.id);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: profile } = await (supabase.from("profiles") as any)
-        .select("role")
+      // Check admin via membership for active org
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("active_org_id")
         .eq("id", user.id)
         .single();
 
-      setIsAdmin(profile?.role === "admin");
+      if (profile?.active_org_id) {
+        const { data: membership } = await supabase
+          .from("memberships")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("org_id", profile.active_org_id)
+          .eq("status", "active")
+          .single();
+        setIsAdmin(membership?.role === "admin");
+      } else {
+        setIsAdmin(false);
+      }
       setAdminChecked(true);
     }
     checkAdmin();
@@ -123,19 +136,15 @@ export function Nav() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 gap-6">
-          <Link
-            href="/briefs"
-            className="flex items-center shrink-0"
-          >
-            <Image
-              src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
-              alt="Boulders"
-              width={120}
-              height={32}
-              className="h-6 w-auto"
-              priority
-            />
-          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              href="/briefs"
+              className="flex items-center"
+            >
+              <PlatformLogo className="h-6 w-auto" width={120} height={32} priority />
+            </Link>
+            <OrgSwitcher />
+          </div>
 
           <nav className="flex items-center gap-1 overflow-visible">
             {navItems.map((item) => {

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
@@ -96,6 +97,7 @@ interface BriefFormProps {
 
 export function BriefForm({ brief }: BriefFormProps) {
   const router = useRouter();
+  const orgId = useOrgId();
   const isEditing = !!brief;
 
   const [title, setTitle] = useState(brief?.title || "");
@@ -104,7 +106,7 @@ export function BriefForm({ brief }: BriefFormProps) {
   const [durationClass, setDurationClass] = useState<BriefDurationClass>(brief?.duration_class || "short");
   const [priceDkk, setPriceDkk] = useState(brief?.price_dkk?.toString() || "");
   const [deadline, setDeadline] = useState(brief?.deadline || "");
-  const [gym, setGym] = useState(brief?.gym || "");
+  const [location, setLocation] = useState(brief?.location || "");
   const [claimLimit, setClaimLimit] = useState(brief?.claim_limit?.toString() || "1");
   const [referenceUrls, setReferenceUrls] = useState<string[]>(
     brief?.reference_urls?.length ? brief.reference_urls : [""]
@@ -256,13 +258,14 @@ export function BriefForm({ brief }: BriefFormProps) {
       duration_class: durationClass,
       price_dkk: parseInt(priceDkk) || 0,
       deadline: deadline || null,
-      gym: gym || null,
+      location: location || null,
       claim_limit: parseInt(claimLimit) || 1,
       reference_urls: referenceUrls.map((u) => u.trim()).filter(Boolean),
       usage_rights: usageRights || null,
       deliverable_specs: entriesToSpecs(specEntries),
       is_ad_intended: isAdIntended,
       created_by: user.id,
+      org_id: orgId,
     };
 
     let result;
@@ -478,16 +481,16 @@ export function BriefForm({ brief }: BriefFormProps) {
           />
         </div>
         <div>
-          <label htmlFor="gym" className="block text-sm font-medium mb-2">
-            Gym
+          <label htmlFor="location" className="block text-sm font-medium mb-2">
+            Location
           </label>
           <input
-            id="gym"
+            id="location"
             type="text"
-            value={gym}
-            onChange={(e) => setGym(e.target.value)}
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
             className={inputClass}
-            placeholder="Boulders Sydhavn"
+            placeholder="e.g. Downtown Studio"
           />
         </div>
       </div>
@@ -624,7 +627,7 @@ export function BriefForm({ brief }: BriefFormProps) {
           onChange={(e) => setUsageRights(e.target.value)}
           rows={2}
           className={`${inputClass} resize-none`}
-          placeholder="Perpetual usage rights across all Boulders social channels"
+          placeholder="e.g. Perpetual usage rights across all brand social channels"
         />
       </div>
 

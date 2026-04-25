@@ -21,10 +21,10 @@ export function ContentTips({ category, isAdIntended }: ContentTipsProps) {
           <p className="text-xs font-semibold text-warning uppercase tracking-[0.12em]">For Ads</p>
           <ul className="space-y-1">
             {[
-              ["Hook:", "Fang seeren i de første 2-3 sek"],
-              ["Længde:", "8-15 sek ideelt, max 30 sek"],
-              ["Undertekster:", "Placeret i midten"],
-              ["Branding:", "Vis Boulders logo tydeligt"],
+              ["Hook:", "Grab attention in the first 2-3 sec"],
+              ["Length:", "8-15 sec ideal, max 30 sec"],
+              ["Captions:", "Centered in the frame"],
+              ["Branding:", "Show the brand clearly"],
             ].map(([label, desc], i) => (
               <li key={i} className="flex items-start gap-1.5 text-sm">
                 <span className="text-warning mt-px">·</span>
@@ -58,13 +58,13 @@ function getCategoryTipLabel(category: BriefCategory): string {
   switch (category) {
     case "entertaining":
     case "community":
-      return "Fokus: Hvorfor bouldering er fedt";
+      return "Focus: Engage & inspire";
     case "ad":
-      return "Fokus: Salgsaktivering";
+      return "Focus: Drive action";
     case "guide":
-      return "Fokus: Læring & tips";
+      return "Focus: Teach & inform";
     case "event":
-      return "Fokus: Event coverage";
+      return "Focus: Capture the moment";
     default:
       return "Tips";
   }
@@ -75,31 +75,31 @@ function getCategoryTips(category: BriefCategory): string[] {
     case "entertaining":
     case "community":
       return [
-        "Vis det gode fællesskab",
-        "Fremhæv sjov og anderledes sport",
-        "Vis at det er for alle niveauer",
-        "Nedbryd indgangsbarrierer",
+        "Show real people, real moments",
+        "Make it fun and relatable",
+        "Highlight the community and vibe",
+        "Keep it authentic — not overly produced",
       ];
     case "ad":
       return [
-        "Fremhæv medlemskabsfordele",
-        "Fitness + bouldering i ét",
-        "Adgang til alle haller",
-        "Nævn 15 day pass / punch cards",
+        "Lead with the value proposition",
+        "Show the product or experience in action",
+        "Include a clear call to action",
+        "Keep it concise and punchy",
       ];
     case "guide":
       return [
-        "Klar og pædagogisk formidling",
-        "Vis demonstration + almindelige fejl",
-        "Gør det tilgængeligt for begyndere",
-        "Opmuntrende og inkluderende tone",
+        "Clear, step-by-step structure",
+        "Show demonstrations and common mistakes",
+        "Make it accessible for beginners",
+        "Use an encouraging, inclusive tone",
       ];
     case "event":
       return [
-        "Fang energien og stemningen",
-        "Interviews med deltagere",
-        "Dokumentér key moments",
-        "Vis fællesskabet i aktion",
+        "Capture the energy and atmosphere",
+        "Include reactions and interviews",
+        "Document the key moments",
+        "Show the community in action",
       ];
     default:
       return [];

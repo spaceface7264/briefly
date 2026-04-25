@@ -1,6 +1,6 @@
-# Boulders Creators
+# Briefly
 
-Invite-only content creator platform for Boulders climbing gyms.
+Generic, multi-business content creator platform (working title: Briefly). Branding is env-driven via `NEXT_PUBLIC_PLATFORM_NAME`, `NEXT_PUBLIC_LOGO_URL`, etc.
 
 ## Stack
 

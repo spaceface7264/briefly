@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import { redirect } from "next/navigation";
 import {
   platformDetails,
@@ -20,18 +21,23 @@ export default async function AdminSettingsPage() {
 
   if (!user) redirect("/login");
 
-  const [{ data: admins }, { data: creators }, { data: me }] =
+  const orgId = await requireActiveOrg(supabase);
+
+  // Fetch admins and creators via memberships for this org
+  const [{ data: adminMemberships }, { data: creatorMemberships }, { data: me }] =
     await Promise.all([
       supabase
-        .from("profiles")
-        .select("id, name, email, created_at, notify_submissions")
+        .from("memberships")
+        .select("user_id, profile:profiles(id, name, email, created_at, notify_submissions)")
+        .eq("org_id", orgId)
         .eq("role", "admin")
-        .order("created_at", { ascending: true }),
+        .eq("status", "active"),
       supabase
-        .from("profiles")
-        .select("id, name, email, created_at")
+        .from("memberships")
+        .select("user_id, profile:profiles(id, name, email, created_at)")
+        .eq("org_id", orgId)
         .eq("role", "creator")
-        .order("name", { ascending: true }),
+        .eq("status", "active"),
       supabase
         .from("profiles")
         .select(
@@ -40,6 +46,9 @@ export default async function AdminSettingsPage() {
         .eq("id", user.id)
         .single(),
     ]);
+
+  const admins = (adminMemberships || []).map((m: any) => m.profile).filter(Boolean);
+  const creators = (creatorMemberships || []).map((m: any) => m.profile).filter(Boolean);
 
   const myPreferences = preferencesFromProfile(me ?? {});
 
@@ -59,16 +68,26 @@ export default async function AdminSettingsPage() {
     ) : undefined;
 
   const platform = platformDetails();
-  const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL || "creators@boulders.dk";
   const contactEmailFromEnv = Boolean(process.env.NEXT_PUBLIC_CONTACT_EMAIL);
 
   const platformRows: PlatformRow[] = [
     {
       label: "Company name",
       value: platform.name,
-      env: "PLATFORM_NAME",
-      isSet: Boolean(process.env.PLATFORM_NAME),
+      env: "NEXT_PUBLIC_PLATFORM_NAME",
+      isSet: Boolean(process.env.NEXT_PUBLIC_PLATFORM_NAME || process.env.PLATFORM_NAME),
+    },
+    {
+      label: "Logo URL",
+      value: platform.logoUrl,
+      env: "NEXT_PUBLIC_LOGO_URL",
+      isSet: Boolean(process.env.NEXT_PUBLIC_LOGO_URL),
+    },
+    {
+      label: "Contact email",
+      value: platform.contactEmail,
+      env: "NEXT_PUBLIC_CONTACT_EMAIL",
+      isSet: contactEmailFromEnv,
     },
     {
       label: "Address",
@@ -87,12 +106,6 @@ export default async function AdminSettingsPage() {
       value: platform.vatNumber,
       env: "PLATFORM_VAT_NUMBER",
       isSet: Boolean(process.env.PLATFORM_VAT_NUMBER),
-    },
-    {
-      label: "Contact email",
-      value: contactEmail,
-      env: "NEXT_PUBLIC_CONTACT_EMAIL",
-      isSet: contactEmailFromEnv,
     },
   ];
 

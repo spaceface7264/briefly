@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "boulders-creators",
+  "name": "briefly",
   "compatibility_date": "2026-04-22",
   "compatibility_flags": [
     "nodejs_compat"
@@ -13,7 +13,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "boulders-creators"
+      "service": "briefly"
     }
   ],
   "images": {
@@ -23,17 +23,17 @@
     "enabled": true
   },
   "vars": {
-    "NEXT_PUBLIC_SUPABASE_URL": "https://hfepjqlbwcwhppbxxpkr.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZXBqcWxid2N3aHBwYnh4cGtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTEyNTcsImV4cCI6MjA5MjM2NzI1N30.IMtFmTWaZC3rQgr9n2OjomvZhmS_FBMzksfKbldJ8nw",
-    "NEXT_PUBLIC_APP_URL": "https://creators.boulders.dk"
+    "NEXT_PUBLIC_SUPABASE_URL": "https://bncuqifjcsrjkohxkwez.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_kiij5LwoTAVQoom57SUGXQ_rgtClNuy",
+    "NEXT_PUBLIC_APP_URL": "http://localhost:3001"
   },
   "env": {
     "staging": {
-      "name": "boulders-creators-staging",
+      "name": "briefly-staging",
       "services": [
         {
           "binding": "WORKER_SELF_REFERENCE",
-          "service": "boulders-creators-staging"
+          "service": "briefly-staging"
         }
       ]
     }

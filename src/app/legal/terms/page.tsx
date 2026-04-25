@@ -43,8 +43,8 @@ export default function TermsPage() {
           You retain ownership of the work you create. By submitting a
           deliverable you grant {platform.name} a perpetual, worldwide,
           royalty-free licence to use, reproduce, edit, and display the work
-          for marketing purposes, including on Boulders-owned channels and in
-          paid promotion, subject to any usage rights stated in the specific
+          for marketing purposes, including on {platform.name}-owned channels and
+          in paid promotion, subject to any usage rights stated in the specific
           brief.
         </p>
         <p>
@@ -57,10 +57,10 @@ export default function TermsPage() {
 
       <LegalSection title="Payment and invoicing">
         <p>
-          Approved submissions are paid at the fixed fee stated on the brief,
-          in Danish kroner, via Stripe payouts to the account you connect on
-          your profile. Payouts are initiated after approval; settlement
-          timing depends on Stripe.
+          Approved submissions are paid at the fixed fee stated on the brief
+          via Stripe payouts to the account you connect on your profile.
+          Payouts are initiated after approval; settlement timing depends on
+          Stripe.
         </p>
         <p>
           {platform.name} issues invoices on your behalf under the separate{" "}
@@ -107,9 +107,10 @@ export default function TermsPage() {
 
       <LegalSection title="Governing law">
         <p>
-          These terms are governed by Danish law. Disputes will be handled by
-          the courts of Denmark, without prejudice to any mandatory consumer
-          rights you have in your country of residence.
+          These terms are governed by the law of the jurisdiction in which
+          {platform.name} is registered. Disputes will be handled by the
+          competent courts in that jurisdiction, without prejudice to any
+          mandatory consumer rights you have in your country of residence.
         </p>
       </LegalSection>
 

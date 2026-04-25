@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { Suspense, useState } from "react";
+import { PlatformLogo } from "@/components/platform-logo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -107,14 +107,7 @@ function LoginForm() {
     <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Image
-            src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
-            alt="Boulders"
-            width={180}
-            height={48}
-            className="h-12 w-auto mx-auto mb-4"
-            priority
-          />
+          <PlatformLogo className="h-12 w-auto mx-auto mb-4" width={180} height={48} priority textClassName="text-3xl font-extrabold tracking-tight" />
           <p className="text-muted">
             {mode === "login" ? "Sign in to access your briefs" : "Create your account"}
           </p>

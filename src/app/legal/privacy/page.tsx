@@ -67,7 +67,7 @@ export default function PrivacyPage() {
           <li>
             <span className="text-foreground">Legal obligation</span> (Art.
             6(1)(c)) — to keep invoicing and tax records for the retention
-            periods set by Danish law.
+            periods required by applicable bookkeeping regulations.
           </li>
           <li>
             <span className="text-foreground">Legitimate interests</span>{" "}
@@ -112,9 +112,9 @@ export default function PrivacyPage() {
         <p>
           Account and profile data is kept while your account is active.
           Invoices and related accounting records are retained for five years
-          after the end of the financial year, as required by Danish
-          bookkeeping rules. Submission metadata is kept while it remains
-          relevant to a claim.
+          after the end of the financial year, as required by applicable
+          bookkeeping regulations. Submission metadata is kept while it
+          remains relevant to a claim.
         </p>
         <p>
           When you delete your account, we delete or anonymise personal data
@@ -136,8 +136,8 @@ export default function PrivacyPage() {
           </li>
           <li>receive your data in a portable format;</li>
           <li>
-            lodge a complaint with the Danish Data Protection Agency
-            (Datatilsynet) if you believe your rights have been violated.
+            lodge a complaint with the relevant data protection authority
+            in your country if you believe your rights have been violated.
           </li>
         </ul>
         <p>

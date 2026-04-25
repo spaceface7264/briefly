@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import { InviteActions } from "./invite-actions";
 
 export default async function AdminInvitesPage() {
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
   const { data: invites } = await (supabase as any)
     .from("invite_codes")
     .select("*, created_by_profile:profiles!invite_codes_created_by_fkey(name, email), used_by_profile:profiles!invite_codes_used_by_fkey(name, email)")
+    .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
   const unusedCount = (invites || []).filter((i: any) => !i.used_by).length;

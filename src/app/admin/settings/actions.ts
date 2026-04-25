@@ -1,52 +1,37 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireOrgAdmin } from "@/lib/org";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false as const, error: "Not authenticated" };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return { ok: false as const, error: "Admin access required" };
-  }
-
-  return { ok: true as const, supabase, userId: user.id };
-}
-
 export async function promoteToAdmin(targetUserId: string): Promise<ActionResult> {
-  const gate = await requireAdmin();
+  const gate = await requireOrgAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
   if (!targetUserId) return { ok: false, error: "Missing user id" };
 
-  const { data: target, error: fetchError } = await gate.supabase
-    .from("profiles")
+  // Check if user has a membership in this org
+  const { data: membership, error: fetchError } = await gate.supabase
+    .from("memberships")
     .select("id, role")
-    .eq("id", targetUserId)
+    .eq("user_id", targetUserId)
+    .eq("org_id", gate.orgId)
+    .eq("status", "active")
     .single();
 
-  if (fetchError || !target) {
-    return { ok: false, error: "User not found" };
+  if (fetchError || !membership) {
+    return { ok: false, error: "User is not a member of this organization" };
   }
 
-  if (target.role === "admin") {
+  if (membership.role === "admin") {
     return { ok: true }; // idempotent no-op
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (gate.supabase.from("profiles") as any)
+  const { error: updateError } = await gate.supabase
+    .from("memberships")
     .update({ role: "admin" })
-    .eq("id", targetUserId);
+    .eq("id", membership.id);
 
   if (updateError) {
     return { ok: false, error: `Failed to promote: ${updateError.message}` };
@@ -58,7 +43,7 @@ export async function promoteToAdmin(targetUserId: string): Promise<ActionResult
 }
 
 export async function demoteFromAdmin(targetUserId: string): Promise<ActionResult> {
-  const gate = await requireAdmin();
+  const gate = await requireOrgAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
   if (!targetUserId) return { ok: false, error: "Missing user id" };
@@ -71,24 +56,30 @@ export async function demoteFromAdmin(targetUserId: string): Promise<ActionResul
     };
   }
 
-  const { data: target, error: fetchError } = await gate.supabase
-    .from("profiles")
+  // Check if user has an admin membership in this org
+  const { data: membership, error: fetchError } = await gate.supabase
+    .from("memberships")
     .select("id, role")
-    .eq("id", targetUserId)
+    .eq("user_id", targetUserId)
+    .eq("org_id", gate.orgId)
+    .eq("status", "active")
     .single();
 
-  if (fetchError || !target) {
-    return { ok: false, error: "User not found" };
+  if (fetchError || !membership) {
+    return { ok: false, error: "User not found in this organization" };
   }
 
-  if (target.role !== "admin") {
+  if (membership.role !== "admin") {
     return { ok: true }; // idempotent no-op
   }
 
+  // Ensure at least one admin remains in this org
   const { count, error: countError } = await gate.supabase
-    .from("profiles")
+    .from("memberships")
     .select("id", { count: "exact", head: true })
-    .eq("role", "admin");
+    .eq("org_id", gate.orgId)
+    .eq("role", "admin")
+    .eq("status", "active");
 
   if (countError) {
     return { ok: false, error: "Failed to verify admin count" };
@@ -101,10 +92,10 @@ export async function demoteFromAdmin(targetUserId: string): Promise<ActionResul
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (gate.supabase.from("profiles") as any)
+  const { error: updateError } = await gate.supabase
+    .from("memberships")
     .update({ role: "creator" })
-    .eq("id", targetUserId);
+    .eq("id", membership.id);
 
   if (updateError) {
     return { ok: false, error: `Failed to demote: ${updateError.message}` };

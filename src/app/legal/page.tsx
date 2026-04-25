@@ -25,7 +25,7 @@ const pages = [
     href: "/legal/self-billing",
     title: "Self-billing agreement",
     description:
-      "Authorisation for Boulders to issue invoices on your behalf for approved submissions.",
+      "Authorisation for the platform to issue invoices on your behalf for approved submissions.",
   },
 ];
 

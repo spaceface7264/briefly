@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import { ClaimActions } from "./claim-actions";
@@ -12,11 +13,13 @@ export default async function AdminClaimsPage({
 }) {
   const { status: statusFilter, claim: highlightClaim } = await searchParams;
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
   // Always fetch all claims so tab counts are accurate; filter the displayed list below
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: allClaims } = await (supabase.from("claims") as any)
     .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled)")
+    .eq("org_id", orgId)
     .order("claimed_at", { ascending: false });
 
   const claims = statusFilter

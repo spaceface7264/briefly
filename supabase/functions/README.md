@@ -82,8 +82,8 @@ Add header:
 ### 6. Configure Resend Domain (Production)
 
 For production, add and verify your domain in [Resend Dashboard](https://resend.com/domains):
-- Domain: `boulders.dk`
-- Update the `from` address in both functions after verification
+- Set `PLATFORM_SENDER_EMAIL` and `PLATFORM_SENDER_NAME` env vars in Supabase
+- The `from` address in all functions is now env-driven
 
 For testing, you can use `onboarding@resend.dev` as the from address.
 

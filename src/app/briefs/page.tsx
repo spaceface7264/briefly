@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import { BriefsClient } from "./briefs-client";
 import type { Brief, BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
 
@@ -12,6 +13,7 @@ interface Props {
 export default async function BriefsPage({ searchParams }: Props) {
   const { category, duration } = await searchParams;
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,6 +21,7 @@ export default async function BriefsPage({ searchParams }: Props) {
   let query = supabase
     .from("briefs")
     .select("*")
+    .eq("org_id", orgId)
     .eq("status", "open")
     .order("created_at", { ascending: false });
 

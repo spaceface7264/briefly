@@ -1,20 +1,22 @@
 import Link from "next/link";
 
+const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
+
 const steps = [
   {
     number: "01",
     title: "Get invited",
-    body: "The platform is invite-only. If you create content and want in, reach out to the Boulders marketing team for a code.",
+    body: `The platform is invite-only. If you create content and want in, reach out to the ${platformName} team for a code.`,
   },
   {
     number: "02",
     title: "Claim a brief",
-    body: "Browse open briefs across Boulders gyms. Pick one that fits your style and reserve the slot for 7 days.",
+    body: "Browse open briefs. Pick one that fits your style and reserve the slot for 7 days.",
   },
   {
     number: "03",
     title: "Submit and get paid",
-    body: "Deliver your reel, TikTok, or photo. Once approved, you get paid in DKK with a self-billed invoice.",
+    body: "Deliver your reel, TikTok, or photo. Once approved, you get paid with a self-billed invoice.",
   },
 ];
 
@@ -34,10 +36,10 @@ export default function Home() {
             Invite-only
           </p>
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
-            Boulders <span className="text-brand-pure">Creators</span>
+            {platformName} <span className="text-brand-pure">Creators</span>
           </h1>
           <p className="text-lg text-muted max-w-lg mx-auto leading-relaxed">
-            Get paid to make content for Boulders climbing gyms. Reels, TikToks,
+            Get paid to create content for {platformName}. Reels, TikToks,
             photos, long-form — real briefs with real budgets.
           </p>
           <div className="flex flex-wrap gap-3 justify-center pt-4">

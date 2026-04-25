@@ -1,28 +1,36 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import type { Profile } from "@/types/database";
 
 export default async function AdminCreatorsPage() {
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
-  const { data: creators } = await supabase
-    .from("profiles")
-    .select("*")
+  // Get creators via memberships for this org
+  const { data: memberships } = await supabase
+    .from("memberships")
+    .select("user_id, profile:profiles(*)")
+    .eq("org_id", orgId)
     .eq("role", "creator")
-    .order("created_at", { ascending: false });
+    .eq("status", "active");
+
+  const creators = (memberships || []).map((m: any) => m.profile).filter(Boolean) as Profile[];
 
   // Get claim counts for each creator
   const creatorsWithCounts = await Promise.all(
-    ((creators || []) as Profile[]).map(async (creator) => {
+    creators.map(async (creator) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [activeResult, completedResult] = await Promise.all([
         (supabase.from("claims") as any)
           .select("*", { count: "exact", head: true })
           .eq("user_id", creator.id)
+          .eq("org_id", orgId)
           .eq("status", "active"),
         (supabase.from("claims") as any)
           .select("*", { count: "exact", head: true })
           .eq("user_id", creator.id)
+          .eq("org_id", orgId)
           .in("status", ["approved", "paid"]),
       ]);
 

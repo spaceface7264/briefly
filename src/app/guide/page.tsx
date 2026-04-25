@@ -10,7 +10,7 @@ export default function GuidePage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Content Guide</h1>
             <p className="text-text-secondary">
-              Tips og retningslinjer for at skabe det bedste content
+              Tips and guidelines for creating great content
             </p>
             <p className="text-sm text-muted mt-2">
               Looking for claim, review, and payout process?{" "}
@@ -22,7 +22,7 @@ export default function GuidePage() {
           </div>
 
           <div className="space-y-8">
-            {/* Section 1: Why Bouldering is Great */}
+            {/* Section 1: Why Great Content Matters */}
             <section className="bg-surface border border-border rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-brand-muted rounded-lg flex items-center justify-center">
@@ -31,43 +31,27 @@ export default function GuidePage() {
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold">Hvorfor bouldering er fedt</h2>
-                  <p className="text-text-secondary text-sm">Aktivering af nye folk</p>
+                  <h2 className="text-xl font-bold">Why great content matters</h2>
+                  <p className="text-text-secondary text-sm">Stand out with authentic, engaging work</p>
                 </div>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-sm text-text-secondary mb-2">Målgruppe:</p>
-                <p className="text-sm">Folk der ikke har prøvet bouldering eller kun prøvet få gange</p>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-medium text-brand mb-2">Fordele ved bouldering:</p>
+                  <p className="text-sm font-medium text-brand mb-2">What makes content perform:</p>
                   <ul className="text-sm text-text-secondary space-y-1">
-                    <li>• God motion og træning</li>
-                    <li>• Godt fællesskab</li>
-                    <li>• Sjov og anderledes sport</li>
-                    <li>• "Sådan kan en workout se ud"</li>
-                    <li>• Tag din date med til bouldering</li>
-                    <li>• Ved du ikke hvad du skal lave i weekenden?</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-brand mb-2">Nedbryd indgangsbarrierer:</p>
-                  <ul className="text-sm text-text-secondary space-y-1">
-                    <li>• Det er let, kræver ingen erfaring</li>
-                    <li>• Der er mange begyndere</li>
-                    <li>• Sjovt at prøve med venner eller alene</li>
-                    <li>• For alle aldre</li>
-                    <li>• Bouldering er også for kvinder</li>
-                    <li>• For hele familien</li>
+                    <li>• Authenticity — real people in real settings beat polished stock</li>
+                    <li>• Strong hook in the first 2-3 seconds</li>
+                    <li>• Clear message — one idea per piece</li>
+                    <li>• Show, don&apos;t tell — let the experience speak</li>
+                    <li>• Good lighting and stable footage go a long way</li>
+                    <li>• Captions on every video — most viewers watch on mute</li>
                   </ul>
                 </div>
               </div>
             </section>
 
-            {/* Section 2: Why Boulders */}
+            {/* Section 2: Content Types */}
             <section className="bg-surface border border-border rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-brand-muted rounded-lg flex items-center justify-center">
@@ -76,59 +60,61 @@ export default function GuidePage() {
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold">Hvorfor Boulders er bedst</h2>
-                  <p className="text-text-secondary text-sm">Nye kunder + skifte fra konkurrenter</p>
+                  <h2 className="text-xl font-bold">Content types</h2>
+                  <p className="text-text-secondary text-sm">What you&apos;ll typically create</p>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <p className="text-sm text-text-secondary mb-2">Målgruppe:</p>
-                <p className="text-sm">Folk der overvejer bouldering + folk der boulder andre steder</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-brand mb-2">Hvorfor vælge Boulders:</p>
-                <ul className="text-sm text-text-secondary space-y-1">
-                  <li>• Fitness sektionen inkluderet</li>
-                  <li>• Gode instruktører der kan hjælpe</li>
-                  <li>• Danmarks førende med flest haller</li>
-                  <li>• Boulders i mange sværhedsgrader</li>
-                  <li>• Regelmæssig udskiftning af boulders</li>
-                  <li>• Events og fællesskab</li>
-                  <li>• Gode til nybegyndere</li>
-                  <li>• Hele familien er velkomne</li>
-                </ul>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="bg-background/50 rounded-lg p-4">
+                  <p className="text-sm font-medium mb-2">Short-form video</p>
+                  <p className="text-sm text-text-secondary">
+                    Reels, TikToks, Shorts. 15-45 seconds, vertical (9:16), captions required.
+                  </p>
+                </div>
+                <div className="bg-background/50 rounded-lg p-4">
+                  <p className="text-sm font-medium mb-2">Medium-form video</p>
+                  <p className="text-sm text-text-secondary">
+                    45-90 seconds. Still vertical, with captions. Good for tutorials or walkthroughs.
+                  </p>
+                </div>
+                <div className="bg-background/50 rounded-lg p-4">
+                  <p className="text-sm font-medium mb-2">Long-form video</p>
+                  <p className="text-sm text-text-secondary">
+                    2-10 minutes, landscape (16:9), 1080p minimum. Deeper storytelling or guides.
+                  </p>
+                </div>
+                <div className="bg-background/50 rounded-lg p-4">
+                  <p className="text-sm font-medium mb-2">Static / photography</p>
+                  <p className="text-sm text-text-secondary">
+                    High-res photos (2000px+ wide), JPG or PNG. Product shots, lifestyle, event coverage.
+                  </p>
+                </div>
               </div>
             </section>
 
-            {/* Section 3: Sales Activation */}
+            {/* Section 3: Working with Briefs */}
             <section className="bg-surface border border-border rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-brand-muted rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold">Bliv kunde hos Boulders</h2>
-                  <p className="text-text-secondary text-sm">Salgsaktivering</p>
+                  <h2 className="text-xl font-bold">Working with briefs</h2>
+                  <p className="text-text-secondary text-sm">How to deliver great work every time</p>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <p className="text-sm text-text-secondary mb-2">Målgruppe:</p>
-                <p className="text-sm">Folk der overvejer bouldering + folk uden fast sted + konkurrenters kunder</p>
-              </div>
-
               <div>
-                <p className="text-sm font-medium text-brand mb-2">Fokuspunkter:</p>
                 <ul className="text-sm text-text-secondary space-y-1">
-                  <li>• Alt inkluderet i medlemskab</li>
-                  <li>• Sjovere motionstype</li>
-                  <li>• Fitness og bouldering i ét</li>
-                  <li>• Adgang til alle haller</li>
-                  <li>• 15 day pass til at prøve</li>
-                  <li>• Punch cards til lejlighedsvis brug</li>
+                  <li>• Read the full brief before claiming — make sure it fits your style</li>
+                  <li>• Check the deliverable specs (format, length, resolution)</li>
+                  <li>• Deliver within the 7-day claim window</li>
+                  <li>• Include a direct link to the content in your submission</li>
+                  <li>• Add notes if there&apos;s anything the reviewer should know</li>
+                  <li>• If a brief is marked as an ad, follow the paid content guidelines below</li>
                 </ul>
               </div>
             </section>
@@ -142,38 +128,35 @@ export default function GuidePage() {
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold text-warning">Vigtigt til paid content</h2>
-                  <p className="text-text-secondary text-sm">Gælder for alt ad-content</p>
+                  <h2 className="text-xl font-bold text-warning">Important for paid content</h2>
+                  <p className="text-text-secondary text-sm">Applies to all ad-intended briefs</p>
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="bg-background/50 rounded-lg p-4">
-                  <p className="text-sm font-medium mb-2">Hook (første 2-3 sek)</p>
+                  <p className="text-sm font-medium mb-2">Hook (first 2-3 sec)</p>
                   <p className="text-sm text-text-secondary">
-                    Fang seeren med det samme. Start gerne med et spørgsmål:
-                    "Vidste du at bouldering er for alle?"
+                    Grab attention immediately. Start with a question, a bold statement, or a visual surprise.
                   </p>
                 </div>
                 <div className="bg-background/50 rounded-lg p-4">
-                  <p className="text-sm font-medium mb-2">Længde</p>
+                  <p className="text-sm font-medium mb-2">Length</p>
                   <p className="text-sm text-text-secondary">
-                    <span className="text-brand font-mono">8-15 sek</span> er ideelt.
-                    <br />Max 30 sekunder.
+                    <span className="text-brand font-mono">8-15 sec</span> is ideal for ads.
+                    <br />Max 30 seconds.
                   </p>
                 </div>
                 <div className="bg-background/50 rounded-lg p-4">
-                  <p className="text-sm font-medium mb-2">Undertekster</p>
+                  <p className="text-sm font-medium mb-2">Captions</p>
                   <p className="text-sm text-text-secondary">
-                    Alle videoer skal have undertekster placeret i midten,
-                    så de virker på tværs af placeringer.
+                    All videos need captions centered in the frame so they work across all placements.
                   </p>
                 </div>
                 <div className="bg-background/50 rounded-lg p-4">
-                  <p className="text-sm font-medium mb-2">Boulders branding</p>
+                  <p className="text-sm font-medium mb-2">Branding</p>
                   <p className="text-sm text-text-secondary">
-                    Tydeliggør afsender: logo, nævn Boulders,
-                    film steder med logo, brug Boulders t-shirt.
+                    Make the brand visible: mention the name, show the logo, or film in a branded setting.
                   </p>
                 </div>
               </div>
@@ -182,8 +165,8 @@ export default function GuidePage() {
                 <p className="text-sm">
                   <span className="font-medium">Pro tip:</span>{" "}
                   <span className="text-text-secondary">
-                    Samme video kan klippes på flere måder for mere content.
-                    Meta performer bedre jo mere content man har.
+                    The same footage can be cut multiple ways for more content.
+                    Platforms perform better the more variations you have.
                   </span>
                 </p>
               </div>

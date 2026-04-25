@@ -56,11 +56,11 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
   const durationFilter = initialDurationClass || "all";
 
   const [priceFilter, setPriceFilter] = useState("all");
-  const [gymFilter, setGymFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
 
-  const gyms = useMemo(() => {
-    const uniqueGyms = new Set(briefs.map((b) => b.gym).filter(Boolean));
-    return Array.from(uniqueGyms) as string[];
+  const locations = useMemo(() => {
+    const uniqueLocations = new Set(briefs.map((b) => b.location).filter(Boolean));
+    return Array.from(uniqueLocations) as string[];
   }, [briefs]);
 
   function updateFilter(key: string, value: string) {
@@ -76,13 +76,13 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
 
   function clearAll() {
     setPriceFilter("all");
-    setGymFilter("");
+    setLocationFilter("");
     router.push("/briefs");
   }
 
   const filteredBriefs = useMemo(() => {
     return briefs.filter((brief) => {
-      if (gymFilter && brief.gym !== gymFilter) return false;
+      if (locationFilter && brief.location !== locationFilter) return false;
 
       if (priceFilter !== "all") {
         if (priceFilter === "0-2000" && brief.price_dkk >= 2000) return false;
@@ -92,13 +92,13 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
 
       return true;
     });
-  }, [briefs, priceFilter, gymFilter]);
+  }, [briefs, priceFilter, locationFilter]);
 
   const hasActiveFilters =
     categoryFilter !== "all" ||
     durationFilter !== "all" ||
     priceFilter !== "all" ||
-    gymFilter !== "";
+    locationFilter !== "";
   const totalCount = briefs.length;
   const shownCount = filteredBriefs.length;
   const totalPages = Math.max(1, Math.ceil(shownCount / BRIEFS_PER_PAGE));
@@ -198,19 +198,19 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
                 onChange={(v) => setPriceFilter(v)}
               />
 
-              {/* Gym select — only if multiple gyms */}
-              {gyms.length > 1 && (
+              {/* Location select — only if multiple locations */}
+              {locations.length > 1 && (
                 <>
                   <span className="hidden sm:block w-px h-4 bg-border" />
                   <select
-                    value={gymFilter}
-                    onChange={(e) => setGymFilter(e.target.value)}
+                    value={locationFilter}
+                    onChange={(e) => setLocationFilter(e.target.value)}
                     className="no-global-focus-ring px-2.5 py-1 bg-transparent border border-border rounded-md text-xs text-muted hover:text-foreground hover:border-border-strong focus-visible:outline-none focus:border-accent transition-colors cursor-pointer"
                   >
-                    <option value="">Gym</option>
-                    {gyms.map((gym) => (
-                      <option key={gym} value={gym}>
-                        {gym}
+                    <option value="">Location</option>
+                    {locations.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
                       </option>
                     ))}
                   </select>

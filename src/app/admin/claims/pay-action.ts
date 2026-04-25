@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/server";
 import { calculateVat, formatInvoiceNumber } from "@/lib/invoicing/vat";
 import {
   SELF_BILLING_AGREEMENT_VERSION,
   platformDetails,
 } from "@/lib/invoicing/platform";
+import { requireOrgAdmin } from "@/lib/org";
 
 type PayResult = { ok: true } | { ok: false; error: string };
 
@@ -34,19 +34,9 @@ interface ClaimRow {
 }
 
 export async function payClaim(claimId: string): Promise<PayResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Not authenticated" };
-
-  const { data: adminProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (adminProfile?.role !== "admin") {
-    return { ok: false, error: "Admin access required" };
-  }
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const { supabase, userId: adminUserId, orgId } = gate;
 
   const { data: claim, error: claimError } = await supabase
     .from("claims")
@@ -117,7 +107,7 @@ export async function payClaim(claimId: string): Promise<PayResult> {
 
   const { data: seqResult, error: seqError } = await supabase.rpc(
     "allocate_invoice_number",
-    { p_year: year }
+    { p_org_id: orgId, p_year: year }
   );
 
   if (seqError || seqResult == null) {
@@ -152,7 +142,8 @@ export async function payClaim(claimId: string): Promise<PayResult> {
       vat_scheme: vat.scheme,
       stripe_account_id: creator.stripe_account_id,
       status: "pending",
-      paid_by: user.id,
+      paid_by: adminUserId,
+      org_id: orgId,
       invoice_year: year,
       invoice_seq: invoiceSeq,
       invoice_number: invoiceNumber,

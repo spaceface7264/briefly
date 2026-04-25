@@ -23,11 +23,12 @@ export type Database = {
           claimed_by: string | null
           created_at: string
           created_by: string | null
+          org_id: string
           deadline: string | null
           deliverable_specs: Json | null
           description: string
           duration_class: Database["public"]["Enums"]["brief_duration_class"]
-          gym: string | null
+          location: string | null
           id: string
           is_ad_intended: boolean
           price_dkk: number
@@ -49,9 +50,10 @@ export type Database = {
           deliverable_specs?: Json | null
           description: string
           duration_class: Database["public"]["Enums"]["brief_duration_class"]
-          gym?: string | null
+          location?: string | null
           id?: string
           is_ad_intended?: boolean
+          org_id?: string
           price_dkk: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
@@ -71,9 +73,10 @@ export type Database = {
           deliverable_specs?: Json | null
           description?: string
           duration_class?: Database["public"]["Enums"]["brief_duration_class"]
-          gym?: string | null
+          location?: string | null
           id?: string
           is_ad_intended?: boolean
+          org_id?: string
           price_dkk?: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
@@ -105,6 +108,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          org_id: string
           status: string
           submitted_at: string | null
           updated_at: string
@@ -116,6 +120,7 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          org_id?: string
           status?: string
           submitted_at?: string | null
           updated_at?: string
@@ -127,6 +132,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          org_id?: string
           status?: string
           submitted_at?: string | null
           updated_at?: string
@@ -154,6 +160,7 @@ export type Database = {
           attempt_count: number
           created_at: string
           id: string
+          org_id: string
           last_error: string | null
           next_attempt_at: string
           notification_id: string
@@ -204,6 +211,7 @@ export type Database = {
           event_type: Database["public"]["Enums"]["notification_event_type"]
           id: string
           metadata: Json
+          org_id: string
           read_at: string | null
           recipient_id: string
           title: string
@@ -255,6 +263,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_org_id: string | null
           billing_address_line1: string | null
           billing_address_line2: string | null
           billing_city: string | null
@@ -283,6 +292,7 @@ export type Database = {
           vat_registered: boolean
         }
         Insert: {
+          active_org_id?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
@@ -311,6 +321,7 @@ export type Database = {
           vat_registered?: boolean
         }
         Update: {
+          active_org_id?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
@@ -343,6 +354,7 @@ export type Database = {
       payments: {
         Row: {
           amount_dkk: number
+          org_id: string
           brief_title_snapshot: string | null
           claim_id: string
           created_at: string
@@ -380,6 +392,7 @@ export type Database = {
           claim_id: string
           created_at?: string
           creator_address_snapshot?: string | null
+          org_id?: string
           creator_country_snapshot?: string | null
           creator_cvr_snapshot?: string | null
           creator_id: string
@@ -464,12 +477,117 @@ export type Database = {
           },
         ]
       }
+      organizations: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          logo_url: string | null
+          accent_color: string | null
+          description: string | null
+          industry: string | null
+          currency: string
+          country: string
+          address: string | null
+          cvr: string | null
+          vat_number: string | null
+          contact_email: string | null
+          sender_name: string | null
+          sender_email: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          logo_url?: string | null
+          accent_color?: string | null
+          description?: string | null
+          industry?: string | null
+          currency?: string
+          country?: string
+          address?: string | null
+          cvr?: string | null
+          vat_number?: string | null
+          contact_email?: string | null
+          sender_name?: string | null
+          sender_email?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          logo_url?: string | null
+          accent_color?: string | null
+          description?: string | null
+          industry?: string | null
+          currency?: string
+          country?: string
+          address?: string | null
+          cvr?: string | null
+          vat_number?: string | null
+          contact_email?: string | null
+          sender_name?: string | null
+          sender_email?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      memberships: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      allocate_invoice_number: { Args: { p_year: number }; Returns: number }
+      allocate_invoice_number: { Args: { p_org_id: string; p_year: number }; Returns: number }
       create_notification_for_user: {
         Args: {
           p_actor_id: string

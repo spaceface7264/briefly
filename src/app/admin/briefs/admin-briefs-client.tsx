@@ -60,7 +60,7 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
       if (durationFilter !== "all" && brief.duration_class !== durationFilter) return false;
       if (adFilter === "ad" && !brief.is_ad_intended) return false;
       if (adFilter === "non_ad" && brief.is_ad_intended) return false;
-      if (term && !`${brief.title} ${brief.gym || ""}`.toLowerCase().includes(term)) return false;
+      if (term && !`${brief.title} ${brief.location || ""}`.toLowerCase().includes(term)) return false;
       return true;
     });
 
@@ -142,7 +142,7 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
           type="search"
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
-          placeholder="Search title or gym..."
+          placeholder="Search title or location..."
           className="w-64 rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
         <select
@@ -225,7 +225,7 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
                 <tr key={brief.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
                   <td className="px-4 py-3">
                     <Link href={`/admin/briefs/${brief.id}`} className="font-medium hover:text-accent">{brief.title}</Link>
-                    {brief.gym && <p className="mt-0.5 text-muted text-sm">{brief.gym}</p>}
+                    {brief.location && <p className="mt-0.5 text-muted text-sm">{brief.location}</p>}
                   </td>
                   {visibleColumns.has("category") && (
                     <td className="px-4 py-3">

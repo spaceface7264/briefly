@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useOrgId } from "@/lib/org-context";
 import { Modal } from "@/components/modal";
 
 function generateCode(): string {
@@ -17,6 +18,7 @@ function generateCode(): string {
 
 export function InviteActions() {
   const router = useRouter();
+  const orgId = useOrgId();
   const [showModal, setShowModal] = useState(false);
   const [count, setCount] = useState(5);
   const [expiresInDays, setExpiresInDays] = useState<number | null>(30);
@@ -66,6 +68,7 @@ export function InviteActions() {
           code,
           created_by: user.id,
           expires_at: expiresAt,
+          org_id: orgId,
         }))
       );
 

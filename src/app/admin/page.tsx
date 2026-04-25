@@ -1,35 +1,40 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import { badgeToneByStatus, claimStatusLabel } from "@/lib/admin-badge-tones";
 import type { ClaimStatus } from "@/types/database";
 
 export default async function AdminDashboard() {
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
   // Get counts
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [briefsResult, claimsResult, creatorsResult] = await Promise.all([
-    supabase.from("briefs").select("*", { count: "exact", head: true }),
-    (supabase.from("claims") as any).select("*", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "creator"),
+    supabase.from("briefs").select("*", { count: "exact", head: true }).eq("org_id", orgId),
+    (supabase.from("claims") as any).select("*", { count: "exact", head: true }).eq("org_id", orgId).eq("status", "active"),
+    supabase.from("memberships").select("*", { count: "exact", head: true }).eq("org_id", orgId).eq("role", "creator").eq("status", "active"),
   ]);
 
   // Get open briefs count
   const { count: openBriefsCount } = await supabase
     .from("briefs")
     .select("*", { count: "exact", head: true })
+    .eq("org_id", orgId)
     .eq("status", "open");
 
   // Get pending submissions
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { count: pendingCount } = await (supabase.from("claims") as any)
     .select("*", { count: "exact", head: true })
+    .eq("org_id", orgId)
     .eq("status", "submitted");
 
   // Get recent claims with brief info
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: recentClaims } = await (supabase.from("claims") as any)
     .select("*, brief:briefs(title), creator:profiles(name, email)")
+    .eq("org_id", orgId)
     .order("claimed_at", { ascending: false })
     .limit(5);
 

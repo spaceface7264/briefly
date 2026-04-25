@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import { redirect } from "next/navigation";
 import { MyBriefsClient } from "./my-briefs-client";
 import type { Brief, Claim } from "@/types/database";
@@ -22,12 +23,15 @@ export default async function MyBriefsPage() {
     redirect("/login");
   }
 
-  // Fetch claims with brief info (no payments join — table may not exist yet)
+  const orgId = await requireActiveOrg(supabase);
+
+  // Fetch claims with brief info
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: claims, error } = await (supabase
     .from("claims") as any)
     .select("*, brief:briefs(*)")
     .eq("user_id", user.id)
+    .eq("org_id", orgId)
     .order("claimed_at", { ascending: false });
 
   if (error) {

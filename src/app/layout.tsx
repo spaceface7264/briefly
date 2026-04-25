@@ -3,6 +3,9 @@ import { Plus_Jakarta_Sans, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { Footer } from "@/components/footer";
 import { ScrollToTopOnRouteChange } from "@/components/scroll-to-top-on-route-change";
+import { OrgProvider } from "@/lib/org-context";
+import { createClient } from "@/lib/supabase/server";
+import { getActiveOrg } from "@/lib/org";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -20,16 +23,26 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500"],
 });
 
+const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
+
 export const metadata: Metadata = {
-  title: "Boulders Creators",
-  description: "Content creator platform for Boulders",
+  title: platformName,
+  description: `Content creator platform for ${platformName}`,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let orgId: string | null = null;
+  try {
+    const supabase = await createClient();
+    orgId = await getActiveOrg(supabase);
+  } catch {
+    // Not authenticated — orgId stays null
+  }
+
   return (
     <html
       lang="en"
@@ -40,7 +53,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <ScrollToTopOnRouteChange />
         </Suspense>
-        {children}
+        <OrgProvider orgId={orgId}>
+          {children}
+        </OrgProvider>
         <Footer />
       </body>
     </html>

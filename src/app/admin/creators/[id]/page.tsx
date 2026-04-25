@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
@@ -11,6 +12,7 @@ export default async function CreatorDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
   const { data: creator } = await supabase
     .from("profiles")
@@ -22,11 +24,12 @@ export default async function CreatorDetailPage({
     notFound();
   }
 
-  // Get all claims for this creator
+  // Get all claims for this creator in the active org
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: claims } = await (supabase.from("claims") as any)
     .select("*, brief:briefs(id, title, price_dkk, category, duration_class)")
     .eq("user_id", id)
+    .eq("org_id", orgId)
     .order("claimed_at", { ascending: false });
 
   const profile = creator as Profile;

@@ -210,9 +210,9 @@ export function MyBriefsClient({ claims }: Props) {
                               <span className="px-2 py-0.5 bg-surface-raised text-text-secondary text-[0.78rem] font-mono rounded-full border border-border">
                                 {durationClassLabel(claim.brief.duration_class)}
                               </span>
-                              {claim.brief.gym && (
+                              {claim.brief.location && (
                                 <span className="px-2 py-0.5 bg-surface-raised text-text-secondary text-[0.78rem] rounded-full border border-border">
-                                  {claim.brief.gym}
+                                  {claim.brief.location}
                                 </span>
                               )}
 

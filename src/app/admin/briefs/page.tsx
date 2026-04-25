@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import type { Brief } from "@/types/database";
 import { AdminBriefsClient } from "./admin-briefs-client";
@@ -11,10 +12,12 @@ export default async function AdminBriefsPage({
 }) {
   await searchParams;
   const supabase = await createClient();
+  const orgId = await requireActiveOrg(supabase);
 
   const { data: briefs } = await supabase
     .from("briefs")
     .select("*")
+    .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
   const briefIds = ((briefs || []) as Brief[]).map((brief) => brief.id);

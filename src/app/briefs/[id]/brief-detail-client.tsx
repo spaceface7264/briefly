@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
@@ -56,6 +57,7 @@ export function BriefDetailClient({
   reclaimCooldownDays,
 }: Props) {
   const router = useRouter();
+  const orgId = useOrgId();
   const [claiming, setClaiming] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
@@ -115,6 +117,7 @@ export function BriefDetailClient({
         brief_id: brief.id,
         user_id: user.id,
         expires_at: expiresAt.toISOString(),
+        org_id: orgId,
       });
 
     if (insertError) {
@@ -157,10 +160,10 @@ export function BriefDetailClient({
               <span className="text-muted">{categoryLabel(brief.category)}</span>
               <span className="text-border">/</span>
               <span className="text-muted">{durationClassLabel(brief.duration_class)}</span>
-              {brief.gym && (
+              {brief.location && (
                 <>
                   <span className="text-border">/</span>
-                  <span className="text-muted">{brief.gym}</span>
+                  <span className="text-muted">{brief.location}</span>
                 </>
               )}
               {hasClaim && userClaim && (
@@ -606,10 +609,10 @@ function SubmissionChecklist() {
   const allChecked = Object.values(checks).every(Boolean);
 
   const items = [
-    { key: "hook" as const, label: "Stærk hook i første 2-3 sek" },
-    { key: "subtitles" as const, label: "Undertekster tilføjet (centreret)" },
-    { key: "length" as const, label: "Passende længde (8-30 sek)" },
-    { key: "branding" as const, label: "Boulders branding synlig" },
+    { key: "hook" as const, label: "Strong hook in first 2-3 sec" },
+    { key: "subtitles" as const, label: "Captions added (centered)" },
+    { key: "length" as const, label: "Appropriate length (8-30 sec)" },
+    { key: "branding" as const, label: "Brand clearly visible" },
   ];
 
   return (

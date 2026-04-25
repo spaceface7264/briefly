@@ -4,6 +4,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const APP_URL = Deno.env.get("APP_URL") || "http://localhost:3000";
+const SENDER_NAME = Deno.env.get("PLATFORM_SENDER_NAME") || "Briefly";
+const SENDER_EMAIL = Deno.env.get("PLATFORM_SENDER_EMAIL") || "notifications@example.com";
+const PLATFORM_NAME = Deno.env.get("PLATFORM_NAME") || "Briefly";
 
 const MAX_ATTEMPTS = 5;
 const BATCH_SIZE = 30;
@@ -54,7 +58,7 @@ async function sendEmail({
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "Boulders Creators <notifications@boulders.dk>",
+      from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
       to: [to],
       subject,
       html,
@@ -152,11 +156,11 @@ serve(async () => {
 
       const targetHref =
         row.notification.entity_type === "brief"
-          ? `https://creators.boulders.dk/briefs/${row.notification.entity_id}`
+          ? `${APP_URL}/briefs/${row.notification.entity_id}`
           : row.notification.event_type === "claim_submitted" ||
               row.notification.event_type === "claim_created"
-            ? "https://creators.boulders.dk/admin/claims"
-            : "https://creators.boulders.dk/my-briefs";
+            ? `${APP_URL}/admin/claims`
+            : `${APP_URL}/my-briefs`;
 
       try {
         await sendEmail({
@@ -165,7 +169,7 @@ serve(async () => {
           html: `
             <h2>${row.notification.title}</h2>
             <p>${row.notification.body}</p>
-            <p><a href="${targetHref}">Open in Boulders Creators</a></p>
+            <p><a href="${targetHref}">Open in ${PLATFORM_NAME}</a></p>
           `,
         });
 

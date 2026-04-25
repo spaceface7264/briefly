@@ -4,6 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const APP_URL = Deno.env.get("APP_URL") || "http://localhost:3000";
+const SENDER_NAME = Deno.env.get("PLATFORM_SENDER_NAME") || "Briefly";
+const SENDER_EMAIL = Deno.env.get("PLATFORM_SENDER_EMAIL") || "notifications@example.com";
 
 interface WebhookPayload {
   type: "INSERT";
@@ -15,7 +18,8 @@ interface WebhookPayload {
     category: string;
     duration_class: string;
     payout_amount: number;
-    gym_location: string | null;
+    location: string | null;
+    org_id: string;
     status: string;
   };
 }
@@ -39,12 +43,19 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // Get all active creators — honour per-creator new-brief preference
-    const { data: creators } = await supabase
-      .from("profiles")
-      .select("email, name")
+    // Get creators for this brief's org — honour per-creator new-brief preference
+    const briefOrgId = payload.record.org_id;
+    const { data: creatorMemberships } = await supabase
+      .from("memberships")
+      .select("user_id, profile:profiles(email, name, notify_new_briefs)")
+      .eq("org_id", briefOrgId)
       .eq("role", "creator")
-      .eq("notify_new_briefs", true);
+      .eq("status", "active");
+
+    const creators = (creatorMemberships || [])
+      .filter((m: any) => m.profile?.notify_new_briefs !== false)
+      .map((m: any) => ({ email: m.profile?.email, name: m.profile?.name }))
+      .filter((c: any) => c.email);
 
     if (!creators || creators.length === 0) {
       return new Response(JSON.stringify({ message: "No creators" }), {
@@ -69,7 +80,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Boulders Creators <notifications@boulders.dk>",
+        from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
         bcc: creatorEmails, // Use BCC for privacy
         subject: `New Brief: ${payload.record.title}`,
         html: `
@@ -79,9 +90,9 @@ serve(async (req) => {
           <p><strong>Category:</strong> ${payload.record.category}</p>
           <p><strong>Duration:</strong> ${payload.record.duration_class}</p>
           <p><strong>Payout:</strong> ${payout}</p>
-          ${payload.record.gym_location ? `<p><strong>Location:</strong> ${payload.record.gym_location}</p>` : ""}
+          ${payload.record.location ? `<p><strong>Location:</strong> ${payload.record.location}</p>` : ""}
           <p style="margin-top: 20px;">
-            <a href="https://creators.boulders.dk/briefs/${payload.record.id}"
+            <a href="${APP_URL}/briefs/${payload.record.id}"
                style="background: #ff00ff; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
               View Brief
             </a>

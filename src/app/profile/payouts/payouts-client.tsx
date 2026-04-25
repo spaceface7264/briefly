@@ -232,8 +232,8 @@ function BillingDetailsForm({ profile }: { profile: Profile | null }) {
             >
               open in a new tab
             </a>
-            ). Boulders may issue invoices on my behalf for payouts delivered
-            through this platform.
+            ). The platform may issue invoices on my behalf for payouts
+            delivered through this platform.
           </span>
         </label>
         {currentAgreementAccepted && profile?.self_billing_agreement_accepted_at && (

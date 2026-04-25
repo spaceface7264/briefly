@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { requireActiveOrg } from "@/lib/org";
 import { AdminNav } from "./admin-nav";
 
 export default async function AdminLayout({
@@ -15,14 +16,17 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  // Check if user is admin
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profile } = await (supabase.from("profiles") as any)
+  // Check if user is admin of active org via membership
+  const orgId = await requireActiveOrg(supabase);
+  const { data: membership } = await supabase
+    .from("memberships")
     .select("role")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
+    .eq("org_id", orgId)
+    .eq("status", "active")
     .single();
 
-  if (profile?.role !== "admin") {
+  if (membership?.role !== "admin") {
     redirect("/briefs");
   }
 

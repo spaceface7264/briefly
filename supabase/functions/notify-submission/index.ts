@@ -4,6 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const APP_URL = Deno.env.get("APP_URL") || "http://localhost:3000";
+const SENDER_NAME = Deno.env.get("PLATFORM_SENDER_NAME") || "Briefly";
+const SENDER_EMAIL = Deno.env.get("PLATFORM_SENDER_EMAIL") || "notifications@example.com";
 
 interface WebhookPayload {
   type: "UPDATE";
@@ -47,12 +50,25 @@ serve(async (req) => {
         .eq("id", payload.record.creator_id)
         .single();
 
-      // Get all admin emails — honour per-admin submission-alert preference
-      const { data: admins } = await supabase
-        .from("profiles")
-        .select("email")
+      // Get the claim's org_id
+      const { data: claim } = await supabase
+        .from("claims")
+        .select("org_id")
+        .eq("id", payload.record.id)
+        .single();
+
+      // Get admin emails for this org — honour per-admin submission-alert preference
+      const { data: adminMemberships } = await supabase
+        .from("memberships")
+        .select("user_id, profile:profiles(email, notify_submissions)")
+        .eq("org_id", claim?.org_id)
         .eq("role", "admin")
-        .eq("notify_submissions", true);
+        .eq("status", "active");
+
+      const admins = (adminMemberships || [])
+        .filter((m: any) => m.profile?.notify_submissions !== false)
+        .map((m: any) => ({ email: m.profile?.email }))
+        .filter((a: any) => a.email);
 
       if (!admins || admins.length === 0 || !RESEND_API_KEY) {
         return new Response(JSON.stringify({ message: "No admins or API key" }), {
@@ -70,7 +86,7 @@ serve(async (req) => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "Boulders Creators <notifications@boulders.dk>",
+          from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
           to: adminEmails,
           subject: `New Submission: ${brief?.title || "Brief"}`,
           html: `
@@ -79,7 +95,7 @@ serve(async (req) => {
             <p><strong>Creator:</strong> ${creator?.name || creator?.email || "Unknown"}</p>
             <p><strong>Submission URL:</strong> <a href="${payload.record.submission_url}">${payload.record.submission_url}</a></p>
             ${payload.record.submission_notes ? `<p><strong>Notes:</strong> ${payload.record.submission_notes}</p>` : ""}
-            <p><a href="https://creators.boulders.dk/admin/claims">Review in Admin</a></p>
+            <p><a href="${APP_URL}/admin/claims">Review in Admin</a></p>
           `,
         }),
       });

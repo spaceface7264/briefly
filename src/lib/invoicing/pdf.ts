@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import type { Payment } from "@/types/database";
 import { formatDkk, formatInvoiceNumber, formatVatRateBp } from "./vat";
+import { platformDetails } from "./platform";
 
 const MARGIN = 48;
 const PAGE_WIDTH = 595.28; // A4
@@ -20,8 +21,9 @@ export async function renderInvoicePdf(payment: Payment): Promise<Uint8Array> {
 
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Invoice ${payment.invoice_number}`);
-  pdf.setCreator("Boulders Creators");
-  pdf.setProducer("Boulders Creators");
+  const platform = platformDetails();
+  pdf.setCreator(platform.name);
+  pdf.setProducer(platform.name);
 
   const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -195,6 +197,6 @@ function drawFooter(ctx: Ctx, payment: Payment) {
   }
   line(
     ctx,
-    "This invoice has been issued by Boulders on behalf of the supplier under a self-billing agreement."
+    `This invoice has been issued by ${platformDetails().name} on behalf of the supplier under a self-billing agreement.`
   );
 }
