@@ -51,6 +51,7 @@ export async function updateOrgDetails(
     description?: string;
     logo_url?: string;
     accent_color?: string;
+    discoverable?: boolean;
     industry?: string;
     contact_email?: string;
     address?: string;

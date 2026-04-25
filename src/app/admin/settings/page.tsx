@@ -10,6 +10,7 @@ import { NotificationsPanel } from "@/components/notifications-panel";
 import { StatusPill } from "@/components/status-pill";
 import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
+import { DiscoverabilityToggle } from "./discoverability-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,13 @@ export default async function AdminSettingsPage() {
   if (!user) redirect("/login");
 
   const orgId = await requireActiveOrg(supabase);
+
+  // Fetch org details
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name, slug, description, discoverable, industry")
+    .eq("id", orgId)
+    .single();
 
   // Fetch admins and creators via memberships for this org
   const [{ data: adminMemberships }, { data: creatorMemberships }, { data: me }] =
@@ -163,6 +171,13 @@ export default async function AdminSettingsPage() {
           role="admin"
           preferences={myPreferences}
           warningsByType={{ submissions: submissionsWarning }}
+        />
+
+        <DiscoverabilityToggle
+          orgId={orgId}
+          discoverable={org?.discoverable ?? false}
+          orgName={org?.name ?? ""}
+          orgDescription={org?.description ?? ""}
         />
 
         <section className="space-y-4">

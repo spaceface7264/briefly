@@ -477,6 +477,57 @@ export type Database = {
           },
         ]
       }
+      org_applications: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string
+          message: string | null
+          status: string
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id: string
+          message?: string | null
+          status?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          org_id?: string
+          message?: string | null
+          status?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_applications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           id: string
@@ -485,6 +536,7 @@ export type Database = {
           logo_url: string | null
           accent_color: string | null
           description: string | null
+          discoverable: boolean
           industry: string | null
           currency: string
           country: string
@@ -504,6 +556,7 @@ export type Database = {
           logo_url?: string | null
           accent_color?: string | null
           description?: string | null
+          discoverable?: boolean
           industry?: string | null
           currency?: string
           country?: string
@@ -523,6 +576,7 @@ export type Database = {
           logo_url?: string | null
           accent_color?: string | null
           description?: string | null
+          discoverable?: boolean
           industry?: string | null
           currency?: string
           country?: string
@@ -587,6 +641,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_application: { Args: { p_application_id: string; p_admin_id: string }; Returns: boolean }
       allocate_invoice_number: { Args: { p_org_id: string; p_year: number }; Returns: number }
       create_notification_for_user: {
         Args: {

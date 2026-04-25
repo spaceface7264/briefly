@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -44,14 +45,14 @@ export async function getActiveOrg(
 }
 
 /**
- * Returns the active org_id, throwing if not available.
- * Use in authenticated contexts (server pages/actions) where org is required.
+ * Returns the active org_id, redirecting to /discover if not available.
+ * Use in authenticated server pages where org context is required.
  */
 export async function requireActiveOrg(
   supabase: SupabaseClient
 ): Promise<string> {
   const orgId = await getActiveOrg(supabase);
-  if (!orgId) throw new Error("No active organization");
+  if (!orgId) redirect("/discover");
   return orgId;
 }
 

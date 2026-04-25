@@ -82,7 +82,7 @@ export async function updateSession(request: NextRequest) {
   // Redirect logged-in users away from login page
   if (isLoginPath && user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/briefs";
+    url.pathname = "/discover";
     return NextResponse.redirect(url);
   }
 

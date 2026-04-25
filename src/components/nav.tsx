@@ -20,6 +20,7 @@ import type { NotificationRow } from "@/lib/notification-center";
 const navItems = [
   { href: "/briefs", label: "Briefs" },
   { href: "/my-briefs", label: "My Briefs" },
+  { href: "/discover", label: "Discover" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/guide", label: "Guide" },
 ];
