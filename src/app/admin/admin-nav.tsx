@@ -244,7 +244,7 @@ export function AdminNav() {
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-black/60"
           />
-          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-surface border-r border-border">
+          <aside className="relative flex h-full w-64 max-w-[78vw] flex-col bg-surface border-r border-border shadow-2xl">
             <button
               type="button"
               aria-label="Close menu"
