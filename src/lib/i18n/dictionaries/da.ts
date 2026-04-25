@@ -108,6 +108,8 @@ export const da: Dictionary = {
     signingIn: "Logger ind...",
     signUp: "Opret konto",
     signingUp: "Opretter konto...",
+    welcomeTitle: "Velkommen tilbage",
+    welcomeSubtitle: "Henter dine briefer…",
     switchToSignUp: "Har du ikke en konto?",
     switchToSignIn: "Har du allerede en konto?",
     signUpCta: "Opret konto",

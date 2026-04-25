@@ -106,6 +106,8 @@ export const en = {
     signingIn: "Signing in...",
     signUp: "Create account",
     signingUp: "Creating account...",
+    welcomeTitle: "Welcome back",
+    welcomeSubtitle: "Loading your briefs…",
     switchToSignUp: "Need an account?",
     switchToSignIn: "Already have an account?",
     signUpCta: "Create account",

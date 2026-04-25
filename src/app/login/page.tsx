@@ -29,6 +29,7 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,8 +51,12 @@ function LoginForm() {
         return;
       }
 
-      router.push("/briefs");
-      router.refresh();
+      router.prefetch("/briefs");
+      setWelcomeOpen(true);
+      window.setTimeout(() => {
+        router.push("/briefs");
+        router.refresh();
+      }, 1750);
     } else {
       // Signup mode - validate invite code first
       if (!inviteCode.trim()) {
@@ -108,6 +113,7 @@ function LoginForm() {
 
   return (
     <main className="flex-1 flex items-center justify-center px-4">
+      {welcomeOpen && <WelcomeOverlay />}
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Image
@@ -247,5 +253,80 @@ function LoginForm() {
         </p>
       </div>
     </main>
+  );
+}
+
+function WelcomeOverlay() {
+  const t = useTranslate();
+  // Holds laid out as a vertical climbing route, bottom up.
+  const holds = [
+    { bottom: "8%", left: "38%", delay: 0 },
+    { bottom: "26%", left: "60%", delay: 90 },
+    { bottom: "44%", left: "32%", delay: 180 },
+    { bottom: "62%", left: "58%", delay: 270 },
+    { bottom: "80%", left: "44%", delay: 360 },
+  ];
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={t("login.welcomeTitle")}
+      className="welcome-overlay fixed inset-0 z-50 flex items-center justify-center bg-background overflow-hidden"
+    >
+      {/* Soft accent glow */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,_rgba(200,255,0,0.10),_transparent_55%)]"
+      />
+      {/* Subtle grid texture */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[linear-gradient(to_right,_var(--color-foreground)_1px,_transparent_1px),linear-gradient(to_bottom,_var(--color-foreground)_1px,_transparent_1px)] bg-[size:40px_40px]"
+      />
+
+      <div className="relative flex flex-col items-center gap-7">
+        {/* Climbing route */}
+        <div
+          aria-hidden="true"
+          className="relative h-32 w-20"
+        >
+          {holds.map((hold, i) => (
+            <span
+              key={i}
+              className="welcome-hold absolute w-2 h-2 rounded-[3px]"
+              style={{
+                bottom: hold.bottom,
+                left: hold.left,
+                animationDelay: `${hold.delay}ms`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Logo */}
+        <Image
+          src="https://storage.googleapis.com/boulderscss/logo-flat-white.png"
+          alt="Boulders"
+          width={220}
+          height={60}
+          priority
+          className="welcome-logo h-12 w-auto"
+        />
+
+        {/* Text */}
+        <div className="welcome-text flex flex-col items-center gap-1 text-center">
+          <p className="text-base font-semibold tracking-tight">
+            {t("login.welcomeTitle")}
+          </p>
+          <p className="text-xs text-muted">{t("login.welcomeSubtitle")}</p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-[3px] w-44 overflow-hidden rounded-full bg-border/60">
+          <div className="welcome-bar-fill h-full w-full rounded-full bg-accent shadow-[0_0_12px_rgba(200,255,0,0.45)]" />
+        </div>
+      </div>
+    </div>
   );
 }
