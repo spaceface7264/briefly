@@ -56,7 +56,7 @@ export function BriefCard({ brief }: BriefCardProps) {
     <Link
       href={`/briefs/${brief.id}`}
       className={[
-        "group relative flex h-full flex-col rounded-lg border transition-all duration-150",
+        "group relative flex h-full min-w-0 flex-col rounded-lg border transition-all duration-150",
         userHasClaimed
           ? "bg-brand-soft border-brand/20 hover:border-brand/30 ring-1 ring-brand/10"
           : isFull

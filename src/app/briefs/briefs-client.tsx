@@ -224,7 +224,7 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
           {/* Brief Grid */}
           {filteredBriefs.length > 0 ? (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-stagger-in">
                 {paginatedBriefs.map((brief) => (
                   <BriefCard key={brief.id} brief={brief} />
                 ))}
