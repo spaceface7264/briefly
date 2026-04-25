@@ -55,6 +55,8 @@ export const da: Dictionary = {
     notifications: "Notifikationer",
     signOut: "Log ud",
     admin: "Admin",
+    sectionBrowse: "Udforsk",
+    sectionAccount: "Konto",
   },
 
   footer: {

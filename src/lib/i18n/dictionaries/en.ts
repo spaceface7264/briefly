@@ -53,6 +53,8 @@ export const en = {
     notifications: "Notifications",
     signOut: "Sign out",
     admin: "Admin",
+    sectionBrowse: "Browse",
+    sectionAccount: "Account",
   },
 
   footer: {

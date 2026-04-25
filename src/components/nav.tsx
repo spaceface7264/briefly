@@ -122,6 +122,21 @@ export function Nav() {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const { style } = document.body;
+    const prev = style.overflow;
+    style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -159,16 +174,27 @@ export function Nav() {
               type="button"
               aria-label={mobileOpen ? t("common.closeMenu") : t("common.openMenu")}
               aria-expanded={mobileOpen}
+              aria-controls="mobile-menu"
               onClick={() => setMobileOpen((v) => !v)}
               className="inline-flex items-center justify-center w-10 h-10 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                {mobileOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
+              <span className="relative block w-5 h-5" aria-hidden="true">
+                <span
+                  className={`absolute left-0 h-0.5 w-5 rounded-full bg-current transition-all duration-200 ease-out ${
+                    mobileOpen ? "top-[9px] rotate-45" : "top-[5px] rotate-0"
+                  }`}
+                />
+                <span
+                  className={`absolute left-0 top-[9px] h-0.5 w-5 rounded-full bg-current transition-opacity duration-150 ${
+                    mobileOpen ? "opacity-0" : "opacity-100"
+                  }`}
+                />
+                <span
+                  className={`absolute left-0 h-0.5 w-5 rounded-full bg-current transition-all duration-200 ease-out ${
+                    mobileOpen ? "top-[9px] -rotate-45" : "top-[13px] rotate-0"
+                  }`}
+                />
+              </span>
             </button>
           </div>
 
@@ -268,66 +294,215 @@ export function Nav() {
         </div>
       </div>
 
-      {/* Mobile menu panel */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-xl">
-          <nav className="px-4 py-3 flex flex-col">
-            {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                pathname.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`px-3 py-3 rounded-md text-base font-medium transition-colors ${
-                    isActive ? "text-brand bg-surface" : "text-muted hover:text-foreground hover:bg-surface"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-            <div className="mt-2 pt-2 border-t border-border">
-              {profileItems.map((item) => {
-                const isActive = pathname === item.href || (item.href !== "/profile" && pathname.startsWith(item.href));
+      {/* Mobile menu panel — always mounted so open/close can animate */}
+      <div
+        id="mobile-menu"
+        className={`md:hidden grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          mobileOpen
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0 pointer-events-none"
+        }`}
+        aria-hidden={!mobileOpen}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border bg-background/95 backdrop-blur-xl">
+            <nav className="px-4 py-3 flex flex-col gap-0.5 max-h-[calc(100vh-3.5rem)] overflow-y-auto">
+              <SectionLabel mobileOpen={mobileOpen} index={0}>
+                {t("nav.sectionBrowse")}
+              </SectionLabel>
+              {navItems.map((item, i) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
                 return (
-                  <Link
+                  <MobileMenuLink
                     key={item.href}
                     href={item.href}
+                    isActive={isActive}
+                    mobileOpen={mobileOpen}
+                    index={i + 1}
                     onClick={() => setMobileOpen(false)}
-                    className={`block px-3 py-3 rounded-md text-base font-medium transition-colors ${
-                      isActive ? "text-brand bg-surface" : "text-muted hover:text-foreground hover:bg-surface"
-                    }`}
                   >
                     {item.label}
-                  </Link>
+                  </MobileMenuLink>
+                );
+              })}
+
+              <SectionLabel
+                mobileOpen={mobileOpen}
+                index={navItems.length + 1}
+                className="mt-3 pt-3 border-t border-border"
+              >
+                {t("nav.sectionAccount")}
+              </SectionLabel>
+              {profileItems.map((item, i) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/profile" && pathname.startsWith(item.href));
+                const badge =
+                  item.href === "/profile/notifications" && unreadCount > 0
+                    ? unreadCount
+                    : undefined;
+                return (
+                  <MobileMenuLink
+                    key={item.href}
+                    href={item.href}
+                    isActive={isActive}
+                    mobileOpen={mobileOpen}
+                    index={navItems.length + 2 + i}
+                    onClick={() => setMobileOpen(false)}
+                    badge={badge}
+                  >
+                    {item.label}
+                  </MobileMenuLink>
                 );
               })}
               {isAdmin && (
-                <Link
+                <MobileMenuLink
                   href="/admin"
+                  isActive={false}
+                  mobileOpen={mobileOpen}
+                  index={navItems.length + 2 + profileItems.length}
                   onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-3 rounded-md text-base font-medium text-accent hover:bg-surface transition-colors"
+                  accent
                 >
                   {t("nav.admin")}
-                </Link>
+                </MobileMenuLink>
               )}
-              <button
-                type="button"
+              <MobileMenuButton
+                mobileOpen={mobileOpen}
+                index={navItems.length + 3 + profileItems.length}
                 onClick={() => {
                   setMobileOpen(false);
                   handleLogout();
                 }}
-                className="w-full text-left px-3 py-3 rounded-md text-base font-medium text-muted hover:text-error hover:bg-surface transition-colors"
               >
+                <svg
+                  className="w-4 h-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
                 {t("nav.signOut")}
-              </button>
-            </div>
-          </nav>
+              </MobileMenuButton>
+            </nav>
+          </div>
         </div>
-      )}
+      </div>
     </header>
+  );
+}
+
+function itemTransition(mobileOpen: boolean, index: number): React.CSSProperties {
+  return {
+    transitionDelay: mobileOpen ? `${60 + index * 25}ms` : "0ms",
+  };
+}
+
+function SectionLabel({
+  children,
+  mobileOpen,
+  index,
+  className = "",
+}: {
+  children: React.ReactNode;
+  mobileOpen: boolean;
+  index: number;
+  className?: string;
+}) {
+  return (
+    <div
+      style={itemTransition(mobileOpen, index)}
+      className={`px-3 pt-1 pb-1.5 text-[0.65rem] font-semibold uppercase tracking-wider text-muted/80 transition-all duration-200 ${
+        mobileOpen ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-1"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function MobileMenuLink({
+  href,
+  isActive,
+  mobileOpen,
+  index,
+  onClick,
+  accent = false,
+  badge,
+  children,
+}: {
+  href: string;
+  isActive: boolean;
+  mobileOpen: boolean;
+  index: number;
+  onClick: () => void;
+  accent?: boolean;
+  badge?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      tabIndex={mobileOpen ? 0 : -1}
+      style={itemTransition(mobileOpen, index)}
+      className={`relative flex items-center justify-between gap-2 pl-5 pr-3 py-3 rounded-md text-base font-medium transition-all duration-200 ${
+        mobileOpen ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2"
+      } ${
+        isActive
+          ? "text-brand bg-surface"
+          : accent
+            ? "text-accent hover:bg-surface"
+            : "text-muted hover:text-foreground hover:bg-surface"
+      }`}
+    >
+      {isActive && (
+        <span
+          aria-hidden="true"
+          className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-brand"
+        />
+      )}
+      <span>{children}</span>
+      {typeof badge === "number" && (
+        <span className="value-text inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-error/15 text-error px-1.5 text-[0.7rem] font-semibold">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function MobileMenuButton({
+  mobileOpen,
+  index,
+  onClick,
+  children,
+}: {
+  mobileOpen: boolean;
+  index: number;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      tabIndex={mobileOpen ? 0 : -1}
+      style={itemTransition(mobileOpen, index)}
+      className={`flex w-full items-center gap-2 pl-5 pr-3 py-3 rounded-md text-base font-medium text-muted hover:text-error hover:bg-surface transition-all duration-200 ${
+        mobileOpen ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
