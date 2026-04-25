@@ -27,21 +27,64 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  if (event.type === "account.updated") {
-    const account = event.data.object as Stripe.Account;
-    const supabase = createAdminClient();
+  const supabase = createAdminClient();
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        stripe_payouts_enabled: account.payouts_enabled ?? false,
-        stripe_details_submitted: account.details_submitted ?? false,
-      })
-      .eq("stripe_account_id", account.id);
+  switch (event.type) {
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
 
-    if (error) {
-      console.error("Failed to update profile from account.updated:", error);
-      return NextResponse.json({ error: "db error" }, { status: 500 });
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          stripe_payouts_enabled: account.payouts_enabled ?? false,
+          stripe_details_submitted: account.details_submitted ?? false,
+        })
+        .eq("stripe_account_id", account.id);
+
+      if (error) {
+        console.error("Failed to update profile from account.updated:", error);
+        return NextResponse.json({ error: "db error" }, { status: 500 });
+      }
+      break;
+    }
+
+    case "transfer.reversed": {
+      const transfer = event.data.object as Stripe.Transfer;
+      const paymentId = transfer.metadata?.payment_id;
+
+      if (!paymentId) {
+        console.error("transfer.reversed missing payment_id metadata:", transfer.id);
+        break;
+      }
+
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          status: "failed" as const,
+          error_message: `Transfer ${transfer.id} reversed`,
+        })
+        .eq("id", paymentId);
+
+      if (error) {
+        console.error("Failed to mark payment as reversed:", error);
+        return NextResponse.json({ error: "db error" }, { status: 500 });
+      }
+
+      // Revert claim back to approved so admin can retry payment
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("claim_id")
+        .eq("id", paymentId)
+        .single();
+
+      if (payment?.claim_id) {
+        await supabase
+          .from("claims")
+          .update({ status: "approved" })
+          .eq("id", payment.claim_id)
+          .eq("status", "paid");
+      }
+      break;
     }
   }
 

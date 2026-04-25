@@ -13,7 +13,7 @@ export async function startStripeOnboarding() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("stripe_account_id, email")
+    .select("stripe_account_id, email, country")
     .eq("id", user.id)
     .single();
 
@@ -26,7 +26,7 @@ export async function startStripeOnboarding() {
   if (!accountId) {
     const account = await stripe().accounts.create({
       type: "express",
-      country: "DK",
+      country: profile.country || "DK",
       email: profile.email ?? user.email ?? undefined,
       capabilities: {
         transfers: { requested: true },
