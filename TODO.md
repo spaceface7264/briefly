@@ -88,6 +88,15 @@ work and may not be live yet:
   4. Open the Stripe Customer Portal configuration once and enable
      the features you want creators to self-serve (cancel, change
      plan, update payment method, view invoices).
+- [ ] `0029_pricing_limits.sql` — Phase 3b. Enforces `max_active_briefs`
+  and `max_creators` at the database level via two BEFORE INSERT/
+  UPDATE triggers. The triggers raise `PLAN_LIMIT_EXCEEDED:` errors
+  with human-readable messages; UI handlers (brief form, brief
+  reopen, application approve, invite redemption) detect the prefix
+  and surface an upgrade prompt linking to `/admin/billing`. Includes
+  the `effective_org_limit()` SQL function that mirrors the resolver
+  precedence (overrides → subscription plan → Free) so trigger checks
+  always see the same limits the TS resolver returns.
 
 After applying, sanity-check:
 

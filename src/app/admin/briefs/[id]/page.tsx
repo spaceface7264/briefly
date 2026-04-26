@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { planLimitErrorMessage } from "@/lib/pricing";
 import { BriefForm } from "../brief-form";
 import type { Brief, Claim } from "@/types/database";
 import Link from "next/link";
@@ -78,7 +79,12 @@ export default function EditBriefPage() {
 
     if (error) {
       console.error("Reopen error:", error);
-      alert("Failed to reopen brief");
+      const limitMessage = planLimitErrorMessage(error);
+      if (limitMessage) {
+        alert(`${limitMessage}\n\nUpgrade your plan at /admin/billing.`);
+      } else {
+        alert("Failed to reopen brief");
+      }
       setArchiving(false);
       return;
     }

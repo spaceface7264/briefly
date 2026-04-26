@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Nav } from "@/components/nav";
-import { requirePlatformAdmin } from "@/lib/pricing";
+import { requirePlatformAdmin } from "@/lib/pricing-server";
 
 const tabs = [
   { href: "/admin/super", label: "Overview" },

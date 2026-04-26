@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
+import { planLimitErrorMessage } from "@/lib/pricing";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory; label: string }[] = [
@@ -281,7 +283,8 @@ export function BriefForm({ brief }: BriefFormProps) {
 
     if (result.error) {
       console.error("Save error:", result.error);
-      setError("Failed to save brief");
+      const limitError = planLimitErrorMessage(result.error);
+      setError(limitError ?? "Failed to save brief");
       setSaving(false);
       return;
     }
@@ -650,7 +653,19 @@ export function BriefForm({ brief }: BriefFormProps) {
         </div>
       </div>
 
-      {error && <p className="text-error text-sm">{error}</p>}
+      {error && (
+        <p className="text-error text-sm">
+          {error}
+          {error.toLowerCase().includes("plan allows") && (
+            <>
+              {" "}
+              <Link href="/admin/billing" className="underline hover:no-underline">
+                Upgrade your plan →
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-4 pt-4">

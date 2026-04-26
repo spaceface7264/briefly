@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { planLimitErrorMessage } from "@/lib/pricing";
 import { reviewApplication } from "./actions";
 
 export interface Application {
@@ -63,13 +65,25 @@ export function ApplicationList({
 function ApplicationRow({ application }: { application: Application }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorIsLimit, setErrorIsLimit] = useState(false);
   const isPending = application.status === "pending";
 
   async function handleReview(decision: "approved" | "rejected") {
     setLoading(true);
+    setError(null);
+    setErrorIsLimit(false);
     const res = await reviewApplication(application.id, decision);
     if (res.ok) {
       setResult(decision);
+    } else {
+      const limit = planLimitErrorMessage({ message: res.error });
+      if (limit) {
+        setError(limit);
+        setErrorIsLimit(true);
+      } else {
+        setError(res.error);
+      }
     }
     setLoading(false);
   }
@@ -134,6 +148,24 @@ function ApplicationRow({ application }: { application: Application }) {
           </span>
         )}
       </div>
+      {error && (
+        <div className="basis-full">
+          <p className="text-error text-sm">
+            {error}
+            {errorIsLimit && (
+              <>
+                {" "}
+                <Link
+                  href="/admin/billing"
+                  className="underline hover:no-underline"
+                >
+                  Upgrade your plan →
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

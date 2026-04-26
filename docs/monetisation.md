@@ -435,5 +435,84 @@ box.
 
 ---
 
-(Phase 4 / future polish — usage limits, MRR dashboard, promo codes
-UI, dunning emails — lands below as it ships.)
+## Phase 3b — plan limit enforcement (live)
+
+Phase 3 made plans real but didn't gate them. 3b enforces the two
+caps that are currently expressed in plan limits:
+
+| Limit | What it caps | Enforced at |
+|---|---|---|
+| `max_active_briefs` | rows in `briefs` with `status = 'open'` per org | `briefs` BEFORE INSERT/UPDATE |
+| `max_creators` | active `creator` rows in `memberships` per org | `memberships` BEFORE INSERT/UPDATE |
+
+Limits are enforced **at the database level** via triggers, so every
+path that would create or publish a row is covered — the brief form,
+the reopen handler, invite redemption, application approval, and any
+direct SQL or future server action all hit the same gate.
+
+### How it works
+
+`effective_org_limit(org_id, limit_key)` is a plpgsql function that
+mirrors `resolveOrgPricing` precedence (overrides → subscription
+plan → Free) but returns just the integer for one limit key
+(NULL = unlimited).
+
+The two triggers — `enforce_active_brief_limit()` and
+`enforce_creator_count_limit()` — call it, count existing rows, and
+`RAISE EXCEPTION 'PLAN_LIMIT_EXCEEDED: …'` if the cap is reached.
+
+`planLimitErrorMessage(error)` in `src/lib/pricing.ts` is the
+client-side helper that detects the prefix and returns the message
+without it. UI handlers use it to swap the generic "Failed to save"
+message for the actual plan-limit message + a link to
+`/admin/billing`.
+
+### Where the trigger fires
+
+| User action | Hits trigger | Surface |
+|---|---|---|
+| Create brief (form) | `briefs` insert | `brief-form.tsx` shows the message + upgrade link |
+| Reopen archived brief | `briefs` update | `[id]/page.tsx` reopen handler shows it via alert |
+| Approve org application | `memberships` insert (via `approve_application` RPC) | `application-list.tsx` shows the message + upgrade link |
+| Redeem invite code | `memberships` insert (via `use_invite_code` RPC) | `login-form.tsx` shows the message at signup time |
+| Direct SQL insert | same triggers | error bubbles up the same way |
+
+### Bypassing the limit
+
+Three legitimate ways:
+
+1. **Upgrade the org's plan** via `/admin/billing` (Stripe Checkout).
+2. **Grant a `limit` override** in `/admin/super/orgs/[id]` —
+   e.g. raise an org's `max_active_briefs` to 10 without changing
+   their plan. The override is logged in the audit table.
+3. **Grant a `plan` override** that switches the org onto Pro
+   (which has unlimited limits) without billing them.
+
+### Things to watch for
+
+- **Trigger errors break the surrounding transaction.** If a brief
+  insert fails because of the limit, anything else done in the same
+  client request is rolled back. That's correct — better to fail
+  the whole save than half-commit it.
+- **`use_invite_code` is `SECURITY DEFINER`.** The trigger fires
+  inside it, the exception bubbles up out of the RPC, the action
+  catches it. Same for `approve_application`.
+- **Trial-period orgs are still gated by their plan's limits.** A
+  trialing Pro org has Pro's unlimited limits, not Free's. The
+  resolver and the SQL function agree on this because
+  `LIVE_SUB_STATUSES` includes `trialing`.
+- **No "warning before hit" UI yet.** If you have 2 of 3 active
+  briefs, nothing tells you in advance — you only see the error on
+  the third publish attempt. Polish item, not a bug.
+- **No grandfathering on plan downgrade.** If an org cancels Pro
+  with 10 active briefs and falls back to Free, no automatic
+  archiving happens — the existing 10 stay open until manually
+  archived. The trigger only fires on writes, so reads are
+  unaffected. If you want to enforce on downgrade too, do it via
+  the webhook handler.
+
+---
+
+(Phase 4 / future polish — MRR dashboard, promo codes UI, dunning
+emails, downgrade-time auto-archive, advance-notice UI for limits —
+lands below as it ships.)

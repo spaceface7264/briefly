@@ -120,12 +120,29 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
         return;
       }
 
-      // Mark invite code as used (only when one was supplied).
+      // Mark invite code as used (only when one was supplied). If the
+      // target org is at its creator cap, the membership trigger from
+      // 0029 will raise PLAN_LIMIT_EXCEEDED — surface it so the user
+      // knows to ask the admin to upgrade rather than silently
+      // ending up without a membership.
       if (trimmedCode && authData.user) {
-        await (supabase as any).rpc("use_invite_code", {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: redeemError } = await (supabase as any).rpc("use_invite_code", {
           invite_code: trimmedCode,
           user_uuid: authData.user.id,
         });
+        if (redeemError) {
+          if (redeemError.message?.startsWith("PLAN_LIMIT_EXCEEDED:")) {
+            setError(
+              redeemError.message.replace(/^PLAN_LIMIT_EXCEEDED:\s*/, "") +
+                " Ask the org admin to upgrade their plan, or sign up via /discover instead."
+            );
+          } else {
+            setError(`Account created but invite redemption failed: ${redeemError.message}`);
+          }
+          setLoading(false);
+          return;
+        }
       }
 
       setSuccess("Check your email to confirm your account");

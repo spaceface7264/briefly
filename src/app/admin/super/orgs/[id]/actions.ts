@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePlatformAdmin } from "@/lib/pricing";
+import { requirePlatformAdmin } from "@/lib/pricing-server";
 import type { Json } from "@/types/database";
 
 type ActionResult = { ok: true } | { ok: false; error: string };

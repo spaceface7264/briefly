@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
 
 // Hard fallback if the pricing_plans seed never ran for some reason.
 // Matches the Free plan's seeded default_fee_bp.
@@ -315,27 +314,20 @@ export function computeFee(
 }
 
 /**
- * Guard for server actions and routes that should only run for
- * platform-level admins (manage plans, grant overrides, view
- * revenue).
+ * Detect "PLAN_LIMIT_EXCEEDED:" exceptions raised by the database
+ * triggers from migration 0029. Returns the human-readable part of
+ * the message (without the prefix), or null if this isn't a
+ * plan-limit error.
+ *
+ * UI handlers should surface this directly and link to /admin/billing
+ * when present.
  */
-export async function requirePlatformAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { ok: false as const, error: "Not authenticated" };
-  }
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_platform_admin")
-    .eq("id", user.id)
-    .single();
-  if (!profile?.is_platform_admin) {
-    return { ok: false as const, error: "Platform admin access required" };
-  }
-  return { ok: true as const, supabase, userId: user.id };
+export function planLimitErrorMessage(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const message = (error as { message?: unknown }).message;
+  if (typeof message !== "string") return null;
+  if (!message.startsWith("PLAN_LIMIT_EXCEEDED:")) return null;
+  return message.replace(/^PLAN_LIMIT_EXCEEDED:\s*/, "").trim();
 }
 
 // Format helpers used by the admin surface.
