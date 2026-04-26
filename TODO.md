@@ -5,7 +5,7 @@ tracked by feature area, not by branch — each section has its own
 preconditions. Work top to bottom within a section.
 
 ---
-
+ 
 ## 1. Apply database migrations
 
 Apply any unapplied migration in `supabase/migrations/` via the Supabase
