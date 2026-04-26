@@ -39,7 +39,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 This repo deploys to Cloudflare Workers through GitHub Actions:
 
-- Pull requests to `main` run validation (`lint` + `build:cf`) without deploying.
+- Pull requests to `main` build and deploy to a shared **preview** worker
+  (`briefly-preview.<account>.workers.dev`). The deployed URL is posted as
+  a sticky comment on the PR, updated on every push. Each PR overwrites
+  the previous preview — coordinate or close older PRs if you need
+  isolation.
 - Pushes to `main` auto-deploy to production.
 - Manual runs of the deploy workflow can target `staging` or `production`.
 

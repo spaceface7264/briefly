@@ -1,11 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "briefly",
+  "name": "rainbow",
   "compatibility_date": "2026-04-22",
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  // Ensure the OpenNext build runs before any wrangler-driven deploy
+  // (e.g. Cloudflare Workers Build) so `.open-next/` exists. Skipped when
+  // wrangler is invoked recursively by `opennextjs-cloudflare deploy`,
+  // which sets OPEN_NEXT_DEPLOY=true to break the loop.
+  "build": {
+    "command": "node -e \"if(!process.env.OPEN_NEXT_DEPLOY){require('child_process').execSync('npx opennextjs-cloudflare build',{stdio:'inherit'})}\""
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -13,7 +20,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "briefly"
+      "service": "rainbow"
     }
   ],
   "images": {
@@ -29,11 +36,20 @@
   },
   "env": {
     "staging": {
-      "name": "briefly-staging",
+      "name": "rainbow-staging",
       "services": [
         {
           "binding": "WORKER_SELF_REFERENCE",
-          "service": "briefly-staging"
+          "service": "rainbow-staging"
+        }
+      ]
+    },
+    "preview": {
+      "name": "rainbow-preview",
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "rainbow-preview"
         }
       ]
     }
