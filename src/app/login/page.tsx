@@ -37,7 +37,7 @@ function LoginForm() {
     const supabase = createClient();
 
     if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -48,7 +48,24 @@ function LoginForm() {
         return;
       }
 
-      router.push("/briefs");
+      // Skip the bounce through /briefs → /discover when the user has no
+      // org by routing based on whether they have any active membership.
+      // Mirrors the lookup in getActiveOrg (active_org_id + membership
+      // fallback) so we don't divert users who have a membership but no
+      // active_org_id set yet.
+      let nextPath = "/briefs";
+      if (signInData.user) {
+        const { count } = await supabase
+          .from("memberships")
+          .select("user_id", { count: "exact", head: true })
+          .eq("user_id", signInData.user.id)
+          .eq("status", "active");
+        if (!count) {
+          nextPath = "/discover";
+        }
+      }
+
+      router.push(nextPath);
       router.refresh();
     } else {
       // Signup mode - validate invite code first

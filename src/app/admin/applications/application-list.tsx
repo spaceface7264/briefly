@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { reviewApplication } from "./actions";
 
-interface Application {
+export interface Application {
   id: string;
   message: string | null;
   status: string;
