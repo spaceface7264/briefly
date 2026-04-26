@@ -55,6 +55,12 @@ export default function Home() {
             >
               Redeem invite code
             </Link>
+            <Link
+              href="/discover"
+              className="px-6 py-3 text-muted hover:text-foreground font-semibold rounded-lg transition-colors text-sm"
+            >
+              Browse organisations →
+            </Link>
           </div>
         </div>
 

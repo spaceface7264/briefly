@@ -109,14 +109,14 @@ export function OrgCard({
           <button
             onClick={() => {
               if (!isAuthenticated) {
-                router.push("/login?mode=signup");
+                router.push("/login");
                 return;
               }
               setShowApply(!showApply);
             }}
             className="px-4 py-1.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors"
           >
-            Apply to join
+            {isAuthenticated ? "Apply to join" : "Log in to apply"}
           </button>
         )}
 
