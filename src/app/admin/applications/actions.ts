@@ -19,6 +19,11 @@ export async function reviewApplication(
     });
 
     if (error) {
+      // Pass plan-limit errors through unwrapped so the UI can detect
+      // the prefix and surface the upgrade prompt directly.
+      if (error.message?.startsWith("PLAN_LIMIT_EXCEEDED:")) {
+        return { ok: false, error: error.message };
+      }
       return { ok: false, error: `Failed to approve: ${error.message}` };
     }
     if (!data) {

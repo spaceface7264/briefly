@@ -8,6 +8,7 @@ import {
   platformDetails,
 } from "@/lib/invoicing/platform";
 import { requireOrgAdmin } from "@/lib/org";
+import { computeFee, resolveUserPricing } from "@/lib/pricing";
 
 type PayResult = { ok: true } | { ok: false; error: string };
 
@@ -97,7 +98,21 @@ export async function payClaim(claimId: string): Promise<PayResult> {
     return { ok: false, error: "Claim has already been paid" };
   }
 
-  const subtotalDkk = claim.brief.price_dkk;
+  // Resolve the platform fee at time-of-payout. The values are
+  // frozen onto the payments row below so future rate changes
+  // never retroactively rewrite historical invoices.
+  // resolveUserPricing layers any per-creator override on top of the
+  // org's resolved pricing — handles "comp this specific creator at
+  // 0%" without affecting anyone else in the same org.
+  const grossDkk = claim.brief.price_dkk;
+  const pricing = await resolveUserPricing(supabase, claim.user_id, orgId);
+  const { feeDkk, netDkk } = computeFee(grossDkk, pricing.fee_bp);
+
+  // VAT is calculated on the creator's actual receipts (post-fee),
+  // since the self-billed invoice represents the creator's net sale
+  // to the platform — the fee is the platform's share, not part of
+  // the creator's taxable supply.
+  const subtotalDkk = netDkk;
   const vat = calculateVat(subtotalDkk, {
     country: creator.country,
     vatRegistered: creator.vat_registered,
@@ -140,6 +155,9 @@ export async function payClaim(claimId: string): Promise<PayResult> {
       vat_amount_dkk: vat.vatAmountDkk,
       total_dkk: vat.totalDkk,
       vat_scheme: vat.scheme,
+      gross_dkk: grossDkk,
+      platform_fee_bp: pricing.fee_bp,
+      platform_fee_dkk: feeDkk,
       stripe_account_id: creator.stripe_account_id,
       status: "pending",
       paid_by: adminUserId,

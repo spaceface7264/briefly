@@ -5,7 +5,7 @@ tracked by feature area, not by branch — each section has its own
 preconditions. Work top to bottom within a section.
 
 ---
-
+ 
 ## 1. Apply database migrations
 
 Apply any unapplied migration in `supabase/migrations/` via the Supabase
@@ -35,6 +35,68 @@ work and may not be live yet:
   profiles.active_org_id; cascades memberships and org_applications).
   Confirmed safe by the project owner — the data was test data, no
   real customer rows are attached.
+- [ ] `0026_pricing_phase1.sql` — Phase 1 of platform monetisation.
+  Adds the `pricing_plans` catalogue (seeded with Free + Pro at 5%
+  take rate), `profiles.is_platform_admin` (the gate for Phase 2/3
+  super-admin surfaces), an `is_platform_admin()` SQL helper, and
+  three frozen-at-payout columns on `payments`
+  (`gross_dkk`, `platform_fee_bp`, `platform_fee_dkk`). Backfills
+  historical payments with `gross_dkk = COALESCE(subtotal_dkk,
+  amount_dkk)` and `platform_fee_dkk = 0` so existing invoices keep
+  rendering identically. Pro plan pricing is seeded at 0 DKK — set
+  the actual numbers via `UPDATE pricing_plans SET monthly_price_dkk
+  = …, annual_price_dkk = … WHERE slug = 'pro'` before charging
+  anyone.
+
+  After applying, grant yourself platform admin via
+  `UPDATE profiles SET is_platform_admin = TRUE WHERE email = '…'`.
+- [ ] `0027_pricing_overrides.sql` — Phase 2 of monetisation. Adds
+  `pricing_overrides` (per-org or per-user fee/plan/feature/limit
+  adjustments) and `pricing_audit_log` (append-only record of every
+  grant and revoke). RLS gates both to platform admins. The resolver
+  in `src/lib/pricing.ts` consults overrides on every pricing
+  decision; nothing else should read these tables directly. The
+  `/admin/super` surface (visible only to platform admins) lists
+  every org with its effective pricing and lets you grant overrides
+  with a required reason — see `docs/monetisation.md` for the full
+  flow.
+- [ ] `0028_org_subscriptions.sql` — Phase 3 of monetisation. Adds
+  `org_subscriptions`, the live link to a Stripe Billing
+  subscription. Auto-creates a Free row for every existing and new
+  org (trigger `create_default_subscription` fires on insert). The
+  resolver now reads this table before falling through to Free, so
+  an org with `status IN ('trialing','active','past_due')` reads as
+  their actual plan automatically.
+
+  Operational follow-up after applying:
+  1. Create Stripe Products + Prices for the Pro plan in the Stripe
+     Dashboard. One Product, two Prices (monthly + annual).
+  2. `UPDATE pricing_plans SET monthly_price_dkk = …,
+     annual_price_dkk = …, stripe_monthly_price_id = 'price_…',
+     stripe_annual_price_id = 'price_…' WHERE slug = 'pro';`
+  3. Configure the Stripe webhook endpoint at
+     `https://<your-domain>/api/stripe/webhook` to deliver these
+     events: `customer.subscription.created`,
+     `customer.subscription.updated`,
+     `customer.subscription.deleted`,
+     `customer.subscription.trial_will_end`,
+     `customer.subscription.paused`,
+     `customer.subscription.resumed`,
+     `invoice.paid`, `invoice.payment_failed`. (The existing
+     `account.updated` and `transfer.reversed` events stay enabled
+     for the Stripe Connect side.)
+  4. Open the Stripe Customer Portal configuration once and enable
+     the features you want creators to self-serve (cancel, change
+     plan, update payment method, view invoices).
+- [ ] `0029_pricing_limits.sql` — Phase 3b. Enforces `max_active_briefs`
+  and `max_creators` at the database level via two BEFORE INSERT/
+  UPDATE triggers. The triggers raise `PLAN_LIMIT_EXCEEDED:` errors
+  with human-readable messages; UI handlers (brief form, brief
+  reopen, application approve, invite redemption) detect the prefix
+  and surface an upgrade prompt linking to `/admin/billing`. Includes
+  the `effective_org_limit()` SQL function that mirrors the resolver
+  precedence (overrides → subscription plan → Free) so trigger checks
+  always see the same limits the TS resolver returns.
 
 After applying, sanity-check:
 

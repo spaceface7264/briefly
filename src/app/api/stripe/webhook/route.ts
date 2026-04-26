@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { syncSubscriptionFromStripe } from "@/app/admin/billing/actions";
 
 export const runtime = "nodejs";
 
@@ -83,6 +84,48 @@ export async function POST(request: NextRequest) {
           .update({ status: "approved" })
           .eq("id", payment.claim_id)
           .eq("status", "paid");
+      }
+      break;
+    }
+
+    // Subscription lifecycle. The same handler covers create, update,
+    // and delete — Stripe sends the full subscription object on each
+    // and syncSubscriptionFromStripe is idempotent.
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted":
+    case "customer.subscription.trial_will_end":
+    case "customer.subscription.paused":
+    case "customer.subscription.resumed": {
+      const subscription = event.data.object as Stripe.Subscription;
+      try {
+        await syncSubscriptionFromStripe(subscription);
+      } catch (err) {
+        console.error("Failed to sync subscription:", err);
+        return NextResponse.json({ error: "sync error" }, { status: 500 });
+      }
+      break;
+    }
+
+    // Re-confirm the subscription's plan/period after a renewal pays.
+    // Stripe sends the renewal invoice as `invoice.paid`; pulling the
+    // subscription via the API gets us the latest period dates.
+    case "invoice.paid":
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice & {
+        subscription?: string | Stripe.Subscription | null;
+      };
+      const subId =
+        typeof invoice.subscription === "string"
+          ? invoice.subscription
+          : invoice.subscription?.id;
+      if (!subId) break;
+      try {
+        const subscription = await stripe().subscriptions.retrieve(subId);
+        await syncSubscriptionFromStripe(subscription);
+      } catch (err) {
+        console.error("Failed to sync subscription from invoice:", err);
+        return NextResponse.json({ error: "sync error" }, { status: 500 });
       }
       break;
     }
