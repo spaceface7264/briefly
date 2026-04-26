@@ -5,8 +5,8 @@ const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
 const steps = [
   {
     number: "01",
-    title: "Get invited",
-    body: `The platform is invite-only. If you create content and want in, reach out to the ${platformName} team for a code.`,
+    title: "Get in",
+    body: `Browse open organisations on /discover and apply, or redeem an invite code from a ${platformName} team.`,
   },
   {
     number: "02",
@@ -54,6 +54,12 @@ export default function Home() {
               className="px-6 py-3 border border-border-strong hover:border-foreground/30 hover:bg-surface-hover font-semibold rounded-lg transition-colors text-sm"
             >
               Redeem invite code
+            </Link>
+            <Link
+              href="/discover"
+              className="px-6 py-3 text-muted hover:text-foreground font-semibold rounded-lg transition-colors text-sm"
+            >
+              Browse organisations →
             </Link>
           </div>
         </div>

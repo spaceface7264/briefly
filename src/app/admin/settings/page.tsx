@@ -49,7 +49,7 @@ export default async function AdminSettingsPage() {
       supabase
         .from("profiles")
         .select(
-          "notify_submissions, notify_new_briefs, notify_claim_updates, notify_claim_queue, notify_payments"
+          "notify_submissions, notify_new_briefs, notify_claim_updates, notify_claim_queue, notify_payments, notify_applications"
         )
         .eq("id", user.id)
         .single(),

@@ -5,14 +5,17 @@ export type NotificationType =
   | "new_briefs"
   | "claim_updates"
   | "claim_queue"
-  | "payments";
+  | "payments"
+  | "application_inbox"
+  | "application_decisions";
 
 export type NotificationColumn =
   | "notify_submissions"
   | "notify_new_briefs"
   | "notify_claim_updates"
   | "notify_claim_queue"
-  | "notify_payments";
+  | "notify_payments"
+  | "notify_applications";
 
 export interface NotificationTypeDef {
   key: NotificationType;
@@ -64,6 +67,22 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     roles: ["creator"],
     category: "email",
   },
+  {
+    key: "application_inbox",
+    column: "notify_applications",
+    label: "Application alerts",
+    description: "Email when a creator applies to join your org.",
+    roles: ["admin"],
+    category: "email",
+  },
+  {
+    key: "application_decisions",
+    column: "notify_applications",
+    label: "Application updates",
+    description: "Email when an org reviews your application.",
+    roles: ["creator"],
+    category: "email",
+  },
 ];
 
 export function notificationTypesFor(role: UserRole): NotificationTypeDef[] {
@@ -85,6 +104,8 @@ export function defaultPreferences(): NotificationPreferences {
     claim_updates: true,
     claim_queue: true,
     payments: true,
+    application_inbox: true,
+    application_decisions: true,
   };
 }
 
@@ -94,12 +115,16 @@ export function preferencesFromProfile(profile: {
   notify_claim_updates?: boolean | null;
   notify_claim_queue?: boolean | null;
   notify_payments?: boolean | null;
+  notify_applications?: boolean | null;
 }): NotificationPreferences {
+  const applications = profile.notify_applications ?? true;
   return {
     submissions: profile.notify_submissions ?? true,
     new_briefs: profile.notify_new_briefs ?? true,
     claim_updates: profile.notify_claim_updates ?? true,
     claim_queue: profile.notify_claim_queue ?? true,
     payments: profile.notify_payments ?? true,
+    application_inbox: applications,
+    application_decisions: applications,
   };
 }

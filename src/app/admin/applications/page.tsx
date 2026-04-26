@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
-import { ApplicationList } from "./application-list";
+import { ApplicationList, type Application } from "./application-list";
 
 export default async function AdminApplicationsPage() {
   const supabase = await createClient();
   const orgId = await requireActiveOrg(supabase);
 
-  const { data: applications } = await supabase
+  const { data } = await supabase
     .from("org_applications")
     .select(
       "id, message, status, created_at, reviewed_at, applicant:profiles!org_applications_user_id_fkey(id, name, email, instagram_handle)"
@@ -14,8 +14,9 @@ export default async function AdminApplicationsPage() {
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 
-  const pending = (applications || []).filter((a: any) => a.status === "pending");
-  const reviewed = (applications || []).filter((a: any) => a.status !== "pending");
+  const applications = (data ?? []) as unknown as Application[];
+  const pending = applications.filter((a) => a.status === "pending");
+  const reviewed = applications.filter((a) => a.status !== "pending");
 
   return (
     <div>
