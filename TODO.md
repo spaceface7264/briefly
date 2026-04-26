@@ -176,8 +176,6 @@ production-mirror environment before the next launch:
 These were noted while updating this TODO — none block a launch but
 each is worth scheduling:
 
-- [ ] No "my applications" view for creators. After applying via
-  `/discover`, the only way to see status is via the admin inbox.
 - [ ] Anonymous discover-and-apply dead-ends. `/discover` is now linked
   from the landing page and an unauthenticated visitor sees a "Log in
   to apply" button on each `OrgCard`, but `/login` signup still requires
