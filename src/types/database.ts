@@ -274,6 +274,7 @@ export type Database = {
           email: string | null
           id: string
           instagram_handle: string | null
+          is_platform_admin: boolean
           name: string | null
           notify_applications: boolean
           notify_claim_queue: boolean
@@ -304,6 +305,7 @@ export type Database = {
           email?: string | null
           id: string
           instagram_handle?: string | null
+          is_platform_admin?: boolean
           name?: string | null
           notify_applications?: boolean
           notify_claim_queue?: boolean
@@ -334,6 +336,7 @@ export type Database = {
           email?: string | null
           id?: string
           instagram_handle?: string | null
+          is_platform_admin?: boolean
           name?: string | null
           notify_applications?: boolean
           notify_claim_queue?: boolean
@@ -368,6 +371,7 @@ export type Database = {
           creator_name_snapshot: string | null
           creator_vat_number_snapshot: string | null
           error_message: string | null
+          gross_dkk: number
           id: string
           invoice_issued_at: string | null
           invoice_number: string | null
@@ -376,6 +380,8 @@ export type Database = {
           paid_by: string | null
           platform_address_snapshot: string | null
           platform_cvr_snapshot: string | null
+          platform_fee_bp: number
+          platform_fee_dkk: number
           platform_name_snapshot: string | null
           platform_vat_snapshot: string | null
           self_billing_agreement_version_snapshot: string | null
@@ -402,6 +408,7 @@ export type Database = {
           creator_name_snapshot?: string | null
           creator_vat_number_snapshot?: string | null
           error_message?: string | null
+          gross_dkk: number
           id?: string
           invoice_issued_at?: string | null
           invoice_number?: string | null
@@ -410,6 +417,8 @@ export type Database = {
           paid_by?: string | null
           platform_address_snapshot?: string | null
           platform_cvr_snapshot?: string | null
+          platform_fee_bp?: number
+          platform_fee_dkk?: number
           platform_name_snapshot?: string | null
           platform_vat_snapshot?: string | null
           self_billing_agreement_version_snapshot?: string | null
@@ -435,6 +444,7 @@ export type Database = {
           creator_name_snapshot?: string | null
           creator_vat_number_snapshot?: string | null
           error_message?: string | null
+          gross_dkk?: number
           id?: string
           invoice_issued_at?: string | null
           invoice_number?: string | null
@@ -443,6 +453,8 @@ export type Database = {
           paid_by?: string | null
           platform_address_snapshot?: string | null
           platform_cvr_snapshot?: string | null
+          platform_fee_bp?: number
+          platform_fee_dkk?: number
           platform_name_snapshot?: string | null
           platform_vat_snapshot?: string | null
           self_billing_agreement_version_snapshot?: string | null
@@ -633,6 +645,74 @@ export type Database = {
           {
             foreignKeyName: "memberships_org_id_fkey"
             columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_plans: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          description: string | null
+          monthly_price_dkk: number
+          annual_price_dkk: number
+          default_fee_bp: number
+          trial_days: number
+          limits: Json
+          features: Json
+          visible: boolean
+          legacy: boolean
+          private_to_org_id: string | null
+          stripe_monthly_price_id: string | null
+          stripe_annual_price_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          description?: string | null
+          monthly_price_dkk?: number
+          annual_price_dkk?: number
+          default_fee_bp?: number
+          trial_days?: number
+          limits?: Json
+          features?: Json
+          visible?: boolean
+          legacy?: boolean
+          private_to_org_id?: string | null
+          stripe_monthly_price_id?: string | null
+          stripe_annual_price_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          description?: string | null
+          monthly_price_dkk?: number
+          annual_price_dkk?: number
+          default_fee_bp?: number
+          trial_days?: number
+          limits?: Json
+          features?: Json
+          visible?: boolean
+          legacy?: boolean
+          private_to_org_id?: string | null
+          stripe_monthly_price_id?: string | null
+          stripe_annual_price_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_plans_private_to_org_id_fkey"
+            columns: ["private_to_org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -854,6 +934,7 @@ export type Claim = Tables<"claims">;
 export type Notification = Tables<"notifications">;
 export type NotificationOutbox = Tables<"notification_outbox">;
 export type Payment = Tables<"payments">;
+export type PricingPlanRow = Tables<"pricing_plans">;
 
 export type BriefCategory = Enums<"brief_category">;
 export type BriefDurationClass = Enums<"brief_duration_class">;

@@ -35,6 +35,21 @@ work and may not be live yet:
   profiles.active_org_id; cascades memberships and org_applications).
   Confirmed safe by the project owner — the data was test data, no
   real customer rows are attached.
+- [ ] `0026_pricing_phase1.sql` — Phase 1 of platform monetisation.
+  Adds the `pricing_plans` catalogue (seeded with Free + Pro at 5%
+  take rate), `profiles.is_platform_admin` (the gate for Phase 2/3
+  super-admin surfaces), an `is_platform_admin()` SQL helper, and
+  three frozen-at-payout columns on `payments`
+  (`gross_dkk`, `platform_fee_bp`, `platform_fee_dkk`). Backfills
+  historical payments with `gross_dkk = COALESCE(subtotal_dkk,
+  amount_dkk)` and `platform_fee_dkk = 0` so existing invoices keep
+  rendering identically. Pro plan pricing is seeded at 0 DKK — set
+  the actual numbers via `UPDATE pricing_plans SET monthly_price_dkk
+  = …, annual_price_dkk = … WHERE slug = 'pro'` before charging
+  anyone.
+
+  After applying, grant yourself platform admin via
+  `UPDATE profiles SET is_platform_admin = TRUE WHERE email = '…'`.
 
 After applying, sanity-check:
 

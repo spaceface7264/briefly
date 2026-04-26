@@ -151,6 +151,21 @@ function drawTotals(ctx: Ctx, payment: Payment) {
   const labelCol = PAGE_WIDTH - MARGIN - 220;
   const subtotal = payment.subtotal_dkk ?? payment.amount_dkk;
   const total = payment.total_dkk ?? payment.amount_dkk;
+  const feeDkk = payment.platform_fee_dkk ?? 0;
+
+  // Only show the gross/fee breakdown when a platform fee was
+  // actually taken. Historical invoices (pre-0026) have fee_dkk = 0
+  // and skip these lines, rendering identically to before.
+  if (feeDkk > 0) {
+    const grossDkk = payment.gross_dkk ?? subtotal + feeDkk;
+    text(ctx, "Brief value", labelCol);
+    text(ctx, formatDkk(grossDkk), rightCol);
+    ctx.y -= LINE;
+
+    text(ctx, `Platform fee (${formatVatRateBp(payment.platform_fee_bp ?? 0)})`, labelCol);
+    text(ctx, `-${formatDkk(feeDkk)}`, rightCol);
+    ctx.y -= LINE;
+  }
 
   text(ctx, "Subtotal", labelCol);
   text(ctx, formatDkk(subtotal), rightCol);
