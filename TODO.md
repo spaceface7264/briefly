@@ -186,17 +186,31 @@ each is worth scheduling:
   is discoverable, or carry the org id through signup and auto-create
   the application after email confirmation.
 - [ ] The default org row (`00000000-0000-0000-0000-000000000001`,
-  seeded in `0015`) is still in the database and still referenced by
-  the now-superseded `0021_default_org_on_signup.sql`. After `0023`
-  applies, nothing new attaches to it. Decide whether to leave it as
-  the historical home of pre-multi-tenancy data or rename/remove it.
-- [ ] After login, `src/app/login/page.tsx` always pushes to `/briefs`.
-  Users without an org get bounced to `/discover` by `requireActiveOrg`
-  — works, but a one-step redirect is wasted. Consider routing to
-  `/discover` directly when the user has no active org.
-- [ ] `src/app/admin/applications/{page.tsx,application-list.tsx}` use
-  `(a: any)` casts instead of typed rows from `database.ts` — clean up
-  once §2 lands the regenerated types.
+  seeded in `0015` with the name "Briefly") is still in the database
+  and still referenced by the now-superseded `0021`. After `0023`
+  applies, nothing new attaches to it. Audit what currently lives
+  there before deciding keep/rename/remove:
+
+  ```sql
+  SELECT 'memberships' AS table, COUNT(*) FROM memberships WHERE org_id = '00000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'briefs',          COUNT(*) FROM briefs          WHERE org_id = '00000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'claims',          COUNT(*) FROM claims          WHERE org_id = '00000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'payments',        COUNT(*) FROM payments        WHERE org_id = '00000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'invite_codes',    COUNT(*) FROM invite_codes    WHERE org_id = '00000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'notifications',   COUNT(*) FROM notifications   WHERE org_id = '00000000-0000-0000-0000-000000000001'
+  UNION ALL SELECT 'profiles_active', COUNT(*) FROM profiles        WHERE active_org_id = '00000000-0000-0000-0000-000000000001';
+  ```
+
+  Recommendation: if every count is zero (greenfield deploy), drop the
+  row and the superseded `0021` migration file. If real data is
+  attached (any pre-multi-tenancy production users / briefs / claims),
+  keep the row but `UPDATE organizations SET name = 'Legacy data',
+  discoverable = FALSE WHERE id = '00000000-…-0001'` so admins of
+  newly-created orgs can't accidentally confuse it for theirs. Either
+  way, retire `0021_default_org_on_signup.sql` from the migrations
+  folder (or drop a `0025_remove_legacy_default_org.sql` that clearly
+  supersedes it) so future readers don't think the auto-attach
+  behaviour is still live.
 - [ ] Decide whether to leave default notification opt-in at `true`
   (current) or flip to opt-in. The column default is set in `0009`;
   changing it post-launch requires a backfill.
