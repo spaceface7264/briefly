@@ -1,152 +1,191 @@
 # TODO
 
-Operational tasks that need to happen outside of code changes to finish
-what's been shipped on the `claude/creator-ui-improvements-hbymJ` branch.
-Work top to bottom — each section has its own preconditions.
+Operational and pre-launch tasks that live outside the codebase. Items are
+tracked by feature area, not by branch — each section has its own
+preconditions. Work top to bottom within a section.
 
 ---
 
 ## 1. Apply database migrations
 
-Run in order via the Supabase Dashboard → SQL Editor. Copy/paste each file's
-contents into a new query and run it.
+Apply any unapplied migration in `supabase/migrations/` via the Supabase
+Dashboard → SQL Editor (copy/paste each file, run in numerical order).
+Order matters — later migrations reference structures created by earlier
+ones.
 
-- [X] `supabase/migrations/0008_notification_preferences.sql` — adds the
-  initial `email_notifications_enabled` column on `profiles`
-- [X] `supabase/migrations/0009_notification_types.sql` — replaces the
-  single column with per-type columns (`notify_submissions`,
-  `notify_new_briefs`), copying any prior opt-outs into both
-- [X] `supabase/migrations/0010_claim_auto_expiry.sql` — enables pg_cron
-  and schedules an hourly job that flips `active` claims past
-  `expires_at` to `cancelled`, releasing the slot against `claim_limit`
+The latest two were added with the multi-tenancy and creator discovery
+work and may not be live yet:
 
-**Order matters.** 0009 references the column added in 0008, so 0008 must
-run first. If you skip 0008 and try 0009, it will fail on the `UPDATE …
-SET … = email_notifications_enabled` line.
+- [ ] `0022_creator_discovery.sql` — adds `organizations.discoverable`,
+  the `org_applications` table + RLS, and the `approve_application` RPC
+- [ ] `0023_no_default_org_on_signup.sql` — replaces `handle_new_user()`
+  so new auth users no longer auto-join the default org. Users now join
+  via invite code (`use_invite_code` from 0020) or approved discovery
+  application (`approve_application` from 0022)
 
-After `0010` applies, confirm the job is registered with:
+After applying, sanity-check:
+
+```sql
+-- discoverable column exists, defaults false
+SELECT column_default FROM information_schema.columns
+WHERE table_name = 'organizations' AND column_name = 'discoverable';
+
+-- handle_new_user trigger no longer references the default org id
+SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user';
+```
+
+The `expire-stale-claims` cron job (added in `0010`) should already be
+registered. If you're unsure:
 
 ```sql
 SELECT jobname, schedule FROM cron.job WHERE jobname = 'expire-stale-claims';
 ```
 
-Expect one row with schedule `0 * * * *`. pg_cron is pre-installed on
-Supabase but not enabled by default — `CREATE EXTENSION IF NOT EXISTS
-pg_cron` inside the migration handles that. If the extension fails to
-create, enable it from Dashboard → Database → Extensions first.
-
 ---
 
 ## 2. Regenerate database types
 
-`src/types/database.ts` is auto-generated. I hand-patched it so the new
-columns compile, but the canonical generator output may differ in
-ordering or formatting. After the migrations apply:
+`src/types/database.ts` is auto-generated. After applying migrations:
 
 ```bash
 npx supabase gen types typescript --project-id <PROJECT_ID> > src/types/database.ts
 ```
 
-- [X] Regenerate types
-- [X] Re-run `npm run build` to confirm nothing drifted
+- [ ] Regenerate types
+- [ ] Re-run `npm run build` to confirm nothing drifted
+
+The `org_applications` table and `discoverable` column were hand-patched
+into `database.ts` so the build passes — the canonical generator output
+may differ in ordering or formatting.
 
 ---
 
 ## 3. Redeploy edge functions
 
-Both Deno functions under `supabase/functions/` had their recipient
-filters updated to use the new per-type columns. They won't pick up the
-change until redeployed.
+The Deno functions under `supabase/functions/` were updated when the
+platform was genericized (sender name/email now env-driven, recipient
+filters use the per-type notification columns). Redeploy if the
+deployed copies pre-date that work.
 
 - [ ] Redeploy `supabase/functions/notify-submission`
 - [ ] Redeploy `supabase/functions/notify-new-brief`
+- [ ] Redeploy `supabase/functions/process-notification-outbox`
 
-Setup is documented in `supabase/functions/README.md`. If the database
-webhooks that trigger these functions aren't configured yet, set them up
-per the README's "Webhook setup" section.
+Setup, secrets, and webhook wiring are documented in
+`supabase/functions/README.md`.
 
 ---
 
 ## 4. Configure environment variables
 
-These power the footer, invoice PDFs, and the admin settings page. Set
-them in the deployment platform (Cloudflare Workers, Vercel, or wherever
-Next runs in production).
+Set these in the production deploy target (Cloudflare Workers, Vercel,
+or wherever Next runs). `/admin/settings` shows a yellow "Default" badge
+next to any platform variable that is unset, so you can spot gaps in the
+running app.
 
-- [ ] `PLATFORM_NAME` — company name on invoices and in the footer
-  (defaults to "Boulders ApS" if unset)
-- [ ] `PLATFORM_ADDRESS` — appears on invoices and in the footer (blank
-  by default)
-- [ ] `PLATFORM_CVR` — Danish business registration number
-- [ ] `PLATFORM_VAT_NUMBER` — platform VAT number used on invoices
+Branding (public — exposed to the browser):
+
+- [ ] `NEXT_PUBLIC_PLATFORM_NAME` — appears in nav, footer, emails,
+  invoices (defaults to "Briefly")
+- [ ] `NEXT_PUBLIC_LOGO_URL` — used by `<PlatformLogo>` and emails
 - [ ] `NEXT_PUBLIC_CONTACT_EMAIL` — shown in the footer and referenced
-  from legal pages (defaults to `creators@boulders.dk`)
+  from legal pages (defaults to `hello@example.com`)
 
-`/admin/settings` shows a yellow "Not set" / "Default" badge next to any
-of these that haven't been configured, so you can spot gaps at a glance.
+Legal entity (server-only — used on self-billed invoices and the
+settings page):
+
+- [ ] `PLATFORM_ADDRESS` — multi-line, use `\n` for line breaks
+- [ ] `PLATFORM_CVR` — Danish business registration number
+- [ ] `PLATFORM_VAT_NUMBER` — platform VAT number
+
+Email sender (Supabase secrets — used by edge functions, not Next):
+
+- [ ] `PLATFORM_SENDER_NAME` — `From` display name on outgoing emails
+- [ ] `PLATFORM_SENDER_EMAIL` — must be on a Resend-verified domain in
+  production; `onboarding@resend.dev` is fine for testing
+- [ ] `RESEND_API_KEY` — set via `npx supabase secrets set …`
 
 ---
 
 ## 5. Legal content review
 
-Three of the four legal pages ship with a visible "Working draft" banner.
-The copy reflects the platform's real data flows (sub-processors,
-retention, VAT context) but has **not** been reviewed by legal counsel.
+Three of the four legal pages still default `draft={true}` (the
+`<LegalPage>` prop defaults to true; only `self-billing` explicitly
+passes `false`). The visible "Working draft" banner stays up until each
+page sets `draft={false}` explicitly.
 
-- [ ] Have a lawyer review `/legal/terms` — specific clauses flagged in
-  `src/app/legal/terms/page.tsx` top-of-file `// NOTE:` comment
+- [ ] Have a lawyer review `/legal/terms` — flagged clauses are noted in
+  top-of-file `// NOTE:` comments
 - [ ] Have a lawyer review `/legal/privacy` — same pattern
-- [ ] Have a lawyer review `/legal/cookies` — confirm the exact Supabase
-  and Stripe cookie names listed
-- [ ] After each review, flip `draft={false}` on the `<LegalPage>` call
+- [ ] Have a lawyer review `/legal/cookies` — confirm exact Supabase and
+  Stripe cookie names listed
+- [ ] After each review, add `draft={false}` to the `<LegalPage>` call
   to remove the banner
 
-`/legal/self-billing` already has `draft={false}` — it renders the
-canonical `SELF_BILLING_AGREEMENT_TEXT` creators accept on their profile,
-so it doesn't need legal review unless the text itself changes.
+`/legal/self-billing` renders the canonical `selfBillingAgreementText()`
+that creators accept on their profile, so it doesn't need separate
+review unless that text changes.
 
 ---
 
 ## 6. Manual browser testing
 
-Everything on the branch passes `npm run build` and ESLint, but the
-automated checks don't cover real UI behaviour. Before merging:
+Automated checks (`npm run build`, ESLint) cover compile-time issues but
+don't exercise the UI. Click through these flows on a staging or
+production-mirror environment before the next launch:
 
-- [ ] Click through the creator journey end-to-end: land → redeem invite
-  → log in → browse briefs → apply filters → claim → submit → release
-- [ ] Click through the admin journey: dashboard → claims → view
-  submission modal → approve → pay → check invoice download
-- [ ] On `/admin/settings`, promote and demote an admin. Confirm the
-  self-demote and last-admin guards block the button (tooltips explain
-  why) and that the server action rejects the call if someone bypasses
-  the UI
-- [ ] Toggle each notification type on both `/admin/settings` and
-  `/profile`. Confirm the right DB column flips. If you have a staging
-  Resend project, trigger a submission or publish a brief and verify the
-  right recipients are emailed
-- [ ] Open the invite generator, submission review, claim approve/reject,
-  and payout confirm modals. Verify Escape closes them, clicking the
-  backdrop closes them, focus returns to the trigger button, and Tab
-  stays trapped inside
-- [ ] Eyeball the native `<dialog>`-based modals on Safari, Firefox, and
-  Chrome — they use `showModal()` which is well-supported but worth
-  confirming
-- [ ] Verify the footer renders on every route (landing, login, admin,
-  legal)
+- [ ] **Creator (invite path)**: land → sign up with invite code → log
+  in → browse briefs → filter → claim → submit → release
+- [ ] **Creator (discovery path)**: sign up *without* an invite code →
+  confirm middleware lands you on `/discover` after login → apply to a
+  discoverable org → confirm pending state → admin approves → confirm
+  membership and `active_org_id` are now set
+- [ ] **Admin**: dashboard → applications inbox (approve and reject one
+  each) → claims → submission modal → approve → pay → invoice download
+- [ ] **Admin settings**: toggle org discoverability and confirm the org
+  appears/disappears on `/discover`. Promote and demote an admin and
+  confirm the self-demote and last-admin guards. Toggle each
+  notification type and verify the right DB column flips.
+- [ ] **Email**: in a staging Resend project, trigger a submission,
+  publish a brief, and (eventually — see §7) submit a discovery
+  application. Verify recipients match `notify_*` preferences.
+- [ ] **Modals**: open the invite generator, submission review, claim
+  approve/reject, and payout confirm modals. Verify Esc closes them,
+  backdrop click closes them, focus returns to the trigger, and Tab
+  stays trapped. The native `<dialog>`-based modals use `showModal()`
+  which is well-supported but worth confirming on Safari/Firefox/Chrome.
+- [ ] **Footer**: renders on every route (landing, login, admin, legal)
+  and the platform name/contact email reflect the env vars from §4.
 
 ---
 
-## 7. Optional pre-launch cleanup
+## 7. Known gaps (future work, not blockers)
 
-Low-priority but worth considering before a public launch:
+These were noted while updating this TODO — none block a launch but
+each is worth scheduling:
 
-- [ ] Replace the hardcoded `"creators@boulders.dk"` fallback in
-  `src/components/footer.tsx` and `src/app/admin/settings/page.tsx` if
-  that isn't the right address
-- [ ] Point the `Image` src in the nav and login page
-  (`https://storage.googleapis.com/boulderscss/logo-flat-white.png`) at
-  whatever CDN is canonical — it's fine today but worth knowing it's
-  external
-- [ ] Decide whether to leave creators' and admins' default notification
-  state at `true` (current) or flip to opt-in. The column default is set
-  in migration 0009; changing it after launch requires a backfill
+- [ ] `org_applications` has no notification wiring. Admins are not
+  emailed when a creator applies, and applicants are not emailed on
+  approve/reject. The `notification_outbox` infrastructure from `0012`
+  is the right place to plug in.
+- [ ] No "my applications" view for creators. After applying via
+  `/discover`, the only way to see status is via the admin inbox.
+- [ ] `/discover` has no entry point for logged-out visitors. The nav
+  doesn't link it, and the landing page doesn't mention it. Middleware
+  redirects logged-in users from `/login` to `/discover`, but anonymous
+  discovery requires typing the URL.
+- [ ] The default org row (`00000000-0000-0000-0000-000000000001`,
+  seeded in `0015`) is still in the database and still referenced by
+  the now-superseded `0021_default_org_on_signup.sql`. After `0023`
+  applies, nothing new attaches to it. Decide whether to leave it as
+  the historical home of pre-multi-tenancy data or rename/remove it.
+- [ ] After login, `src/app/login/page.tsx` always pushes to `/briefs`.
+  Users without an org get bounced to `/discover` by `requireActiveOrg`
+  — works, but a one-step redirect is wasted. Consider routing to
+  `/discover` directly when the user has no active org.
+- [ ] `src/app/admin/applications/{page.tsx,application-list.tsx}` use
+  `(a: any)` casts instead of typed rows from `database.ts` — clean up
+  once §2 lands the regenerated types.
+- [ ] Decide whether to leave default notification opt-in at `true`
+  (current) or flip to opt-in. The column default is set in `0009`;
+  changing it post-launch requires a backfill.
