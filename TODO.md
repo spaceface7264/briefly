@@ -176,13 +176,6 @@ production-mirror environment before the next launch:
 These were noted while updating this TODO — none block a launch but
 each is worth scheduling:
 
-- [ ] Anonymous discover-and-apply dead-ends. `/discover` is now linked
-  from the landing page and an unauthenticated visitor sees a "Log in
-  to apply" button on each `OrgCard`, but `/login` signup still requires
-  an invite code. A creator who finds a discoverable org but has no
-  invite has no path forward. Either open signup when at least one org
-  is discoverable, or carry the org id through signup and auto-create
-  the application after email confirmation.
 - [ ] The default org row (`00000000-0000-0000-0000-000000000001`,
   seeded in `0015` with the name "Briefly") is still in the database
   and still referenced by the now-superseded `0021`. After `0023`

@@ -1,0 +1,283 @@
+"use client";
+
+import { Suspense, useState } from "react";
+import { PlatformLogo } from "@/components/platform-logo";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+type Mode = "login" | "signup";
+
+interface LoginFormProps {
+  /** True when at least one organisation has discoverable=true. When
+   *  set, the signup form treats the invite code as optional — users
+   *  without one land with no membership and are routed to /discover
+   *  to apply. When false, invite-only mode is preserved. */
+  allowOpenSignup: boolean;
+}
+
+export function LoginForm({ allowOpenSignup }: LoginFormProps) {
+  return (
+    <Suspense fallback={<main className="flex-1" />}>
+      <LoginFormInner allowOpenSignup={allowOpenSignup} />
+    </Suspense>
+  );
+}
+
+function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("mode") === "signup" ? "signup" : "login"
+  );
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setLoading(true);
+
+    const supabase = createClient();
+
+    if (mode === "login") {
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Skip the bounce through /briefs → /discover when the user has no
+      // org by routing based on whether they have any active membership.
+      // Mirrors the lookup in getActiveOrg (active_org_id + membership
+      // fallback) so we don't divert users who have a membership but no
+      // active_org_id set yet.
+      let nextPath = "/briefs";
+      if (signInData.user) {
+        const { count } = await supabase
+          .from("memberships")
+          .select("user_id", { count: "exact", head: true })
+          .eq("user_id", signInData.user.id)
+          .eq("status", "active");
+        if (!count) {
+          nextPath = "/discover";
+        }
+      }
+
+      router.push(nextPath);
+      router.refresh();
+    } else {
+      const trimmedCode = inviteCode.trim().toUpperCase();
+      const inviteRequired = !allowOpenSignup;
+
+      if (inviteRequired && !trimmedCode) {
+        setError("Invite code is required");
+        setLoading(false);
+        return;
+      }
+
+      // Validate invite if one was supplied. We validate even in
+      // open-signup mode so a user who *does* type a code gets a clear
+      // error rather than silently signing up without the membership
+      // the code would have granted.
+      if (trimmedCode) {
+        const { data: codeData } = await (supabase as any)
+          .from("invite_codes")
+          .select("id")
+          .eq("code", trimmedCode)
+          .is("used_by", null)
+          .or("expires_at.is.null,expires_at.gt.now()")
+          .single();
+
+        if (!codeData) {
+          setError("Invalid or expired invite code");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Create account
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: trimmedCode ? { invite_code: trimmedCode } : undefined,
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      // Mark invite code as used (only when one was supplied).
+      if (trimmedCode && authData.user) {
+        await (supabase as any).rpc("use_invite_code", {
+          invite_code: trimmedCode,
+          user_uuid: authData.user.id,
+        });
+      }
+
+      setSuccess("Check your email to confirm your account");
+      setLoading(false);
+    }
+  }
+
+  const inviteOptional = mode === "signup" && allowOpenSignup;
+  const signupFooter = inviteOptional
+    ? "No invite? Sign up and apply to a discoverable org from /discover."
+    : "Need an invite code? Contact your admin.";
+
+  return (
+    <main className="flex-1 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <PlatformLogo className="h-12 w-auto mx-auto mb-4" width={180} height={48} priority textClassName="text-3xl font-extrabold tracking-tight" />
+          <p className="text-muted">
+            {mode === "login" ? "Sign in to access your briefs" : "Create your account"}
+          </p>
+        </div>
+
+        {/* Mode Toggle */}
+        <div className="flex bg-surface border border-border rounded-lg p-1 mb-6">
+          <button
+            type="button"
+            onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              mode === "login"
+                ? "bg-accent text-background font-bold"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode("signup"); setError(""); setSuccess(""); }}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              mode === "signup"
+                ? "bg-accent text-background font-bold"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <div>
+              <label
+                htmlFor="inviteCode"
+                className="block text-sm font-medium mb-2"
+              >
+                Invite Code{" "}
+                {inviteOptional ? (
+                  <span className="text-muted font-normal">(optional)</span>
+                ) : (
+                  <span className="text-error">*</span>
+                )}
+              </label>
+              <input
+                id="inviteCode"
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                required={!inviteOptional}
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
+                placeholder="XXXX-XXXX"
+              />
+            </div>
+          )}
+
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium mb-2"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium mb-2"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
+            />
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-error-muted border border-error/30 rounded-lg p-3">
+              <svg className="w-4 h-4 text-error shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+              </svg>
+              <p className="text-error text-sm">{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-start gap-2 bg-success-muted border border-success/30 rounded-lg p-3">
+              <svg className="w-4 h-4 text-success shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <p className="text-success text-sm">{success}</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
+          >
+            {loading
+              ? mode === "login" ? "Signing in..." : "Creating account..."
+              : mode === "login" ? "Sign In" : "Create Account"
+            }
+          </button>
+        </form>
+
+        <p className="text-center text-muted text-sm mt-6">
+          {mode === "signup"
+            ? signupFooter
+            : allowOpenSignup
+              ? "New here? Sign up to browse organisations."
+              : "This platform is invite-only."
+          }
+        </p>
+      </div>
+    </main>
+  );
+}
