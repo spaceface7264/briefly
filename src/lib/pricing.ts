@@ -84,6 +84,56 @@ async function loadPlanBySlug(
   };
 }
 
+// Statuses that mean the subscription is "live" — the org is on
+// that plan right now. Everything else (canceled, incomplete, etc.)
+// falls through to the Free plan.
+const LIVE_SUB_STATUSES = new Set([
+  "free",
+  "trialing",
+  "active",
+  "past_due",
+]);
+
+interface SubscriptionPlanRow {
+  status: string;
+  plan: PricingPlan | null;
+}
+
+async function loadOrgSubscriptionPlan(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<SubscriptionPlanRow | null> {
+  const { data } = await supabase
+    .from("org_subscriptions")
+    .select(
+      "status, plan:pricing_plans(id, slug, name, default_fee_bp, limits, features)"
+    )
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (!data) return null;
+  // The Supabase TS helper types FK-related data as an array because
+  // it can't tell that this FK is many-to-one (plan_id has no unique
+  // constraint pointing at it). At runtime it's a single object.
+  const planRow = data.plan as unknown as
+    | (Omit<PricingPlan, "limits" | "features"> & {
+        limits: unknown;
+        features: unknown;
+      })
+    | null;
+  if (!planRow) return { status: data.status as string, plan: null };
+  return {
+    status: data.status as string,
+    plan: {
+      id: planRow.id,
+      slug: planRow.slug,
+      name: planRow.name,
+      default_fee_bp: planRow.default_fee_bp,
+      limits: (planRow.limits ?? {}) as PlanLimits,
+      features: (planRow.features ?? {}) as PlanFeatures,
+    },
+  };
+}
+
 async function loadActiveOverrides(
   supabase: SupabaseClient,
   scope: { orgId?: string; userId?: string }
@@ -186,36 +236,49 @@ export async function resolveOrgPricing(
   supabase: SupabaseClient,
   orgId: string
 ): Promise<ResolvedPricing> {
-  // 1. Look for a "plan" override first so we can fetch the right
-  //    plan row before computing fee_bp.
   const orgOverrides = await loadActiveOverrides(supabase, { orgId });
+
+  // 1. Plan override wins — admin manually placed the org on a
+  //    specific plan slug (typically a comp Pro account).
   const planOverride = orgOverrides.find((o) => o.kind === "plan");
-  const planSlugTarget = planOverride
-    ? String(planOverride.value.plan_slug)
-    : "free"; // Phase 3 will read the live subscription instead.
 
-  const plan = await loadPlanBySlug(supabase, planSlugTarget);
+  let plan: PricingPlan | null = null;
+  let source: PricingSource;
 
-  let base: ResolvedPricing;
-  if (plan) {
-    base = {
-      plan,
-      fee_bp: plan.default_fee_bp,
-      limits: plan.limits,
-      features: plan.features,
-      source: planOverride ? "org_override" : "free_default",
-      applied_overrides: [],
-    };
+  if (planOverride) {
+    plan = await loadPlanBySlug(supabase, String(planOverride.value.plan_slug));
+    source = "org_override";
   } else {
-    base = {
-      plan: null,
-      fee_bp: PLATFORM_DEFAULT_FEE_BP,
-      limits: {},
-      features: {},
-      source: "platform_default",
-      applied_overrides: [],
-    };
+    // 2. Live Stripe subscription — read the org's current plan.
+    const sub = await loadOrgSubscriptionPlan(supabase, orgId);
+    if (sub && sub.plan && LIVE_SUB_STATUSES.has(sub.status)) {
+      plan = sub.plan;
+      source = "subscription";
+    } else {
+      // 3. Free fallback. Either no subscription row (shouldn't
+      //    happen post-0028 backfill) or the sub lapsed.
+      plan = await loadPlanBySlug(supabase, "free");
+      source = "free_default";
+    }
   }
+
+  const base: ResolvedPricing = plan
+    ? {
+        plan,
+        fee_bp: plan.default_fee_bp,
+        limits: plan.limits,
+        features: plan.features,
+        source,
+        applied_overrides: [],
+      }
+    : {
+        plan: null,
+        fee_bp: PLATFORM_DEFAULT_FEE_BP,
+        limits: {},
+        features: {},
+        source: "platform_default",
+        applied_overrides: [],
+      };
 
   return applyOverrides(base, orgOverrides, "org");
 }

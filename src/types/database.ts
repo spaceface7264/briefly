@@ -651,6 +651,75 @@ export type Database = {
           },
         ]
       }
+      org_subscriptions: {
+        Row: {
+          id: string
+          org_id: string
+          plan_id: string
+          status: string
+          billing_interval: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          current_period_start: string | null
+          current_period_end: string | null
+          trial_end: string | null
+          canceled_at: string | null
+          paused_until: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          plan_id: string
+          status?: string
+          billing_interval?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          current_period_start?: string | null
+          current_period_end?: string | null
+          trial_end?: string | null
+          canceled_at?: string | null
+          paused_until?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          plan_id?: string
+          status?: string
+          billing_interval?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          current_period_start?: string | null
+          current_period_end?: string | null
+          trial_end?: string | null
+          canceled_at?: string | null
+          paused_until?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_overrides: {
         Row: {
           id: string
@@ -1045,6 +1114,7 @@ export type Payment = Tables<"payments">;
 export type PricingPlanRow = Tables<"pricing_plans">;
 export type PricingOverrideRow = Tables<"pricing_overrides">;
 export type PricingAuditLogRow = Tables<"pricing_audit_log">;
+export type OrgSubscriptionRow = Tables<"org_subscriptions">;
 
 export type BriefCategory = Enums<"brief_category">;
 export type BriefDurationClass = Enums<"brief_duration_class">;

@@ -268,4 +268,172 @@ fee different from the platform default", inspect those two fields.
 
 ---
 
-(Phase 3 docs land below as Stripe Billing ships.)
+## Phase 3 — Stripe Billing for Pro subscriptions (live)
+
+Org admins can now upgrade themselves to Pro from `/admin/billing`,
+flowing through Stripe-hosted Checkout for the purchase and Stripe-
+hosted Customer Portal for everything afterwards (cancel, switch
+interval, update card, download invoices). The platform never sees
+a credit card.
+
+### Schema
+
+`org_subscriptions` — one row per org, representing the live link
+between an org and its Stripe subscription:
+
+| field | meaning |
+|---|---|
+| `org_id` (unique) | one active subscription per org |
+| `plan_id` | which `pricing_plans` row they're on |
+| `status` | `free`, `trialing`, `active`, `past_due`, `canceled`, `paused`, `incomplete`, `incomplete_expired`, `unpaid` |
+| `billing_interval` | `monthly`, `annual`, `free` |
+| `stripe_customer_id`, `stripe_subscription_id` | Stripe-side handles |
+| `current_period_start`, `current_period_end` | latest billing window |
+| `trial_end` | when the free trial ends |
+| `canceled_at`, `paused_until`, `cancel_at_period_end` | lifecycle flags |
+
+A trigger (`create_default_subscription`) auto-inserts a Free row
+when a new org is created. The resolver's "live subscription" branch
+treats statuses `free`, `trialing`, `active`, `past_due` as the org's
+real plan; anything else falls through to Free.
+
+### Resolver precedence (final)
+
+1. **User-level override** (only via `resolveUserPricing`)
+2. **Org-level override** (`pricing_overrides.scope_org_id`)
+3. **Live Stripe subscription** (`org_subscriptions`, status in
+   `free`/`trialing`/`active`/`past_due`)
+4. **Free plan** (catalogue fallback)
+5. **Hardcoded `PLATFORM_DEFAULT_FEE_BP`** (only if seed missing)
+
+### Stripe configuration (one-time, before charging)
+
+1. **Create the Stripe Products and Prices** in the Stripe Dashboard.
+   For Pro: one Product, two recurring Prices (monthly + annual,
+   currency DKK). Copy the price IDs.
+2. **Populate `pricing_plans`** with real DKK amounts and the price
+   IDs:
+   ```sql
+   UPDATE pricing_plans
+   SET monthly_price_dkk = 49900,
+       annual_price_dkk = 499000,
+       stripe_monthly_price_id = 'price_…',
+       stripe_annual_price_id = 'price_…'
+   WHERE slug = 'pro';
+   ```
+3. **Wire the webhook**. Add an endpoint in the Stripe Dashboard at
+   `https://<your-domain>/api/stripe/webhook` and enable these
+   events on top of the existing `account.updated` /
+   `transfer.reversed`:
+   * `customer.subscription.created`
+   * `customer.subscription.updated`
+   * `customer.subscription.deleted`
+   * `customer.subscription.trial_will_end`
+   * `customer.subscription.paused`
+   * `customer.subscription.resumed`
+   * `invoice.paid`
+   * `invoice.payment_failed`
+4. **Configure the Customer Portal** at Stripe Dashboard → Settings →
+   Billing → Customer portal. Enable "Cancel subscription",
+   "Update payment method", "View invoice history". Disable plan
+   switching at the portal level if you want changes to go through
+   your own UI; otherwise leave it on so customers can self-serve.
+
+### How the upgrade flow works
+
+1. Org admin opens `/admin/billing` and sees the plan catalogue.
+2. They click "Pick monthly" or "Pick annual" on the Pro card.
+3. `createCheckoutSession` server action runs, creates (or reuses)
+   the org's Stripe Customer, and generates a Checkout Session with
+   `subscription_data.metadata = { org_id, plan_slug,
+   billing_interval }`. Redirects the browser to the Stripe-hosted
+   page.
+4. Customer pays. Stripe redirects back to
+   `/admin/billing?checkout=success`.
+5. Stripe fires `customer.subscription.created` (and other events)
+   to the webhook. `syncSubscriptionFromStripe` reads the metadata,
+   matches the plan slug, and updates the `org_subscriptions` row
+   (status, period dates, plan_id).
+6. Resolver immediately sees the new plan on the next page load.
+
+### How cancel / change works
+
+The "Manage in Stripe" button on `/admin/billing` calls
+`createPortalSession`, which generates a Customer Portal link and
+redirects. Everything done there fires webhook events that update
+`org_subscriptions` automatically — your code doesn't have to handle
+the UI of cancelling or swapping cards.
+
+### What `pay-action.ts` changes
+
+Nothing. It still calls `resolveUserPricing(creatorId, orgId)`,
+which now reads the org's live plan from `org_subscriptions`. If the
+org is on Pro at 5%, payouts use 5%. If a per-creator override
+sets the rate to 0% for one specific creator, that creator's payouts
+ignore the org's plan rate.
+
+### Operating it
+
+**Watch the live state of every subscription:**
+
+`/admin/super/orgs` shows each org with its effective fee and the
+resolver's `source` field. `subscription` means it's reading the
+live `org_subscriptions` row. `org_override` means a platform-admin
+override is masking it.
+
+**Manually move an org between plans without billing:**
+
+Grant a `plan` override (Phase 2 surface). The resolver picks the
+overridden plan; the live subscription stays untouched. Useful for
+comp accounts where Stripe shouldn't bill them at all.
+
+**Refund a customer:**
+
+In the Stripe Dashboard. The webhook handler doesn't need to know —
+refunds are about money movement, not subscription state.
+
+**Apply a coupon at checkout:**
+
+Already supported. `createCheckoutSession` sets
+`allow_promotion_codes: true`, so the Checkout page exposes a coupon
+input. Stripe coupons configured in the Dashboard work out of the
+box.
+
+### Status semantics
+
+| `status` | resolver reads as | what it means |
+|---|---|---|
+| `free` | Free plan | org is on the no-charge default |
+| `trialing` | their plan | inside trial, no charge yet |
+| `active` | their plan | normal paid state |
+| `past_due` | their plan | last payment failed; Stripe is retrying |
+| `unpaid` | Free | retry exhausted; access lost (Stripe-configurable) |
+| `canceled` | Free | sub ended; row reset to free plan by webhook |
+| `incomplete`, `incomplete_expired` | Free | initial payment never completed |
+| `paused` | Free | future Phase-4 state for seasonal pause |
+
+### Things to watch for
+
+- **Empty Stripe price IDs.** The upgrade button shows a clear
+  error and refuses to start checkout. Populate `stripe_*_price_id`
+  before charging.
+- **Webhook signature verification.** The handler returns 400 if the
+  signature is missing or invalid. Make sure `STRIPE_WEBHOOK_SECRET`
+  is set in production.
+- **Idempotency.** `syncSubscriptionFromStripe` is safe to re-run on
+  the same event — it uses Stripe's subscription object as the source
+  of truth. If a webhook is delivered twice, the second invocation
+  is a no-op write of the same data.
+- **Trial end without payment.** Stripe handles this for you —
+  `customer.subscription.deleted` fires, the webhook sets status
+  back to `free` and reverts plan_id to Free.
+- **Missing org_id metadata.** If a subscription somehow gets
+  created without `org_id` in metadata (manual creation in Stripe
+  Dashboard, etc.), the webhook logs an error and does nothing.
+  Always create subscriptions through the Checkout flow this code
+  builds.
+
+---
+
+(Phase 4 / future polish — usage limits, MRR dashboard, promo codes
+UI, dunning emails — lands below as it ships.)

@@ -60,6 +60,34 @@ work and may not be live yet:
   every org with its effective pricing and lets you grant overrides
   with a required reason — see `docs/monetisation.md` for the full
   flow.
+- [ ] `0028_org_subscriptions.sql` — Phase 3 of monetisation. Adds
+  `org_subscriptions`, the live link to a Stripe Billing
+  subscription. Auto-creates a Free row for every existing and new
+  org (trigger `create_default_subscription` fires on insert). The
+  resolver now reads this table before falling through to Free, so
+  an org with `status IN ('trialing','active','past_due')` reads as
+  their actual plan automatically.
+
+  Operational follow-up after applying:
+  1. Create Stripe Products + Prices for the Pro plan in the Stripe
+     Dashboard. One Product, two Prices (monthly + annual).
+  2. `UPDATE pricing_plans SET monthly_price_dkk = …,
+     annual_price_dkk = …, stripe_monthly_price_id = 'price_…',
+     stripe_annual_price_id = 'price_…' WHERE slug = 'pro';`
+  3. Configure the Stripe webhook endpoint at
+     `https://<your-domain>/api/stripe/webhook` to deliver these
+     events: `customer.subscription.created`,
+     `customer.subscription.updated`,
+     `customer.subscription.deleted`,
+     `customer.subscription.trial_will_end`,
+     `customer.subscription.paused`,
+     `customer.subscription.resumed`,
+     `invoice.paid`, `invoice.payment_failed`. (The existing
+     `account.updated` and `transfer.reversed` events stay enabled
+     for the Stripe Connect side.)
+  4. Open the Stripe Customer Portal configuration once and enable
+     the features you want creators to self-serve (cancel, change
+     plan, update payment method, view invoices).
 
 After applying, sanity-check:
 
