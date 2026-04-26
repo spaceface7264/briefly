@@ -28,6 +28,13 @@ work and may not be live yet:
   `profiles.notify_applications` (default TRUE), and installs an
   AFTER INSERT/UPDATE trigger on `org_applications` that fans out via
   `notify_admins` and `create_notification_for_user`
+- [ ] `0025_remove_legacy_default_org.sql` — drops the legacy
+  `00000000-…-0001` "Briefly" org seeded in 0015 and everything still
+  attached to it (briefs, claims, payments, invite_codes,
+  notifications, notification_outbox, invoice_counters; clears
+  profiles.active_org_id; cascades memberships and org_applications).
+  Confirmed safe by the project owner — the data was test data, no
+  real customer rows are attached.
 
 After applying, sanity-check:
 
@@ -176,32 +183,6 @@ production-mirror environment before the next launch:
 These were noted while updating this TODO — none block a launch but
 each is worth scheduling:
 
-- [ ] The default org row (`00000000-0000-0000-0000-000000000001`,
-  seeded in `0015` with the name "Briefly") is still in the database
-  and still referenced by the now-superseded `0021`. After `0023`
-  applies, nothing new attaches to it. Audit what currently lives
-  there before deciding keep/rename/remove:
-
-  ```sql
-  SELECT 'memberships' AS table, COUNT(*) FROM memberships WHERE org_id = '00000000-0000-0000-0000-000000000001'
-  UNION ALL SELECT 'briefs',          COUNT(*) FROM briefs          WHERE org_id = '00000000-0000-0000-0000-000000000001'
-  UNION ALL SELECT 'claims',          COUNT(*) FROM claims          WHERE org_id = '00000000-0000-0000-0000-000000000001'
-  UNION ALL SELECT 'payments',        COUNT(*) FROM payments        WHERE org_id = '00000000-0000-0000-0000-000000000001'
-  UNION ALL SELECT 'invite_codes',    COUNT(*) FROM invite_codes    WHERE org_id = '00000000-0000-0000-0000-000000000001'
-  UNION ALL SELECT 'notifications',   COUNT(*) FROM notifications   WHERE org_id = '00000000-0000-0000-0000-000000000001'
-  UNION ALL SELECT 'profiles_active', COUNT(*) FROM profiles        WHERE active_org_id = '00000000-0000-0000-0000-000000000001';
-  ```
-
-  Recommendation: if every count is zero (greenfield deploy), drop the
-  row and the superseded `0021` migration file. If real data is
-  attached (any pre-multi-tenancy production users / briefs / claims),
-  keep the row but `UPDATE organizations SET name = 'Legacy data',
-  discoverable = FALSE WHERE id = '00000000-…-0001'` so admins of
-  newly-created orgs can't accidentally confuse it for theirs. Either
-  way, retire `0021_default_org_on_signup.sql` from the migrations
-  folder (or drop a `0025_remove_legacy_default_org.sql` that clearly
-  supersedes it) so future readers don't think the auto-attach
-  behaviour is still live.
 - [ ] Decide whether to leave default notification opt-in at `true`
   (current) or flip to opt-in. The column default is set in `0009`;
   changing it post-launch requires a backfill.
