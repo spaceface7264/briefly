@@ -180,9 +180,16 @@ production-mirror environment before the next launch:
 
 ## 7. Known gaps (future work, not blockers)
 
-These were noted while updating this TODO — none block a launch but
-each is worth scheduling:
+All items captured here while reviewing the multi-tenancy + discovery
+work have been resolved or decided. Future items go below this line.
 
-- [ ] Decide whether to leave default notification opt-in at `true`
-  (current) or flip to opt-in. The column default is set in `0009`;
-  changing it post-launch requires a backfill.
+### Decided
+
+- **Default notification opt-in stays `TRUE`** (resolved 2026-04-26).
+  Every `notify_*` column except `notify_new_briefs` covers
+  transactional email — actions the user took or things needing their
+  attention. Defaulting those off would suppress legitimate platform
+  engagement and make creators wonder why they aren't being told their
+  work was approved. No code change. If a GDPR-style consent concern
+  surfaces later, the right answer is a "you'll get email about your
+  activity" line on the signup form, not flipping defaults.
