@@ -8,7 +8,7 @@ import {
   platformDetails,
 } from "@/lib/invoicing/platform";
 import { requireOrgAdmin } from "@/lib/org";
-import { computeFee, resolveOrgPricing } from "@/lib/pricing";
+import { computeFee, resolveUserPricing } from "@/lib/pricing";
 
 type PayResult = { ok: true } | { ok: false; error: string };
 
@@ -101,8 +101,11 @@ export async function payClaim(claimId: string): Promise<PayResult> {
   // Resolve the platform fee at time-of-payout. The values are
   // frozen onto the payments row below so future rate changes
   // never retroactively rewrite historical invoices.
+  // resolveUserPricing layers any per-creator override on top of the
+  // org's resolved pricing — handles "comp this specific creator at
+  // 0%" without affecting anyone else in the same org.
   const grossDkk = claim.brief.price_dkk;
-  const pricing = await resolveOrgPricing(supabase, orgId);
+  const pricing = await resolveUserPricing(supabase, claim.user_id, orgId);
   const { feeDkk, netDkk } = computeFee(grossDkk, pricing.fee_bp);
 
   // VAT is calculated on the creator's actual receipts (post-fee),

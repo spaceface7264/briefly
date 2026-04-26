@@ -651,6 +651,114 @@ export type Database = {
           },
         ]
       }
+      pricing_overrides: {
+        Row: {
+          id: string
+          scope_org_id: string | null
+          scope_user_id: string | null
+          kind: string
+          value: Json
+          reason: string
+          granted_by: string
+          granted_at: string
+          expires_at: string | null
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          kind: string
+          value: Json
+          reason: string
+          granted_by: string
+          granted_at?: string
+          expires_at?: string | null
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          kind?: string
+          value?: Json
+          reason?: string
+          granted_by?: string
+          granted_at?: string
+          expires_at?: string | null
+          active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_overrides_scope_org_id_fkey"
+            columns: ["scope_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_overrides_scope_user_id_fkey"
+            columns: ["scope_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_overrides_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_audit_log: {
+        Row: {
+          id: string
+          actor_id: string | null
+          action: string
+          scope_org_id: string | null
+          scope_user_id: string | null
+          before: Json | null
+          after: Json | null
+          reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          actor_id?: string | null
+          action: string
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          before?: Json | null
+          after?: Json | null
+          reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          actor_id?: string | null
+          action?: string
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          before?: Json | null
+          after?: Json | null
+          reason?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_plans: {
         Row: {
           id: string
@@ -935,6 +1043,8 @@ export type Notification = Tables<"notifications">;
 export type NotificationOutbox = Tables<"notification_outbox">;
 export type Payment = Tables<"payments">;
 export type PricingPlanRow = Tables<"pricing_plans">;
+export type PricingOverrideRow = Tables<"pricing_overrides">;
+export type PricingAuditLogRow = Tables<"pricing_audit_log">;
 
 export type BriefCategory = Enums<"brief_category">;
 export type BriefDurationClass = Enums<"brief_duration_class">;

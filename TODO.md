@@ -50,6 +50,16 @@ work and may not be live yet:
 
   After applying, grant yourself platform admin via
   `UPDATE profiles SET is_platform_admin = TRUE WHERE email = '…'`.
+- [ ] `0027_pricing_overrides.sql` — Phase 2 of monetisation. Adds
+  `pricing_overrides` (per-org or per-user fee/plan/feature/limit
+  adjustments) and `pricing_audit_log` (append-only record of every
+  grant and revoke). RLS gates both to platform admins. The resolver
+  in `src/lib/pricing.ts` consults overrides on every pricing
+  decision; nothing else should read these tables directly. The
+  `/admin/super` surface (visible only to platform admins) lists
+  every org with its effective pricing and lets you grant overrides
+  with a required reason — see `docs/monetisation.md` for the full
+  flow.
 
 After applying, sanity-check:
 
