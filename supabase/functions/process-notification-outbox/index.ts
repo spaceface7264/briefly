@@ -34,6 +34,13 @@ function preferenceColumnFor(eventType: string): string {
     return "notify_claim_queue";
   }
   if (eventType === "claim_paid") return "notify_payments";
+  if (
+    eventType === "application_received" ||
+    eventType === "application_approved" ||
+    eventType === "application_rejected"
+  ) {
+    return "notify_applications";
+  }
   return "notify_claim_updates";
 }
 
@@ -157,10 +164,15 @@ serve(async () => {
       const targetHref =
         row.notification.entity_type === "brief"
           ? `${APP_URL}/briefs/${row.notification.entity_id}`
-          : row.notification.event_type === "claim_submitted" ||
-              row.notification.event_type === "claim_created"
-            ? `${APP_URL}/admin/claims`
-            : `${APP_URL}/my-briefs`;
+          : row.notification.event_type === "application_received"
+            ? `${APP_URL}/admin/applications`
+            : row.notification.event_type === "application_approved" ||
+                row.notification.event_type === "application_rejected"
+              ? `${APP_URL}/profile`
+              : row.notification.event_type === "claim_submitted" ||
+                  row.notification.event_type === "claim_created"
+                ? `${APP_URL}/admin/claims`
+                : `${APP_URL}/my-briefs`;
 
       try {
         await sendEmail({

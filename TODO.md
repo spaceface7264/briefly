@@ -22,6 +22,12 @@ work and may not be live yet:
   so new auth users no longer auto-join the default org. Users now join
   via invite code (`use_invite_code` from 0020) or approved discovery
   application (`approve_application` from 0022)
+- [ ] `0024_application_notifications.sql` — extends the
+  `notification_event_type` enum (`application_received`,
+  `application_approved`, `application_rejected`), adds
+  `profiles.notify_applications` (default TRUE), and installs an
+  AFTER INSERT/UPDATE trigger on `org_applications` that fans out via
+  `notify_admins` and `create_notification_for_user`
 
 After applying, sanity-check:
 
@@ -54,9 +60,10 @@ npx supabase gen types typescript --project-id <PROJECT_ID> > src/types/database
 - [ ] Regenerate types
 - [ ] Re-run `npm run build` to confirm nothing drifted
 
-The `org_applications` table and `discoverable` column were hand-patched
-into `database.ts` so the build passes — the canonical generator output
-may differ in ordering or formatting.
+The `org_applications` table, `discoverable` column, the new
+`notify_applications` column, and the three `application_*` enum values
+were hand-patched into `database.ts` so the build passes — the canonical
+generator output may differ in ordering or formatting.
 
 ---
 
@@ -69,7 +76,12 @@ deployed copies pre-date that work.
 
 - [ ] Redeploy `supabase/functions/notify-submission`
 - [ ] Redeploy `supabase/functions/notify-new-brief`
-- [ ] Redeploy `supabase/functions/process-notification-outbox`
+- [ ] Redeploy `supabase/functions/process-notification-outbox` — required
+  for the application-notification routing added in 0024 to take effect.
+  Without the redeploy, `application_*` events still queue and create
+  in-app rows but the worker won't recognise them, will fall through to
+  `notify_claim_updates` for opt-out, and link to `/my-briefs` instead
+  of `/admin/applications` or `/profile`
 
 Setup, secrets, and webhook wiring are documented in
 `supabase/functions/README.md`.
@@ -164,10 +176,6 @@ production-mirror environment before the next launch:
 These were noted while updating this TODO — none block a launch but
 each is worth scheduling:
 
-- [ ] `org_applications` has no notification wiring. Admins are not
-  emailed when a creator applies, and applicants are not emailed on
-  approve/reject. The `notification_outbox` infrastructure from `0012`
-  is the right place to plug in.
 - [ ] No "my applications" view for creators. After applying via
   `/discover`, the only way to see status is via the admin inbox.
 - [ ] `/discover` has no entry point for logged-out visitors. The nav

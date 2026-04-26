@@ -275,6 +275,7 @@ export type Database = {
           id: string
           instagram_handle: string | null
           name: string | null
+          notify_applications: boolean
           notify_claim_queue: boolean
           notify_claim_updates: boolean
           notify_new_briefs: boolean
@@ -304,6 +305,7 @@ export type Database = {
           id: string
           instagram_handle?: string | null
           name?: string | null
+          notify_applications?: boolean
           notify_claim_queue?: boolean
           notify_claim_updates?: boolean
           notify_new_briefs?: boolean
@@ -333,6 +335,7 @@ export type Database = {
           id?: string
           instagram_handle?: string | null
           name?: string | null
+          notify_applications?: boolean
           notify_claim_queue?: boolean
           notify_claim_updates?: boolean
           notify_new_briefs?: boolean
@@ -681,6 +684,9 @@ export type Database = {
         | "claim_released"
         | "claim_expired"
         | "brief_published"
+        | "application_received"
+        | "application_approved"
+        | "application_rejected"
       payment_status: "pending" | "succeeded" | "failed"
       user_role: "creator" | "admin"
       vat_scheme: "none" | "standard" | "reverse_charge"
@@ -830,6 +836,9 @@ export const Constants = {
         "claim_released",
         "claim_expired",
         "brief_published",
+        "application_received",
+        "application_approved",
+        "application_rejected",
       ],
       payment_status: ["pending", "succeeded", "failed"],
       user_role: ["creator", "admin"],
