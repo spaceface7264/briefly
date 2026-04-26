@@ -36,6 +36,15 @@
           "service": "briefly-staging"
         }
       ]
+    },
+    "preview": {
+      "name": "briefly-preview",
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "briefly-preview"
+        }
+      ]
     }
   }
 }
