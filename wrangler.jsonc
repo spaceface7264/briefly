@@ -6,6 +6,13 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  // Ensure the OpenNext build runs before any wrangler-driven deploy
+  // (e.g. Cloudflare Workers Build) so `.open-next/` exists. Skipped when
+  // wrangler is invoked recursively by `opennextjs-cloudflare deploy`,
+  // which sets OPEN_NEXT_DEPLOY=true to break the loop.
+  "build": {
+    "command": "node -e \"if(!process.env.OPEN_NEXT_DEPLOY){require('child_process').execSync('npx opennextjs-cloudflare build',{stdio:'inherit'})}\""
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
