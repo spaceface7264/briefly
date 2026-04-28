@@ -15,10 +15,15 @@ export default async function ProfilePage() {
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    console.error("Error fetching profile:", error);
+    console.error("Error fetching profile:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
   }
 
   return <ProfileInfoClient profile={profile} userEmail={user.email || ""} />;
