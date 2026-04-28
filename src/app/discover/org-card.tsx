@@ -17,6 +17,8 @@ interface OrgCardProps {
   isMember: boolean;
   applicationStatus: string | null;
   isAuthenticated: boolean;
+  /** False for org accounts — they can browse but not apply. */
+  canApply: boolean;
 }
 
 export function OrgCard({
@@ -25,6 +27,7 @@ export function OrgCard({
   isMember,
   applicationStatus,
   isAuthenticated,
+  canApply,
 }: OrgCardProps) {
   const [open, setOpen] = useState(false);
   const [appliedLocally, setAppliedLocally] = useState(false);
@@ -110,6 +113,7 @@ export function OrgCard({
         isMember={isMember}
         applicationStatus={effectiveStatus}
         isAuthenticated={isAuthenticated}
+        canApply={canApply}
         onApplied={() => setAppliedLocally(true)}
       />
     </>

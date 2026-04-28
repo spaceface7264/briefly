@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAccountType, landingPathForAccountType } from "@/lib/account";
 import { OrgRotatorPill, type OrgRotatorOrg } from "@/components/org-rotator-pill";
 
 const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
@@ -43,6 +45,19 @@ async function loadDiscoverableOrgs(): Promise<OrgRotatorOrg[]> {
 }
 
 export default async function Home() {
+  // Logged-in users are sent to their shell — the marketing home is
+  // a logged-out surface only.
+  let accountType: Awaited<ReturnType<typeof getAccountType>> | null = null;
+  try {
+    const supabase = await createClient();
+    accountType = await getAccountType(supabase);
+  } catch {
+    // Supabase unavailable — fall through to marketing.
+  }
+  if (accountType) {
+    redirect(landingPathForAccountType(accountType));
+  }
+
   const orgs = await loadDiscoverableOrgs();
 
   return (

@@ -21,6 +21,8 @@ interface Props {
   isMember: boolean;
   applicationStatus: string | null;
   isAuthenticated: boolean;
+  /** False for org accounts — they can browse but not apply. */
+  canApply: boolean;
   onApplied: () => void;
 }
 
@@ -34,6 +36,7 @@ export function OrgDetailModal({
   isMember,
   applicationStatus,
   isAuthenticated,
+  canApply,
   onApplied,
 }: Props) {
   const router = useRouter();
@@ -123,8 +126,11 @@ export function OrgDetailModal({
             isMember={isMember}
             applicationStatus={applicationStatus}
             isAuthenticated={isAuthenticated}
+            canApply={canApply}
             onApply={handleApplyClick}
-            onViewBriefs={() => router.push("/briefs")}
+            onViewBriefs={() =>
+              router.push(canApply ? "/briefs" : "/admin")
+            }
           />
         ) : (
           <ApplyView
@@ -154,6 +160,7 @@ function DetailView({
   isMember,
   applicationStatus,
   isAuthenticated,
+  canApply,
   onApply,
   onViewBriefs,
 }: {
@@ -163,6 +170,7 @@ function DetailView({
   isMember: boolean;
   applicationStatus: string | null;
   isAuthenticated: boolean;
+  canApply: boolean;
   onApply: () => void;
   onViewBriefs: () => void;
 }) {
@@ -221,8 +229,11 @@ function DetailView({
             onClick={onViewBriefs}
             className="px-5 py-2.5 border border-border hover:border-border-strong text-sm font-medium rounded-lg transition-colors"
           >
-            View briefs →
+            {canApply ? "View briefs →" : "Open dashboard →"}
           </button>
+        ) : !canApply ? (
+          // Org accounts can browse but not apply to other brands.
+          null
         ) : applicationStatus === "pending" ? (
           <p className="text-sm text-warning">
             Application pending — you&apos;ll get an email when it&apos;s reviewed.

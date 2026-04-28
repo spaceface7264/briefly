@@ -17,20 +17,17 @@ export type Database = {
       briefs: {
         Row: {
           category: Database["public"]["Enums"]["brief_category"]
-          claim_expires_at: string | null
           claim_limit: number
-          claimed_at: string | null
-          claimed_by: string | null
           created_at: string
           created_by: string | null
-          org_id: string
           deadline: string | null
           deliverable_specs: Json | null
           description: string
           duration_class: Database["public"]["Enums"]["brief_duration_class"]
-          location: string | null
           id: string
           is_ad_intended: boolean
+          location: string | null
+          org_id: string
           price_dkk: number
           reference_urls: string[] | null
           status: Database["public"]["Enums"]["brief_status"]
@@ -40,20 +37,17 @@ export type Database = {
         }
         Insert: {
           category: Database["public"]["Enums"]["brief_category"]
-          claim_expires_at?: string | null
           claim_limit?: number
-          claimed_at?: string | null
-          claimed_by?: string | null
           created_at?: string
           created_by?: string | null
           deadline?: string | null
           deliverable_specs?: Json | null
           description: string
-          duration_class: Database["public"]["Enums"]["brief_duration_class"]
-          location?: string | null
+          duration_class?: Database["public"]["Enums"]["brief_duration_class"]
           id?: string
           is_ad_intended?: boolean
-          org_id?: string
+          location?: string | null
+          org_id: string
           price_dkk: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
@@ -63,19 +57,16 @@ export type Database = {
         }
         Update: {
           category?: Database["public"]["Enums"]["brief_category"]
-          claim_expires_at?: string | null
           claim_limit?: number
-          claimed_at?: string | null
-          claimed_by?: string | null
           created_at?: string
           created_by?: string | null
           deadline?: string | null
           deliverable_specs?: Json | null
           description?: string
           duration_class?: Database["public"]["Enums"]["brief_duration_class"]
-          location?: string | null
           id?: string
           is_ad_intended?: boolean
+          location?: string | null
           org_id?: string
           price_dkk?: number
           reference_urls?: string[] | null
@@ -86,17 +77,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "briefs_claimed_by_fkey"
-            columns: ["claimed_by"]
+            foreignKeyName: "briefs_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "briefs_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "briefs_org_id_fkey"
+            columns: ["org_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -110,6 +101,8 @@ export type Database = {
           id: string
           org_id: string
           status: string
+          submission_notes: string | null
+          submission_url: string | null
           submitted_at: string | null
           updated_at: string
           user_id: string
@@ -120,8 +113,10 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
-          org_id?: string
+          org_id: string
           status?: string
+          submission_notes?: string | null
+          submission_url?: string | null
           submitted_at?: string | null
           updated_at?: string
           user_id: string
@@ -134,6 +129,8 @@ export type Database = {
           id?: string
           org_id?: string
           status?: string
+          submission_notes?: string | null
+          submission_url?: string | null
           submitted_at?: string | null
           updated_at?: string
           user_id?: string
@@ -147,7 +144,146 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "claims_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          intended_account_type: string
+          org_id: string
+          role: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          intended_account_type?: string
+          org_id: string
+          role?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          intended_account_type?: string
+          org_id?: string
+          role?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invite_codes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invite_codes_used_by_fkey"
+            columns: ["used_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_counters: {
+        Row: {
+          last_seq: number
+          org_id: string
+          year: number
+        }
+        Insert: {
+          last_seq?: number
+          org_id: string
+          year: number
+        }
+        Update: {
+          last_seq?: number
+          org_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_counters_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memberships: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -160,10 +296,10 @@ export type Database = {
           attempt_count: number
           created_at: string
           id: string
-          org_id: string
           last_error: string | null
           next_attempt_at: string
           notification_id: string
+          org_id: string
           sent_at: string | null
           status: string
           updated_at: string
@@ -175,6 +311,7 @@ export type Database = {
           last_error?: string | null
           next_attempt_at?: string
           notification_id: string
+          org_id: string
           sent_at?: string | null
           status?: string
           updated_at?: string
@@ -186,6 +323,7 @@ export type Database = {
           last_error?: string | null
           next_attempt_at?: string
           notification_id?: string
+          org_id?: string
           sent_at?: string | null
           status?: string
           updated_at?: string
@@ -196,6 +334,13 @@ export type Database = {
             columns: ["notification_id"]
             isOneToOne: true
             referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_outbox_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -226,6 +371,7 @@ export type Database = {
           event_type: Database["public"]["Enums"]["notification_event_type"]
           id?: string
           metadata?: Json
+          org_id: string
           read_at?: string | null
           recipient_id: string
           title: string
@@ -240,6 +386,7 @@ export type Database = {
           event_type?: Database["public"]["Enums"]["notification_event_type"]
           id?: string
           metadata?: Json
+          org_id?: string
           read_at?: string | null
           recipient_id?: string
           title?: string
@@ -253,6 +400,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "notifications_recipient_id_fkey"
             columns: ["recipient_id"]
             isOneToOne: false
@@ -261,106 +415,210 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      org_applications: {
         Row: {
-          active_org_id: string | null
-          billing_address_line1: string | null
-          billing_address_line2: string | null
-          billing_city: string | null
-          billing_postal_code: string | null
-          country: string | null
           created_at: string
-          cvr_number: string | null
-          email: string | null
           id: string
-          instagram_handle: string | null
-          is_platform_admin: boolean
-          name: string | null
-          notify_applications: boolean
-          notify_claim_queue: boolean
-          notify_claim_updates: boolean
-          notify_new_briefs: boolean
-          notify_payments: boolean
-          notify_submissions: boolean
-          role: Database["public"]["Enums"]["user_role"]
-          self_billing_agreement_accepted_at: string | null
-          self_billing_agreement_version: string | null
-          stripe_account_id: string | null
-          stripe_details_submitted: boolean
-          stripe_payouts_enabled: boolean
-          tags: string[] | null
+          message: string | null
+          org_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
           updated_at: string
-          vat_number: string | null
-          vat_registered: boolean
+          user_id: string
         }
         Insert: {
-          active_org_id?: string | null
-          billing_address_line1?: string | null
-          billing_address_line2?: string | null
-          billing_city?: string | null
-          billing_postal_code?: string | null
-          country?: string | null
           created_at?: string
-          cvr_number?: string | null
-          email?: string | null
-          id: string
-          instagram_handle?: string | null
-          is_platform_admin?: boolean
-          name?: string | null
-          notify_applications?: boolean
-          notify_claim_queue?: boolean
-          notify_claim_updates?: boolean
-          notify_new_briefs?: boolean
-          notify_payments?: boolean
-          notify_submissions?: boolean
-          role?: Database["public"]["Enums"]["user_role"]
-          self_billing_agreement_accepted_at?: string | null
-          self_billing_agreement_version?: string | null
-          stripe_account_id?: string | null
-          stripe_details_submitted?: boolean
-          stripe_payouts_enabled?: boolean
-          tags?: string[] | null
+          id?: string
+          message?: string | null
+          org_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           updated_at?: string
-          vat_number?: string | null
-          vat_registered?: boolean
+          user_id: string
         }
         Update: {
-          active_org_id?: string | null
-          billing_address_line1?: string | null
-          billing_address_line2?: string | null
-          billing_city?: string | null
-          billing_postal_code?: string | null
-          country?: string | null
           created_at?: string
-          cvr_number?: string | null
-          email?: string | null
           id?: string
-          instagram_handle?: string | null
-          is_platform_admin?: boolean
-          name?: string | null
-          notify_applications?: boolean
-          notify_claim_queue?: boolean
-          notify_claim_updates?: boolean
-          notify_new_briefs?: boolean
-          notify_payments?: boolean
-          notify_submissions?: boolean
-          role?: Database["public"]["Enums"]["user_role"]
-          self_billing_agreement_accepted_at?: string | null
-          self_billing_agreement_version?: string | null
-          stripe_account_id?: string | null
-          stripe_details_submitted?: boolean
-          stripe_payouts_enabled?: boolean
-          tags?: string[] | null
+          message?: string | null
+          org_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_applications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_subscriptions: {
+        Row: {
+          billing_interval: string
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          org_id: string
+          paused_until: string | null
+          plan_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_interval?: string
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          org_id: string
+          paused_until?: string | null
+          plan_id: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_interval?: string
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          org_id?: string
+          paused_until?: string | null
+          plan_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          accent_color: string | null
+          address: string | null
+          contact_email: string | null
+          country: string
+          created_at: string
+          currency: string
+          cvr: string | null
+          description: string | null
+          discoverable: boolean
+          id: string
+          industry: string | null
+          logo_url: string | null
+          name: string
+          owner_id: string | null
+          sender_email: string | null
+          sender_name: string | null
+          slug: string
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          address?: string | null
+          contact_email?: string | null
+          country?: string
+          created_at?: string
+          currency?: string
+          cvr?: string | null
+          description?: string | null
+          discoverable?: boolean
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name: string
+          owner_id?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          slug: string
           updated_at?: string
           vat_number?: string | null
-          vat_registered?: boolean
         }
-        Relationships: []
+        Update: {
+          accent_color?: string | null
+          address?: string | null
+          contact_email?: string | null
+          country?: string
+          created_at?: string
+          currency?: string
+          cvr?: string | null
+          description?: string | null
+          discoverable?: boolean
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name?: string
+          owner_id?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          slug?: string
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
           amount_dkk: number
-          org_id: string
           brief_title_snapshot: string | null
           claim_id: string
           created_at: string
@@ -377,6 +635,7 @@ export type Database = {
           invoice_number: string | null
           invoice_seq: number | null
           invoice_year: number | null
+          org_id: string
           paid_by: string | null
           platform_address_snapshot: string | null
           platform_cvr_snapshot: string | null
@@ -401,7 +660,6 @@ export type Database = {
           claim_id: string
           created_at?: string
           creator_address_snapshot?: string | null
-          org_id?: string
           creator_country_snapshot?: string | null
           creator_cvr_snapshot?: string | null
           creator_id: string
@@ -414,6 +672,7 @@ export type Database = {
           invoice_number?: string | null
           invoice_seq?: number | null
           invoice_year?: number | null
+          org_id: string
           paid_by?: string | null
           platform_address_snapshot?: string | null
           platform_cvr_snapshot?: string | null
@@ -450,6 +709,7 @@ export type Database = {
           invoice_number?: string | null
           invoice_seq?: number | null
           invoice_year?: number | null
+          org_id?: string
           paid_by?: string | null
           platform_address_snapshot?: string | null
           platform_cvr_snapshot?: string | null
@@ -484,6 +744,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_paid_by_fkey"
             columns: ["paid_by"]
             isOneToOne: false
@@ -492,275 +759,98 @@ export type Database = {
           },
         ]
       }
-      org_applications: {
+      pricing_audit_log: {
         Row: {
-          id: string
-          user_id: string
-          org_id: string
-          message: string | null
-          status: string
-          reviewed_by: string | null
-          reviewed_at: string | null
+          action: string
+          actor_id: string | null
+          after: Json | null
+          before: Json | null
           created_at: string
-          updated_at: string
+          id: string
+          reason: string | null
+          scope_org_id: string | null
+          scope_user_id: string | null
         }
         Insert: {
-          id?: string
-          user_id: string
-          org_id: string
-          message?: string | null
-          status?: string
-          reviewed_by?: string | null
-          reviewed_at?: string | null
+          action: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
           created_at?: string
-          updated_at?: string
+          id?: string
+          reason?: string | null
+          scope_org_id?: string | null
+          scope_user_id?: string | null
         }
         Update: {
-          id?: string
-          user_id?: string
-          org_id?: string
-          message?: string | null
-          status?: string
-          reviewed_by?: string | null
-          reviewed_at?: string | null
+          action?: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
           created_at?: string
-          updated_at?: string
+          id?: string
+          reason?: string | null
+          scope_org_id?: string | null
+          scope_user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "org_applications_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "pricing_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "org_applications_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      organizations: {
-        Row: {
-          id: string
-          slug: string
-          name: string
-          logo_url: string | null
-          accent_color: string | null
-          description: string | null
-          discoverable: boolean
-          industry: string | null
-          currency: string
-          country: string
-          address: string | null
-          cvr: string | null
-          vat_number: string | null
-          contact_email: string | null
-          sender_name: string | null
-          sender_email: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          slug: string
-          name: string
-          logo_url?: string | null
-          accent_color?: string | null
-          description?: string | null
-          discoverable?: boolean
-          industry?: string | null
-          currency?: string
-          country?: string
-          address?: string | null
-          cvr?: string | null
-          vat_number?: string | null
-          contact_email?: string | null
-          sender_name?: string | null
-          sender_email?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          slug?: string
-          name?: string
-          logo_url?: string | null
-          accent_color?: string | null
-          description?: string | null
-          discoverable?: boolean
-          industry?: string | null
-          currency?: string
-          country?: string
-          address?: string | null
-          cvr?: string | null
-          vat_number?: string | null
-          contact_email?: string | null
-          sender_name?: string | null
-          sender_email?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      memberships: {
-        Row: {
-          id: string
-          user_id: string
-          org_id: string
-          role: Database["public"]["Enums"]["user_role"]
-          status: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          org_id: string
-          role?: Database["public"]["Enums"]["user_role"]
-          status?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          org_id?: string
-          role?: Database["public"]["Enums"]["user_role"]
-          status?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "memberships_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "memberships_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      org_subscriptions: {
-        Row: {
-          id: string
-          org_id: string
-          plan_id: string
-          status: string
-          billing_interval: string
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          current_period_start: string | null
-          current_period_end: string | null
-          trial_end: string | null
-          canceled_at: string | null
-          paused_until: string | null
-          cancel_at_period_end: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          org_id: string
-          plan_id: string
-          status?: string
-          billing_interval?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          current_period_start?: string | null
-          current_period_end?: string | null
-          trial_end?: string | null
-          canceled_at?: string | null
-          paused_until?: string | null
-          cancel_at_period_end?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          org_id?: string
-          plan_id?: string
-          status?: string
-          billing_interval?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          current_period_start?: string | null
-          current_period_end?: string | null
-          trial_end?: string | null
-          canceled_at?: string | null
-          paused_until?: string | null
-          cancel_at_period_end?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "org_subscriptions_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: true
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "org_subscriptions_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "pricing_plans"
             referencedColumns: ["id"]
           },
         ]
       }
       pricing_overrides: {
         Row: {
-          id: string
-          scope_org_id: string | null
-          scope_user_id: string | null
-          kind: string
-          value: Json
-          reason: string
-          granted_by: string
-          granted_at: string
-          expires_at: string | null
           active: boolean
           created_at: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string
+          id: string
+          kind: string
+          reason: string
+          scope_org_id: string | null
+          scope_user_id: string | null
+          value: Json
         }
         Insert: {
-          id?: string
-          scope_org_id?: string | null
-          scope_user_id?: string | null
-          kind: string
-          value: Json
-          reason: string
-          granted_by: string
-          granted_at?: string
-          expires_at?: string | null
           active?: boolean
           created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by: string
+          id?: string
+          kind: string
+          reason: string
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          value: Json
         }
         Update: {
-          id?: string
-          scope_org_id?: string | null
-          scope_user_id?: string | null
-          kind?: string
-          value?: Json
-          reason?: string
-          granted_by?: string
-          granted_at?: string
-          expires_at?: string | null
           active?: boolean
           created_at?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string
+          id?: string
+          kind?: string
+          reason?: string
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          value?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "pricing_overrides_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pricing_overrides_scope_org_id_fkey"
             columns: ["scope_org_id"]
@@ -775,116 +865,65 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "pricing_overrides_granted_by_fkey"
-            columns: ["granted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pricing_audit_log: {
-        Row: {
-          id: string
-          actor_id: string | null
-          action: string
-          scope_org_id: string | null
-          scope_user_id: string | null
-          before: Json | null
-          after: Json | null
-          reason: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          actor_id?: string | null
-          action: string
-          scope_org_id?: string | null
-          scope_user_id?: string | null
-          before?: Json | null
-          after?: Json | null
-          reason?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          actor_id?: string | null
-          action?: string
-          scope_org_id?: string | null
-          scope_user_id?: string | null
-          before?: Json | null
-          after?: Json | null
-          reason?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pricing_audit_log_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       pricing_plans: {
         Row: {
-          id: string
-          slug: string
-          name: string
-          description: string | null
-          monthly_price_dkk: number
           annual_price_dkk: number
-          default_fee_bp: number
-          trial_days: number
-          limits: Json
-          features: Json
-          visible: boolean
-          legacy: boolean
-          private_to_org_id: string | null
-          stripe_monthly_price_id: string | null
-          stripe_annual_price_id: string | null
           created_at: string
+          default_fee_bp: number
+          description: string | null
+          features: Json
+          id: string
+          legacy: boolean
+          limits: Json
+          monthly_price_dkk: number
+          name: string
+          private_to_org_id: string | null
+          slug: string
+          stripe_annual_price_id: string | null
+          stripe_monthly_price_id: string | null
+          trial_days: number
           updated_at: string
+          visible: boolean
         }
         Insert: {
-          id?: string
-          slug: string
-          name: string
-          description?: string | null
-          monthly_price_dkk?: number
           annual_price_dkk?: number
-          default_fee_bp?: number
-          trial_days?: number
-          limits?: Json
-          features?: Json
-          visible?: boolean
-          legacy?: boolean
-          private_to_org_id?: string | null
-          stripe_monthly_price_id?: string | null
-          stripe_annual_price_id?: string | null
           created_at?: string
+          default_fee_bp?: number
+          description?: string | null
+          features?: Json
+          id?: string
+          legacy?: boolean
+          limits?: Json
+          monthly_price_dkk?: number
+          name: string
+          private_to_org_id?: string | null
+          slug: string
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          trial_days?: number
           updated_at?: string
+          visible?: boolean
         }
         Update: {
-          id?: string
-          slug?: string
-          name?: string
-          description?: string | null
-          monthly_price_dkk?: number
           annual_price_dkk?: number
-          default_fee_bp?: number
-          trial_days?: number
-          limits?: Json
-          features?: Json
-          visible?: boolean
-          legacy?: boolean
-          private_to_org_id?: string | null
-          stripe_monthly_price_id?: string | null
-          stripe_annual_price_id?: string | null
           created_at?: string
+          default_fee_bp?: number
+          description?: string | null
+          features?: Json
+          id?: string
+          legacy?: boolean
+          limits?: Json
+          monthly_price_dkk?: number
+          name?: string
+          private_to_org_id?: string | null
+          slug?: string
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          trial_days?: number
           updated_at?: string
+          visible?: boolean
         }
         Relationships: [
           {
@@ -896,31 +935,232 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          account_type: string
+          active_org_id: string | null
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_postal_code: string | null
+          country: string | null
+          created_at: string
+          cvr_number: string | null
+          email: string | null
+          id: string
+          instagram_handle: string | null
+          is_platform_admin: boolean
+          name: string | null
+          notify_applications: boolean
+          notify_claim_queue: boolean
+          notify_claim_updates: boolean
+          notify_new_briefs: boolean
+          notify_payments: boolean
+          notify_submissions: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          self_billing_agreement_accepted_at: string | null
+          self_billing_agreement_version: string | null
+          stripe_account_id: string | null
+          stripe_details_submitted: boolean
+          stripe_payouts_enabled: boolean
+          tags: string[] | null
+          updated_at: string
+          vat_number: string | null
+          vat_registered: boolean
+        }
+        Insert: {
+          account_type?: string
+          active_org_id?: string | null
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_postal_code?: string | null
+          country?: string | null
+          created_at?: string
+          cvr_number?: string | null
+          email?: string | null
+          id: string
+          instagram_handle?: string | null
+          is_platform_admin?: boolean
+          name?: string | null
+          notify_applications?: boolean
+          notify_claim_queue?: boolean
+          notify_claim_updates?: boolean
+          notify_new_briefs?: boolean
+          notify_payments?: boolean
+          notify_submissions?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          self_billing_agreement_accepted_at?: string | null
+          self_billing_agreement_version?: string | null
+          stripe_account_id?: string | null
+          stripe_details_submitted?: boolean
+          stripe_payouts_enabled?: boolean
+          tags?: string[] | null
+          updated_at?: string
+          vat_number?: string | null
+          vat_registered?: boolean
+        }
+        Update: {
+          account_type?: string
+          active_org_id?: string | null
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_postal_code?: string | null
+          country?: string | null
+          created_at?: string
+          cvr_number?: string | null
+          email?: string | null
+          id?: string
+          instagram_handle?: string | null
+          is_platform_admin?: boolean
+          name?: string | null
+          notify_applications?: boolean
+          notify_claim_queue?: boolean
+          notify_claim_updates?: boolean
+          notify_new_briefs?: boolean
+          notify_payments?: boolean
+          notify_submissions?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          self_billing_agreement_accepted_at?: string | null
+          self_billing_agreement_version?: string | null
+          stripe_account_id?: string | null
+          stripe_details_submitted?: boolean
+          stripe_payouts_enabled?: boolean
+          tags?: string[] | null
+          updated_at?: string
+          vat_number?: string | null
+          vat_registered?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_active_org_id_fkey"
+            columns: ["active_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      approve_application: { Args: { p_application_id: string; p_admin_id: string }; Returns: boolean }
-      allocate_invoice_number: { Args: { p_org_id: string; p_year: number }; Returns: number }
-      create_notification_for_user: {
-        Args: {
-          p_actor_id: string
-          p_body: string
-          p_dedupe_key: string
-          p_entity_id: string
-          p_entity_type: string
-          p_event_type: Database["public"]["Enums"]["notification_event_type"]
-          p_metadata: Json
-          p_recipient_id: string
-          p_title: string
-        }
-        Returns: undefined
+      active_org_id: { Args: never; Returns: string }
+      allocate_invoice_number:
+        | { Args: { p_org_id: string; p_year: number }; Returns: number }
+        | { Args: { p_year: number }; Returns: number }
+      approve_application: {
+        Args: { p_admin_id: string; p_application_id: string }
+        Returns: boolean
+      }
+      create_notification_for_user:
+        | {
+            Args: {
+              p_actor_id: string
+              p_body: string
+              p_dedupe_key: string
+              p_entity_id: string
+              p_entity_type: string
+              p_event_type: Database["public"]["Enums"]["notification_event_type"]
+              p_metadata: Json
+              p_recipient_id: string
+              p_title: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_actor_id: string
+              p_body: string
+              p_dedupe_key: string
+              p_entity_id: string
+              p_entity_type: string
+              p_event_type: Database["public"]["Enums"]["notification_event_type"]
+              p_metadata: Json
+              p_org_id?: string
+              p_recipient_id: string
+              p_title: string
+            }
+            Returns: undefined
+          }
+      current_account_type: { Args: never; Returns: string }
+      effective_org_limit: {
+        Args: { p_limit_key: string; p_org_id: string }
+        Returns: number
       }
       expire_stale_claims: { Args: never; Returns: number }
       get_active_claim_count: { Args: { brief_uuid: string }; Returns: number }
       is_admin: { Args: never; Returns: boolean }
+      is_org_admin: { Args: { p_org_id: string }; Returns: boolean }
+      is_org_member: { Args: { p_org_id: string }; Returns: boolean }
+      is_platform_admin: { Args: never; Returns: boolean }
+      notify_admins:
+        | {
+            Args: {
+              p_actor_id: string
+              p_body: string
+              p_dedupe_key: string
+              p_entity_id: string
+              p_entity_type: string
+              p_event_type: Database["public"]["Enums"]["notification_event_type"]
+              p_metadata: Json
+              p_title: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_actor_id: string
+              p_body: string
+              p_dedupe_key: string
+              p_entity_id: string
+              p_entity_type: string
+              p_event_type: Database["public"]["Enums"]["notification_event_type"]
+              p_metadata: Json
+              p_org_id: string
+              p_title: string
+            }
+            Returns: undefined
+          }
+      notify_creators:
+        | {
+            Args: {
+              p_actor_id: string
+              p_body: string
+              p_dedupe_key: string
+              p_entity_id: string
+              p_entity_type: string
+              p_event_type: Database["public"]["Enums"]["notification_event_type"]
+              p_metadata: Json
+              p_title: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_actor_id: string
+              p_body: string
+              p_dedupe_key: string
+              p_entity_id: string
+              p_entity_type: string
+              p_event_type: Database["public"]["Enums"]["notification_event_type"]
+              p_metadata: Json
+              p_org_id: string
+              p_title: string
+            }
+            Returns: undefined
+          }
+      use_invite_code: {
+        Args: { invite_code: string; user_uuid: string }
+        Returns: boolean
+      }
       user_has_claimed: { Args: { brief_uuid: string }; Returns: boolean }
+      user_not_in_reclaim_cooldown: {
+        Args: { brief_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       brief_category: "entertaining" | "ad" | "guide" | "event" | "community"
@@ -945,7 +1185,7 @@ export type Database = {
         | "application_approved"
         | "application_rejected"
       payment_status: "pending" | "succeeded" | "failed"
-      user_role: "creator" | "admin"
+      user_role: "creator" | "admin" | "member"
       vat_scheme: "none" | "standard" | "reverse_charge"
     }
     CompositeTypes: {
@@ -1098,13 +1338,21 @@ export const Constants = {
         "application_rejected",
       ],
       payment_status: ["pending", "succeeded", "failed"],
-      user_role: ["creator", "admin"],
+      user_role: ["creator", "admin", "member"],
       vat_scheme: ["none", "standard", "reverse_charge"],
     },
   },
 } as const
 
-// Helper type exports
+// ============================================================
+// Hand-maintained helper aliases.
+//
+// IMPORTANT: regenerating this file via `supabase gen types`
+// will overwrite the auto-generated portion above, but the
+// helpers below must be re-appended afterward. The codebase
+// imports these from "@/types/database".
+// ============================================================
+
 export type Profile = Tables<"profiles">;
 export type Brief = Tables<"briefs">;
 export type Claim = Tables<"claims">;
@@ -1125,7 +1373,7 @@ export type VatScheme = Enums<"vat_scheme">;
 export type UserRole = Enums<"user_role">;
 export type ClaimStatus = "active" | "submitted" | "approved" | "paid" | "cancelled";
 
-// Brief with claim count for display
+// Brief enriched with per-user/per-list claim metadata for display.
 export type BriefWithClaims = Brief & {
   claim_count: number;
   user_has_claimed: boolean;

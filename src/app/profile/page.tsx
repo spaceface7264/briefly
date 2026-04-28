@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { requireCreatorAccount } from "@/lib/account";
 import { ProfileInfoClient } from "./profile-info-client";
 
 export default async function ProfilePage() {
@@ -10,6 +11,9 @@ export default async function ProfilePage() {
   if (!user) {
     redirect("/login");
   }
+
+  // Org users manage their personal info inside /admin/settings.
+  await requireCreatorAccount(supabase);
 
   const { data: profile, error } = await supabase
     .from("profiles")
