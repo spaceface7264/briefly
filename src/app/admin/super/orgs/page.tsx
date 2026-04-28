@@ -40,12 +40,20 @@ export default async function SuperOrgsPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">Organisations</h1>
-        <p className="text-muted">
-          {rows.length} org{rows.length === 1 ? "" : "s"}. Click into one to
-          grant overrides.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Organisations</h1>
+          <p className="text-muted">
+            {rows.length} org{rows.length === 1 ? "" : "s"}. Click into one to
+            grant overrides.
+          </p>
+        </div>
+        <Link
+          href="/admin/super/orgs/new"
+          className="px-4 py-2 bg-accent text-background font-semibold rounded-lg hover:bg-accent-hover transition-colors text-sm whitespace-nowrap"
+        >
+          + Create org
+        </Link>
       </div>
 
       <div className="bg-surface border border-border rounded-xl overflow-hidden">

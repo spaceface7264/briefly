@@ -11,6 +11,7 @@ import { StatusPill } from "@/components/status-pill";
 import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
 import { DiscoverabilityToggle } from "./discoverability-toggle";
+import { OrgDetailsForm } from "./org-details-form";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,9 @@ export default async function AdminSettingsPage() {
   // Fetch org details
   const { data: org } = await supabase
     .from("organizations")
-    .select("name, slug, description, discoverable, industry")
+    .select(
+      "name, slug, description, discoverable, industry, logo_url, accent_color, contact_email, address, cvr, vat_number"
+    )
     .eq("id", orgId)
     .single();
 
@@ -161,6 +164,23 @@ export default async function AdminSettingsPage() {
       </div>
 
       <div className="space-y-10">
+        {org && (
+          <OrgDetailsForm
+            org={{
+              name: org.name,
+              slug: org.slug,
+              description: org.description,
+              industry: org.industry,
+              logo_url: org.logo_url,
+              accent_color: org.accent_color,
+              contact_email: org.contact_email,
+              address: org.address,
+              cvr: org.cvr,
+              vat_number: org.vat_number,
+            }}
+          />
+        )}
+
         <AdminTeam
           admins={admins ?? []}
           creators={creators ?? []}
