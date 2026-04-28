@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { OrgRotatorPill, type OrgRotatorOrg } from "@/components/org-rotator-pill";
 
 const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
 
@@ -20,7 +22,29 @@ const steps = [
   },
 ];
 
-export default function Home() {
+async function loadDiscoverableOrgs(): Promise<OrgRotatorOrg[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("organizations")
+      .select("id, name, logo_url, accent_color")
+      .eq("discoverable", true)
+      .order("name", { ascending: true });
+
+    return (data || []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      logoUrl: o.logo_url,
+      accentColor: o.accent_color,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export default async function Home() {
+  const orgs = await loadDiscoverableOrgs();
+
   return (
     <main className="flex-1 relative overflow-hidden">
       {/* Ambient brand glow */}
@@ -31,10 +55,11 @@ export default function Home() {
 
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
         <div className="text-center space-y-6">
-          <p className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-muted px-3 py-1.5 rounded-md border border-border bg-surface">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-status-pulse" />
-            Invite-only
-          </p>
+          {orgs.length > 0 && (
+            <div className="flex justify-center">
+              <OrgRotatorPill orgs={orgs} />
+            </div>
+          )}
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
             {platformName} <span className="text-brand-pure">Creators</span>
           </h1>
