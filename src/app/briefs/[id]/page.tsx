@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { RECLAIM_COOLDOWN_DAYS } from "@/lib/claims";
 import { notFound } from "next/navigation";
+import { requireCreatorAccount } from "@/lib/account";
 import { BriefDetailClient } from "./brief-detail-client";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 export default async function BriefDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
+  await requireCreatorAccount(supabase);
 
   const { data: { user } } = await supabase.auth.getUser();
 

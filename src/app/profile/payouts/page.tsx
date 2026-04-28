@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { requireCreatorAccount } from "@/lib/account";
 import { PayoutsClient } from "./payouts-client";
 import { refreshStripeStatus } from "../stripe-actions";
 
@@ -15,6 +16,8 @@ export default async function PayoutsPage({
   if (!user) {
     redirect("/login");
   }
+
+  await requireCreatorAccount(supabase);
 
   const { stripe: stripeFlag } = await searchParams;
 

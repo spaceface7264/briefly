@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { requireCreatorAccount } from "@/lib/account";
 import { formatPrice } from "@/lib/utils";
 
 export default async function InvoicesPage() {
@@ -10,6 +11,8 @@ export default async function InvoicesPage() {
   if (!user) {
     redirect("/login");
   }
+
+  await requireCreatorAccount(supabase);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: payments } = await (supabase.from("payments") as any)

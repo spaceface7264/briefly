@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireCreatorAccount } from "@/lib/account";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,8 @@ export default async function MyApplicationsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  await requireCreatorAccount(supabase);
 
   const { data } = await supabase
     .from("org_applications")

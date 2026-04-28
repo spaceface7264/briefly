@@ -56,20 +56,33 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
         return;
       }
 
-      // Skip the bounce through /briefs → /discover when the user has no
-      // org by routing based on whether they have any active membership.
-      // Mirrors the lookup in getActiveOrg (active_org_id + membership
-      // fallback) so we don't divert users who have a membership but no
-      // active_org_id set yet.
+      // Route to the user's shell:
+      //   org account → /admin
+      //   creator account with at least one active membership → /briefs
+      //   creator account with no membership yet → /discover (so they
+      //     can apply to a discoverable org or redeem an invite)
       let nextPath = "/briefs";
       if (signInData.user) {
-        const { count } = await supabase
-          .from("memberships")
-          .select("user_id", { count: "exact", head: true })
-          .eq("user_id", signInData.user.id)
-          .eq("status", "active");
-        if (!count) {
-          nextPath = "/discover";
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("account_type")
+          .eq("id", signInData.user.id)
+          .maybeSingle();
+
+        const accountType = (profile as { account_type?: string } | null)
+          ?.account_type;
+
+        if (accountType === "org") {
+          nextPath = "/admin";
+        } else {
+          const { count } = await supabase
+            .from("memberships")
+            .select("user_id", { count: "exact", head: true })
+            .eq("user_id", signInData.user.id)
+            .eq("status", "active");
+          if (!count) {
+            nextPath = "/discover";
+          }
         }
       }
 

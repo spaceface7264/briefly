@@ -1343,3 +1343,38 @@ export const Constants = {
     },
   },
 } as const
+
+// ============================================================
+// Hand-maintained helper aliases.
+//
+// IMPORTANT: regenerating this file via `supabase gen types`
+// will overwrite the auto-generated portion above, but the
+// helpers below must be re-appended afterward. The codebase
+// imports these from "@/types/database".
+// ============================================================
+
+export type Profile = Tables<"profiles">;
+export type Brief = Tables<"briefs">;
+export type Claim = Tables<"claims">;
+export type Notification = Tables<"notifications">;
+export type NotificationOutbox = Tables<"notification_outbox">;
+export type Payment = Tables<"payments">;
+export type PricingPlanRow = Tables<"pricing_plans">;
+export type PricingOverrideRow = Tables<"pricing_overrides">;
+export type PricingAuditLogRow = Tables<"pricing_audit_log">;
+export type OrgSubscriptionRow = Tables<"org_subscriptions">;
+
+export type BriefCategory = Enums<"brief_category">;
+export type BriefDurationClass = Enums<"brief_duration_class">;
+export type BriefStatus = Enums<"brief_status">;
+export type PaymentStatus = Enums<"payment_status">;
+export type NotificationEventType = Enums<"notification_event_type">;
+export type VatScheme = Enums<"vat_scheme">;
+export type UserRole = Enums<"user_role">;
+export type ClaimStatus = "active" | "submitted" | "approved" | "paid" | "cancelled";
+
+// Brief enriched with per-user/per-list claim metadata for display.
+export type BriefWithClaims = Brief & {
+  claim_count: number;
+  user_has_claimed: boolean;
+};

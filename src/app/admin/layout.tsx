@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { requireActiveOrg } from "@/lib/org";
+import { getAccountType } from "@/lib/account";
 import { AdminNav } from "./admin-nav";
 
 export default async function AdminLayout({
@@ -16,7 +17,15 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  // Check if user is admin of active org via membership
+  // Org-only surface. Creator accounts get bounced to their shell.
+  const accountType = await getAccountType(supabase);
+  if (accountType !== "org") {
+    redirect("/briefs");
+  }
+
+  // Org accounts are always tied to exactly one org. Admins and members
+  // both land here; member-vs-admin gating is enforced inside the
+  // sub-pages and server actions that need it (billing, settings, team).
   const orgId = await requireActiveOrg(supabase);
   const { data: membership } = await supabase
     .from("memberships")
@@ -26,8 +35,8 @@ export default async function AdminLayout({
     .eq("status", "active")
     .single();
 
-  if (membership?.role !== "admin") {
-    redirect("/briefs");
+  if (!membership || (membership.role !== "admin" && membership.role !== "member")) {
+    redirect("/login");
   }
 
   return (

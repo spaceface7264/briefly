@@ -17,7 +17,7 @@ import {
 import { NotificationCenter } from "@/components/notification-center";
 import type { NotificationRow } from "@/lib/notification-center";
 
-const navItems = [
+const creatorNavItems = [
   { href: "/briefs", label: "Briefs" },
   { href: "/my-briefs", label: "My Briefs" },
   { href: "/discover", label: "Discover" },
@@ -30,55 +30,47 @@ const publicNavItems = [
   { href: "/how-it-works", label: "How it works" },
 ];
 
-const profileItems = [
+const creatorProfileItems = [
   { href: "/profile", label: "Profile" },
   { href: "/profile/payouts", label: "Payouts" },
   { href: "/profile/invoices", label: "Invoices" },
   { href: "/profile/notifications", label: "Notifications" },
 ];
 
+type AccountType = "creator" | "org";
+
 export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
+  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  const [accountChecked, setAccountChecked] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkAccount() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setUserId(null);
-        setAdminChecked(true);
+        setAccountChecked(true);
         return;
       }
       setUserId(user.id);
 
-      // Check admin via membership for active org
       const { data: profile } = await supabase
         .from("profiles")
-        .select("active_org_id")
+        .select("account_type")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (profile?.active_org_id) {
-        const { data: membership } = await supabase
-          .from("memberships")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("org_id", profile.active_org_id)
-          .eq("status", "active")
-          .single();
-        setIsAdmin(membership?.role === "admin");
-      } else {
-        setIsAdmin(false);
-      }
-      setAdminChecked(true);
+      const value = (profile as { account_type?: string } | null)
+        ?.account_type;
+      setAccountType(value === "org" ? "org" : "creator");
+      setAccountChecked(true);
     }
-    checkAdmin();
+    checkAccount();
   }, []);
 
   useEffect(() => {
@@ -138,7 +130,9 @@ export function Nav() {
     router.refresh();
   }
 
-  const isLoggedOut = adminChecked && !userId;
+  const isLoggedOut = accountChecked && !userId;
+  const isOrgUser = accountType === "org";
+  const homeHref = isLoggedOut ? "/" : isOrgUser ? "/admin" : "/briefs";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
@@ -146,12 +140,12 @@ export function Nav() {
         <div className="flex items-center justify-between h-14 gap-6">
           <div className="flex items-center gap-3 shrink-0">
             <Link
-              href={isLoggedOut ? "/" : "/briefs"}
+              href={homeHref}
               className="flex items-center"
             >
               <PlatformLogo className="h-6 w-auto" width={120} height={32} priority />
             </Link>
-            {!isLoggedOut && <OrgSwitcher />}
+            {!isLoggedOut && !isOrgUser && <OrgSwitcher />}
           </div>
 
           {isLoggedOut ? (
@@ -181,9 +175,61 @@ export function Nav() {
                 Login
               </Link>
             </nav>
+          ) : isOrgUser ? (
+            // Org users on shared surfaces (e.g. /discover) get a
+            // minimal "exit chrome" — they're outside their dashboard,
+            // so we just give them a clear way back and a sign-out.
+            // Profile, notifications, and team management all live
+            // inside /admin/settings.
+            <nav className="flex items-center gap-3 overflow-visible">
+              <Link
+                href="/admin"
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-accent/40 text-accent hover:bg-accent hover:text-background transition-all whitespace-nowrap ${
+                  accountChecked ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
+                </svg>
+                Back to dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Sign out"
+                title="Sign out"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+              </button>
+            </nav>
           ) : (
           <nav className="flex items-center gap-1 overflow-visible">
-            {navItems.map((item) => {
+            {creatorNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 pathname.startsWith(item.href + "/");
@@ -236,7 +282,7 @@ export function Nav() {
                 </svg>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 bg-surface border-border">
-                {profileItems.map((item) => {
+                {creatorProfileItems.map((item) => {
                   const isActive = pathname === item.href || (item.href !== "/profile" && pathname.startsWith(item.href));
                   return (
                     <DropdownMenuItem
@@ -263,17 +309,6 @@ export function Nav() {
               onNotificationsChange={setNotifications}
               onUnreadCountChange={setUnreadCount}
             />
-
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className={`ml-1 px-3 py-1.5 rounded-md text-sm font-medium border border-accent/40 text-accent hover:bg-accent hover:text-background transition-all whitespace-nowrap ${
-                  adminChecked ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                Admin
-              </Link>
-            )}
           </nav>
           )}
         </div>

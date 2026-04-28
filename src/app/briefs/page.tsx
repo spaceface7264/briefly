@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
+import { requireCreatorAccount } from "@/lib/account";
 import { BriefsClient } from "./briefs-client";
 import type { Brief, BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
 
@@ -13,6 +14,7 @@ interface Props {
 export default async function BriefsPage({ searchParams }: Props) {
   const { category, duration } = await searchParams;
   const supabase = await createClient();
+  await requireCreatorAccount(supabase);
   const orgId = await requireActiveOrg(supabase);
 
   const { data: { user } } = await supabase.auth.getUser();
