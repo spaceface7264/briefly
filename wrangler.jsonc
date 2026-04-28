@@ -32,11 +32,19 @@
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://bncuqifjcsrjkohxkwez.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_kiij5LwoTAVQoom57SUGXQ_rgtClNuy",
-    "NEXT_PUBLIC_APP_URL": "http://localhost:3001"
+    "NEXT_PUBLIC_APP_URL": "https://rainbow.ramieldaoud.workers.dev"
   },
   "env": {
     "staging": {
       "name": "rainbow-staging",
+      "vars": {
+        "NEXT_PUBLIC_SUPABASE_URL": "https://bncuqifjcsrjkohxkwez.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_kiij5LwoTAVQoom57SUGXQ_rgtClNuy",
+        "NEXT_PUBLIC_APP_URL": "https://rainbow-staging.ramieldaoud.workers.dev"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
       "services": [
         {
           "binding": "WORKER_SELF_REFERENCE",
@@ -46,6 +54,14 @@
     },
     "preview": {
       "name": "rainbow-preview",
+      "vars": {
+        "NEXT_PUBLIC_SUPABASE_URL": "https://bncuqifjcsrjkohxkwez.supabase.co",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_kiij5LwoTAVQoom57SUGXQ_rgtClNuy",
+        "NEXT_PUBLIC_APP_URL": "https://rainbow-preview.ramieldaoud.workers.dev"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
       "services": [
         {
           "binding": "WORKER_SELF_REFERENCE",
