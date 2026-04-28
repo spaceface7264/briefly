@@ -25,6 +25,11 @@ const navItems = [
   { href: "/guide", label: "Guide" },
 ];
 
+const publicNavItems = [
+  { href: "/discover", label: "Discover" },
+  { href: "/how-it-works", label: "How it works" },
+];
+
 const profileItems = [
   { href: "/profile", label: "Profile" },
   { href: "/profile/payouts", label: "Payouts" },
@@ -133,20 +138,50 @@ export function Nav() {
     router.refresh();
   }
 
+  const isLoggedOut = adminChecked && !userId;
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 gap-6">
           <div className="flex items-center gap-3 shrink-0">
             <Link
-              href="/briefs"
+              href={isLoggedOut ? "/" : "/briefs"}
               className="flex items-center"
             >
               <PlatformLogo className="h-6 w-auto" width={120} height={32} priority />
             </Link>
-            <OrgSwitcher />
+            {!isLoggedOut && <OrgSwitcher />}
           </div>
 
+          {isLoggedOut ? (
+            <nav className="flex items-center gap-1 overflow-visible">
+              {publicNavItems.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                      isActive
+                        ? "text-brand"
+                        : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <Link
+                href="/login"
+                className="ml-2 px-4 py-1.5 rounded-md bg-accent hover:bg-accent-hover text-background text-sm font-semibold transition-colors whitespace-nowrap"
+              >
+                Login
+              </Link>
+            </nav>
+          ) : (
           <nav className="flex items-center gap-1 overflow-visible">
             {navItems.map((item) => {
               const isActive =
@@ -240,6 +275,7 @@ export function Nav() {
               </Link>
             )}
           </nav>
+          )}
         </div>
       </div>
     </header>

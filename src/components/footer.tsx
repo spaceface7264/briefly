@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { platformDetails } from "@/lib/invoicing/platform";
+import { createClient } from "@/lib/supabase/server";
 
 const platformLinks = [
   { href: "/briefs", label: "Briefs" },
   { href: "/guide", label: "Guide" },
   { href: "/profile", label: "Profile" },
+];
+
+const publicPlatformLinks = [
+  { href: "/discover", label: "Discover" },
+  { href: "/how-it-works", label: "How it works" },
 ];
 
 const legalLinks = [
@@ -14,10 +20,21 @@ const legalLinks = [
   { href: "/legal/self-billing", label: "Self-billing agreement" },
 ];
 
-export function Footer() {
+export async function Footer() {
   const platform = platformDetails();
   const year = new Date().getFullYear();
   const contactEmail = platform.contactEmail;
+
+  let isLoggedOut = true;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    isLoggedOut = !user;
+  } catch {
+    isLoggedOut = true;
+  }
+
+  const links = isLoggedOut ? publicPlatformLinks : platformLinks;
 
   return (
     <footer className="mt-16 border-t border-border bg-surface/30">
@@ -28,7 +45,7 @@ export function Footer() {
               Platform
             </p>
             <ul className="space-y-2">
-              {platformLinks.map((link) => (
+              {links.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
