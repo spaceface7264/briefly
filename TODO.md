@@ -269,6 +269,36 @@ work have been resolved or decided. Future items go below this line.
 
 ### Backlog
 
+- **Middleware leaves stale Supabase cookies un-scrubbed on public
+  pages** (logged 2026-04-29). `src/lib/supabase/middleware.ts`
+  short-circuits on any path that isn't in `protectedPaths` or
+  `/login`, so it never calls `supabase.auth.getUser()` on `/`,
+  `/discover`, `/how-it-works`, `/legal/*`, `/guide`. The `@supabase/ssr`
+  client deletes invalid refresh tokens via its cookie writer — but
+  only if `auth.getUser()` actually runs. When a user has a stale
+  refresh token (DB reset, server-side sign-out, token rotation) and
+  lands on a public page, `RootLayout` and the page itself both call
+  `auth.getUser()` from inside server components, throwing
+  `Invalid Refresh Token: Refresh Token Not Found`. Both call sites
+  catch the error so the page still renders, but Next dev mode
+  surfaces the throw in the console overlay and prod logs are noisy.
+
+  Two clean fixes — pick one in a small PR:
+  1. Always run `auth.getUser()` in middleware regardless of path.
+     One extra auth roundtrip per anonymous page load; probably fine.
+  2. Skip the middleware only when there's no `sb-*` cookie on the
+     request. Best of both: free for true anonymous visitors,
+     scrubs bad cookies for everyone else.
+
+  Repro: clear the auth backend (or rotate tokens) without clearing
+  the browser, navigate to `/`. The errors come from
+  `src/app/layout.tsx` (`getActiveOrg → auth.getUser`) and
+  `src/app/page.tsx` (`getAccountType → auth.getUser`), neither of
+  which were touched by PR-A/B/C — this is pre-existing on `main`.
+  Workaround for users today: visit `/login` (which is in the
+  middleware allow-list and scrubs the cookie) or clear `sb-*`
+  cookies manually.
+
 - **Signup tile visual polish + deep-link entry** (logged 2026-04-29).
   The `As a creator` / `With invite code` tiles in `LoginForm` are
   functional but visually thin. Worth doing as a small PR-D ticket:
