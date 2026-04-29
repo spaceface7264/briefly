@@ -25,11 +25,18 @@ interface ClaimActionsProps {
     id: string;
     invoice_number: string | null;
   } | null;
+  /**
+   * True when the viewer is an org admin. Members can review and
+   * approve/reject submissions (server-side `claims.update` RLS
+   * allows it) but cannot release funds — `payClaim` still calls
+   * `requireOrgAdmin()`. Hide the Pay button accordingly.
+   */
+  canPay: boolean;
 }
 
 type PendingAction = null | "approve" | "reject" | "pay";
 
-export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
+export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showSubmission, setShowSubmission] = useState(false);
@@ -156,6 +163,32 @@ export function ClaimActions({ claim, paidInvoice }: ClaimActionsProps) {
 
   if (claim.status === "approved") {
     const payoutsEnabled = claim.creator?.stripe_payouts_enabled ?? false;
+
+    if (!canPay) {
+      return (
+        <div className="flex flex-col items-end gap-1">
+          <span
+            title="Releasing funds is admin-only — ask an admin"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted bg-surface-raised border border-border rounded-lg select-none cursor-not-allowed"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            Awaiting admin payout
+          </span>
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col items-end gap-1">

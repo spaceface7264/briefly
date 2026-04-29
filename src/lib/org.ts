@@ -73,6 +73,42 @@ export async function getActiveOrgDetails(supabase: SupabaseClient) {
 }
 
 /**
+ * Reads the active-org membership role for the current user.
+ * Returns "admin" | "member" | "creator" | null (null = no active
+ * membership in active_org_id, or not authenticated).
+ *
+ * Use from server components for UI gating decisions like "should
+ * this button render?". The server actions themselves still gate
+ * via `requireOrgAdmin()` — this is the read-side counterpart so
+ * we don't render buttons that would 401 on click.
+ */
+export async function getOrgRole(
+  supabase: SupabaseClient
+): Promise<"admin" | "member" | "creator" | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const orgId = await getActiveOrg(supabase);
+  if (!orgId) return null;
+
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("org_id", orgId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  const role = (membership as { role?: string } | null)?.role;
+  if (role === "admin" || role === "member" || role === "creator") {
+    return role;
+  }
+  return null;
+}
+
+/**
  * Guard for server actions that require org admin access.
  * Returns the supabase client, userId, and orgId on success.
  */
