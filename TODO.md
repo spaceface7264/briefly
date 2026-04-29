@@ -269,6 +269,39 @@ work have been resolved or decided. Future items go below this line.
 
 ### Backlog
 
+- **Split `/admin/settings` into Personal vs Org IA** (logged
+  2026-04-29). After PR-C1 + PR-C2 the page mixes individual-scope
+  concerns (your name, your password, your email notifications) with
+  org-scope concerns (org name, branding, legal entity, team, invites,
+  discoverability). Every comparable B2B SaaS — Slack, Linear, Notion,
+  Figma, Stripe, GitHub, Canva — separates these into two surfaces:
+  personal is reached via the avatar dropdown, org admin is reached
+  via a workspace/settings nav item. Within the org surface they all
+  further split with tabs (`General · Team · Billing · …`); the team
+  tab is always its own thing.
+
+  Plan for PR-D1 (~½ day):
+  1. Tabs at `/admin/settings`: default `General`, second `Team`.
+     One URL, search-param state (`?tab=team`) so links survive.
+     - **General** keeps `OrgDetailsForm` + `DiscoverabilityToggle`.
+     - **Team** holds `AdminTeam` + `TeamInvites`.
+     - **Billing** stays at `/admin/billing` for now (or absorb later).
+  2. Pull `PersonalAccountForm` + `NotificationsPanel` (audience=org)
+     out of `/admin/settings` into a new `/admin/account` route.
+     Notifications belong with personal — they're per-user prefs even
+     though the audience is org-side.
+  3. Restore an avatar dropdown for org users in the header (PR-B
+     stripped this for cleanliness — bring back a minimal version
+     with just `Personal account` + `Sign out`, no creator-flavoured
+     links).
+  4. Grep for `/admin/settings` links in the codebase and update any
+     that point to sections now living elsewhere.
+
+  What we're explicitly NOT doing: splitting org admin into two
+  top-level routes (`/admin/org-settings` vs `/admin/team`). The
+  unified one-URL-with-tabs pattern is what the comparables converge
+  on; splitting routes adds nav noise without clarity gain.
+
 - **Middleware leaves stale Supabase cookies un-scrubbed on public
   pages** (logged 2026-04-29). `src/lib/supabase/middleware.ts`
   short-circuits on any path that isn't in `protectedPaths` or
