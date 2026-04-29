@@ -1,18 +1,46 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
 import { redirect } from "next/navigation";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
-import { DiscoverabilityToggle } from "./discoverability-toggle";
-import { OrgDetailsForm } from "./org-details-form";
-import { OrgDetailsView } from "./org-details-view";
 import { PersonalAccountForm } from "./personal-account-form";
 import { TeamInvites, type TeammateInvite } from "./team-invites";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminSettingsPage() {
+type SettingsTab = "personal" | "team" | "notifications";
+
+const TABS: { id: SettingsTab; label: string; description: string }[] = [
+  {
+    id: "personal",
+    label: "Personal",
+    description: "Your name, email, and password.",
+  },
+  {
+    id: "team",
+    label: "Team",
+    description: "Your teammates and pending invites.",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    description: "Email alerts you receive from your org.",
+  },
+];
+
+export default async function AdminSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const params = await searchParams;
+  const activeTab: SettingsTab =
+    params.tab === "team" || params.tab === "notifications"
+      ? params.tab
+      : "personal";
+  const activeTabMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0];
   const supabase = await createClient();
   const {
     data: { user },
@@ -22,11 +50,12 @@ export default async function AdminSettingsPage() {
 
   const orgId = await requireActiveOrg(supabase);
 
+  // Settings is the personal-and-team surface — org identity / branding /
+  // discoverability live on /admin/organization. We only need the org's
+  // display name here so the personal form can read "Member at <Org>".
   const { data: org } = await supabase
     .from("organizations")
-    .select(
-      "name, slug, description, discoverable, industry, logo_url, accent_color, contact_email, address, cvr, vat_number"
-    )
+    .select("name")
     .eq("id", orgId)
     .single();
 
@@ -130,78 +159,73 @@ export default async function AdminSettingsPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
-        <p className="text-muted">
-          Your personal account, your org, your team, and your email
-          notifications.
-        </p>
+        <p className="text-muted">{activeTabMeta.description}</p>
       </div>
 
-      <div className="space-y-10">
-        <PersonalAccountForm
-          initialName={me?.name ?? ""}
-          email={user.email ?? ""}
-          roleLabel={roleLabel}
-          orgName={org?.name ?? "your org"}
-        />
-
-        {org &&
-          (isAdmin ? (
-            <OrgDetailsForm
-              org={{
-                name: org.name,
-                slug: org.slug,
-                description: org.description,
-                industry: org.industry,
-                logo_url: org.logo_url,
-                accent_color: org.accent_color,
-                contact_email: org.contact_email,
-                address: org.address,
-                cvr: org.cvr,
-                vat_number: org.vat_number,
-              }}
-            />
-          ) : (
-            <OrgDetailsView
-              org={{
-                name: org.name,
-                slug: org.slug,
-                description: org.description,
-                industry: org.industry,
-                logo_url: org.logo_url,
-                accent_color: org.accent_color,
-                contact_email: org.contact_email,
-                address: org.address,
-                cvr: org.cvr,
-                vat_number: org.vat_number,
-              }}
-            />
-          ))}
-
-        <AdminTeam
-          admins={admins ?? []}
-          creators={creators ?? []}
-          currentUserId={user.id}
-          canManage={isAdmin}
-        />
-
-        <TeamInvites invites={teammateInvites} canManage={isAdmin} />
-
-        <NotificationsPanel
-          audience="org"
-          preferences={myPreferences}
-          warningsByType={{ submissions: submissionsWarning }}
-        />
-
-        <DiscoverabilityToggle
-          orgId={orgId}
-          discoverable={org?.discoverable ?? false}
-          orgName={org?.name ?? ""}
-          orgDescription={org?.description ?? ""}
-          canManage={isAdmin}
-        />
+      {/* Tab strip. Search-param state (?tab=team, ?tab=notifications)
+          so each tab is linkable and survives refresh. Default tab
+          omits the param entirely to keep the canonical URL clean. */}
+      <div className="mb-8 border-b border-border">
+        <nav className="flex gap-1 -mb-px" aria-label="Settings sections">
+          {TABS.map((tab) => {
+            const isActive = tab.id === activeTab;
+            const href =
+              tab.id === "personal"
+                ? "/admin/settings"
+                : `/admin/settings?tab=${tab.id}`;
+            return (
+              <Link
+                key={tab.id}
+                href={href}
+                aria-current={isActive ? "page" : undefined}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  isActive
+                    ? "border-accent text-foreground"
+                    : "border-transparent text-muted hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
+
+      {activeTab === "personal" && (
+        <div className="space-y-10">
+          <PersonalAccountForm
+            initialName={me?.name ?? ""}
+            email={user.email ?? ""}
+            roleLabel={roleLabel}
+            orgName={org?.name ?? "your org"}
+          />
+        </div>
+      )}
+
+      {activeTab === "team" && (
+        <div className="space-y-10">
+          <AdminTeam
+            admins={admins ?? []}
+            creators={creators ?? []}
+            currentUserId={user.id}
+            canManage={isAdmin}
+          />
+
+          <TeamInvites invites={teammateInvites} canManage={isAdmin} />
+        </div>
+      )}
+
+      {activeTab === "notifications" && (
+        <div className="space-y-10">
+          <NotificationsPanel
+            audience="org"
+            preferences={myPreferences}
+            warningsByType={{ submissions: submissionsWarning }}
+          />
+        </div>
+      )}
     </div>
   );
 }

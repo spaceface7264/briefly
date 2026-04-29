@@ -14,6 +14,12 @@ interface AdminNavProps {
   isOrgAdmin: boolean;
   /** Whether the viewer is a platform admin. Drives the "Platform admin" link in the footer. */
   isPlatformAdmin: boolean;
+  /** Active org branding shown as the top-left identity anchor of the sidebar. */
+  org: {
+    name: string;
+    logoUrl: string | null;
+    accentColor: string | null;
+  };
 }
 
 interface NavItem {
@@ -91,6 +97,18 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    href: "/admin/organization",
+    label: "Organization",
+    // Not adminOnly — members can view the org page read-only. The
+    // OrgDetailsForm/View split inside the page handles the
+    // editable-vs-readonly choice based on role.
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
     icon: (
@@ -102,7 +120,12 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function AdminNav({ userId, isOrgAdmin, isPlatformAdmin }: AdminNavProps) {
+export function AdminNav({
+  userId,
+  isOrgAdmin,
+  isPlatformAdmin,
+  org,
+}: AdminNavProps) {
   const pathname = usePathname();
   // Only the claim-unread badge needs client state. The role/admin
   // flags arrive from the parent server layout, so the very first
@@ -149,12 +172,51 @@ export function AdminNav({ userId, isOrgAdmin, isPlatformAdmin }: AdminNavProps)
     };
   }, [userId]);
 
+  const orgInitial = org.name.charAt(0).toUpperCase();
+  const orgAccent = org.accentColor ?? "#C8FF00";
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
-      <div className="p-6 border-b border-border">
-        <Link href="/admin" className="flex items-center gap-2">
-          <PlatformLogo className="h-7 w-auto" width={100} height={28} />
-          <span className="text-xs font-medium text-accent uppercase tracking-wider">Admin</span>
+      <div className="p-4 border-b border-border">
+        <Link
+          href="/admin"
+          className="flex items-center gap-3 rounded-lg p-2 -m-2 hover:bg-surface-hover transition-colors"
+        >
+          {org.logoUrl ? (
+            // Org logos come from user uploads — Next/Image would need
+            // every host configured in next.config.ts, so use a plain
+            // <img> here as we do on /discover.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={org.logoUrl}
+              alt={org.name}
+              className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border bg-background"
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-background font-bold text-lg shrink-0"
+              style={{ backgroundColor: orgAccent }}
+            >
+              {orgInitial}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold truncate" title={org.name}>
+              {org.name}
+            </div>
+            {/* Reflects the viewer's role in this org, not the surface
+                name — a member browsing /admin/* should see "Member",
+                not "Admin". Admin gets the accent color to signal
+                elevated access; member is muted. */}
+            <div
+              className={`text-[10px] font-medium uppercase tracking-wider ${
+                isOrgAdmin ? "text-accent" : "text-muted"
+              }`}
+            >
+              {isOrgAdmin ? "Admin" : "Member"}
+            </div>
+          </div>
         </Link>
       </div>
 
@@ -243,6 +305,23 @@ export function AdminNav({ userId, isOrgAdmin, isPlatformAdmin }: AdminNavProps)
           Browse brands
         </Link>
       </div>
+
+      {/* Platform attribution. The org owns the top of the sidebar; the
+          platform is a quiet "powered by" mark at the bottom. */}
+      <Link
+        href="/"
+        className="px-4 py-3 flex items-center gap-1.5 text-muted/50 hover:text-muted/80 transition-colors border-t border-border"
+      >
+        <span className="text-[10px] uppercase tracking-wider">
+          Powered by
+        </span>
+        <PlatformLogo
+          className="h-3 w-auto opacity-70"
+          width={50}
+          height={12}
+          textClassName="text-[10px] font-bold tracking-tight"
+        />
+      </Link>
     </aside>
   );
 }
