@@ -1,4 +1,13 @@
-import type { UserRole } from "@/types/database";
+/**
+ * Notification "audience" mirrors profiles.account_type. Each
+ * notification type is shown to a specific audience (and only that
+ * audience can toggle it). We use a dedicated audience type rather
+ * than user_role so the gating tracks account_type cleanly — an org
+ * teammate (admin or member) belongs to the "org" audience regardless
+ * of their per-org role, and a creator account is always in the
+ * "creator" audience.
+ */
+export type NotificationAudience = "creator" | "org";
 
 export type NotificationType =
   | "submissions"
@@ -22,7 +31,7 @@ export interface NotificationTypeDef {
   column: NotificationColumn;
   label: string;
   description: string;
-  roles: UserRole[];
+  audiences: NotificationAudience[];
   category: "in_app" | "email";
 }
 
@@ -32,7 +41,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_submissions",
     label: "Submission alerts",
     description: "Email when a creator submits work that needs review.",
-    roles: ["admin"],
+    audiences: ["org"],
     category: "email",
   },
   {
@@ -40,7 +49,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_new_briefs",
     label: "New briefs",
     description: "Email when a new brief is published.",
-    roles: ["creator"],
+    audiences: ["creator"],
     category: "email",
   },
   {
@@ -48,7 +57,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_claim_updates",
     label: "Claim updates",
     description: "Email when your claim is approved, rejected, released, or expired.",
-    roles: ["creator"],
+    audiences: ["creator"],
     category: "email",
   },
   {
@@ -56,7 +65,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_claim_queue",
     label: "Claim queue activity",
     description: "Email when claims need attention in the admin queue.",
-    roles: ["admin"],
+    audiences: ["org"],
     category: "email",
   },
   {
@@ -64,7 +73,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_payments",
     label: "Payout confirmations",
     description: "Email when payouts are sent for your approved work.",
-    roles: ["creator"],
+    audiences: ["creator"],
     category: "email",
   },
   {
@@ -72,7 +81,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_applications",
     label: "Application alerts",
     description: "Email when a creator applies to join your org.",
-    roles: ["admin"],
+    audiences: ["org"],
     category: "email",
   },
   {
@@ -80,13 +89,15 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
     column: "notify_applications",
     label: "Application updates",
     description: "Email when an org reviews your application.",
-    roles: ["creator"],
+    audiences: ["creator"],
     category: "email",
   },
 ];
 
-export function notificationTypesFor(role: UserRole): NotificationTypeDef[] {
-  return NOTIFICATION_TYPES.filter((t) => t.roles.includes(role));
+export function notificationTypesFor(
+  audience: NotificationAudience
+): NotificationTypeDef[] {
+  return NOTIFICATION_TYPES.filter((t) => t.audiences.includes(audience));
 }
 
 export function findNotificationType(
