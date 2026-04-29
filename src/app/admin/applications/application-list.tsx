@@ -22,9 +22,12 @@ export interface Application {
 export function ApplicationList({
   pending,
   reviewed,
+  canDecide,
 }: {
   pending: Application[];
   reviewed: Application[];
+  /** Admins can approve/reject; members can only view pending applications. */
+  canDecide: boolean;
 }) {
   return (
     <div className="space-y-8">
@@ -33,7 +36,11 @@ export function ApplicationList({
           <h2 className="text-lg font-semibold mb-4">Pending</h2>
           <div className="space-y-3">
             {pending.map((app) => (
-              <ApplicationRow key={app.id} application={app} />
+              <ApplicationRow
+                key={app.id}
+                application={app}
+                canDecide={canDecide}
+              />
             ))}
           </div>
         </section>
@@ -44,7 +51,11 @@ export function ApplicationList({
           <h2 className="text-lg font-semibold mb-4 text-muted">Reviewed</h2>
           <div className="space-y-3">
             {reviewed.map((app) => (
-              <ApplicationRow key={app.id} application={app} />
+              <ApplicationRow
+                key={app.id}
+                application={app}
+                canDecide={canDecide}
+              />
             ))}
           </div>
         </section>
@@ -62,7 +73,13 @@ export function ApplicationList({
   );
 }
 
-function ApplicationRow({ application }: { application: Application }) {
+function ApplicationRow({
+  application,
+  canDecide,
+}: {
+  application: Application;
+  canDecide: boolean;
+}) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,22 +137,28 @@ function ApplicationRow({ application }: { application: Application }) {
 
       <div className="flex items-center gap-2 shrink-0">
         {isPending && !result ? (
-          <>
-            <button
-              onClick={() => handleReview("approved")}
-              disabled={loading}
-              className="px-4 py-1.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => handleReview("rejected")}
-              disabled={loading}
-              className="px-4 py-1.5 border border-border hover:border-border-strong text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-            >
-              Reject
-            </button>
-          </>
+          canDecide ? (
+            <>
+              <button
+                onClick={() => handleReview("approved")}
+                disabled={loading}
+                className="px-4 py-1.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => handleReview("rejected")}
+                disabled={loading}
+                className="px-4 py-1.5 border border-border hover:border-border-strong text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </>
+          ) : (
+            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-surface-raised text-muted">
+              Pending review
+            </span>
+          )
         ) : (
           <span
             className={`px-2.5 py-1 text-xs font-medium rounded-full ${

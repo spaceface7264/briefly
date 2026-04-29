@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireActiveOrg, getOrgRole } from "@/lib/org";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import { ClaimActions } from "./claim-actions";
@@ -14,6 +14,8 @@ export default async function AdminClaimsPage({
   const { status: statusFilter, claim: highlightClaim } = await searchParams;
   const supabase = await createClient();
   const orgId = await requireActiveOrg(supabase);
+  const role = await getOrgRole(supabase);
+  const canPay = role === "admin";
 
   // Always fetch all claims so tab counts are accurate; filter the displayed list below
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,6 +145,7 @@ export default async function AdminClaimsPage({
                     <td className="px-4 py-3 text-right">
                       <ClaimActions
                         claim={claim}
+                        canPay={canPay}
                         paidInvoice={
                           (claim.payments || []).find(
                             (p: any) => p.status === "succeeded"

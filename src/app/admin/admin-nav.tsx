@@ -7,6 +7,21 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+interface AdminNavProps {
+  /** The signed-in user's id; used to subscribe to claim-notification realtime updates. */
+  userId: string;
+  /** Whether the viewer is an admin of the active org. Drives the lock state on Invites + Billing. */
+  isOrgAdmin: boolean;
+  /** Whether the viewer is a platform admin. Drives the "Platform admin" link in the footer. */
+  isPlatformAdmin: boolean;
+  /** Active org branding shown as the top-left identity anchor of the sidebar. */
+  org: {
+    name: string;
+    logoUrl: string | null;
+    accentColor: string | null;
+  };
+}
+
 interface NavItem {
   href: string;
   label: string;
@@ -82,6 +97,18 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    href: "/admin/organization",
+    label: "Organization",
+    // Not adminOnly — members can view the org page read-only. The
+    // OrgDetailsForm/View split inside the page handles the
+    // editable-vs-readonly choice based on role.
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
     icon: (
@@ -93,66 +120,19 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function AdminNav() {
+export function AdminNav({
+  userId,
+  isOrgAdmin,
+  isPlatformAdmin,
+  org,
+}: AdminNavProps) {
   const pathname = usePathname();
-  const [userId, setUserId] = useState<string | null>(null);
+  // Only the claim-unread badge needs client state. The role/admin
+  // flags arrive from the parent server layout, so the very first
+  // render already has the correct lock state — no flash.
   const [claimUnread, setClaimUnread] = useState(0);
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-  // Until the role is loaded we treat the user as an admin so the nav
-  // doesn't flash a locked state on every refresh — most viewers ARE
-  // admins and will resolve before render. Members briefly see the
-  // unlocked nav and then see the lock appear after bootstrap; that's
-  // a more forgiving default than the inverse.
-  const [isOrgAdmin, setIsOrgAdmin] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
-    let channel: RealtimeChannel | null = null;
-
-    async function bootstrap() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-
-      // Run profile + memberships in parallel — both are keyed off
-      // the same user_id so neither blocks the other. We resolve
-      // the user's role-in-active-org client-side once both land.
-      const [{ data: profile }, { data: memberships }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("is_platform_admin, active_org_id")
-          .eq("id", user.id)
-          .maybeSingle(),
-        supabase
-          .from("memberships")
-          .select("role, org_id")
-          .eq("user_id", user.id)
-          .eq("status", "active"),
-      ]);
-
-      setIsPlatformAdmin(profile?.is_platform_admin === true);
-
-      const activeOrgId = profile?.active_org_id ?? null;
-      const activeMembership = (memberships ?? []).find(
-        (m) => m.org_id === activeOrgId
-      );
-      setIsOrgAdmin(activeMembership?.role === "admin");
-    }
-
-    bootstrap();
-
-    return () => {
-      if (channel) {
-        void supabase.removeChannel(channel);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-    const currentUserId = userId;
     const supabase = createClient();
     let channel: RealtimeChannel | null = null;
 
@@ -160,7 +140,7 @@ export function AdminNav() {
       const { count } = await supabase
         .from("notifications")
         .select("id", { head: true, count: "exact" })
-        .eq("recipient_id", currentUserId)
+        .eq("recipient_id", userId)
         .eq("event_type", "claim_submitted")
         .is("read_at", null);
 
@@ -170,14 +150,14 @@ export function AdminNav() {
     loadUnread();
 
     channel = supabase
-      .channel(`admin-claims-unread:${currentUserId}`)
+      .channel(`admin-claims-unread:${userId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "notifications",
-          filter: `recipient_id=eq.${currentUserId}`,
+          filter: `recipient_id=eq.${userId}`,
         },
         () => {
           loadUnread();
@@ -192,12 +172,51 @@ export function AdminNav() {
     };
   }, [userId]);
 
+  const orgInitial = org.name.charAt(0).toUpperCase();
+  const orgAccent = org.accentColor ?? "#C8FF00";
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
-      <div className="p-6 border-b border-border">
-        <Link href="/admin" className="flex items-center gap-2">
-          <PlatformLogo className="h-7 w-auto" width={100} height={28} />
-          <span className="text-xs font-medium text-accent uppercase tracking-wider">Admin</span>
+      <div className="p-4 border-b border-border">
+        <Link
+          href="/admin"
+          className="flex items-center gap-3 rounded-lg p-2 -m-2 hover:bg-surface-hover transition-colors"
+        >
+          {org.logoUrl ? (
+            // Org logos come from user uploads — Next/Image would need
+            // every host configured in next.config.ts, so use a plain
+            // <img> here as we do on /discover.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={org.logoUrl}
+              alt={org.name}
+              className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border bg-background"
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-background font-bold text-lg shrink-0"
+              style={{ backgroundColor: orgAccent }}
+            >
+              {orgInitial}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold truncate" title={org.name}>
+              {org.name}
+            </div>
+            {/* Reflects the viewer's role in this org, not the surface
+                name — a member browsing /admin/* should see "Member",
+                not "Admin". Admin gets the accent color to signal
+                elevated access; member is muted. */}
+            <div
+              className={`text-[10px] font-medium uppercase tracking-wider ${
+                isOrgAdmin ? "text-accent" : "text-muted"
+              }`}
+            >
+              {isOrgAdmin ? "Admin" : "Member"}
+            </div>
+          </div>
         </Link>
       </div>
 
@@ -286,6 +305,23 @@ export function AdminNav() {
           Browse brands
         </Link>
       </div>
+
+      {/* Platform attribution. The org owns the top of the sidebar; the
+          platform is a quiet "powered by" mark at the bottom. */}
+      <Link
+        href="/"
+        className="px-4 py-3 flex items-center gap-1.5 text-muted/50 hover:text-muted/80 transition-colors border-t border-border"
+      >
+        <span className="text-[10px] uppercase tracking-wider">
+          Powered by
+        </span>
+        <PlatformLogo
+          className="h-3 w-auto opacity-70"
+          width={50}
+          height={12}
+          textClassName="text-[10px] font-bold tracking-tight"
+        />
+      </Link>
     </aside>
   );
 }
