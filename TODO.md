@@ -255,3 +255,138 @@ work have been resolved or decided. Future items go below this line.
   work was approved. No code change. If a GDPR-style consent concern
   surfaces later, the right answer is a "you'll get email about your
   activity" line on the signup form, not flipping defaults.
+
+- **`/login` stays a single page** (resolved 2026-04-29). After the
+  PR-C2 signup fork, the question came up whether to split `/login`
+  into `/login/creator` and `/login/org`. We decided against it:
+  sign-in is functionally identical for both audiences (same Supabase
+  call), splitting the URL doubles the maintenance surface, and a
+  shared `/login` removes the wrong-funnel risk of misshared links.
+  The shells (`/briefs` + `/discover` vs `/admin/*`) carry the
+  account-type identity post-login, which is where it belongs. See
+  the Backlog entry below for the visual polish that came out of the
+  same discussion.
+
+### Backlog
+
+- **Split `/admin/settings` into Personal vs Org IA** (logged
+  2026-04-29). After PR-C1 + PR-C2 the page mixes individual-scope
+  concerns (your name, your password, your email notifications) with
+  org-scope concerns (org name, branding, legal entity, team, invites,
+  discoverability). Every comparable B2B SaaS — Slack, Linear, Notion,
+  Figma, Stripe, GitHub, Canva — separates these into two surfaces:
+  personal is reached via the avatar dropdown, org admin is reached
+  via a workspace/settings nav item. Within the org surface they all
+  further split with tabs (`General · Team · Billing · …`); the team
+  tab is always its own thing.
+
+  Plan for PR-D1 (~½ day):
+  1. Tabs at `/admin/settings`: default `General`, second `Team`.
+     One URL, search-param state (`?tab=team`) so links survive.
+     - **General** keeps `OrgDetailsForm` + `DiscoverabilityToggle`.
+     - **Team** holds `AdminTeam` + `TeamInvites`.
+     - **Billing** stays at `/admin/billing` for now (or absorb later).
+  2. Pull `PersonalAccountForm` + `NotificationsPanel` (audience=org)
+     out of `/admin/settings` into a new `/admin/account` route.
+     Notifications belong with personal — they're per-user prefs even
+     though the audience is org-side.
+  3. Restore an avatar dropdown for org users in the header (PR-B
+     stripped this for cleanliness — bring back a minimal version
+     with just `Personal account` + `Sign out`, no creator-flavoured
+     links).
+  4. Grep for `/admin/settings` links in the codebase and update any
+     that point to sections now living elsewhere.
+
+  What we're explicitly NOT doing: splitting org admin into two
+  top-level routes (`/admin/org-settings` vs `/admin/team`). The
+  unified one-URL-with-tabs pattern is what the comparables converge
+  on; splitting routes adds nav noise without clarity gain.
+
+- **Middleware leaves stale Supabase cookies un-scrubbed on public
+  pages** (logged 2026-04-29). `src/lib/supabase/middleware.ts`
+  short-circuits on any path that isn't in `protectedPaths` or
+  `/login`, so it never calls `supabase.auth.getUser()` on `/`,
+  `/discover`, `/how-it-works`, `/legal/*`, `/guide`. The `@supabase/ssr`
+  client deletes invalid refresh tokens via its cookie writer — but
+  only if `auth.getUser()` actually runs. When a user has a stale
+  refresh token (DB reset, server-side sign-out, token rotation) and
+  lands on a public page, `RootLayout` and the page itself both call
+  `auth.getUser()` from inside server components, throwing
+  `Invalid Refresh Token: Refresh Token Not Found`. Both call sites
+  catch the error so the page still renders, but Next dev mode
+  surfaces the throw in the console overlay and prod logs are noisy.
+
+  Two clean fixes — pick one in a small PR:
+  1. Always run `auth.getUser()` in middleware regardless of path.
+     One extra auth roundtrip per anonymous page load; probably fine.
+  2. Skip the middleware only when there's no `sb-*` cookie on the
+     request. Best of both: free for true anonymous visitors,
+     scrubs bad cookies for everyone else.
+
+  Repro: clear the auth backend (or rotate tokens) without clearing
+  the browser, navigate to `/`. The errors come from
+  `src/app/layout.tsx` (`getActiveOrg → auth.getUser`) and
+  `src/app/page.tsx` (`getAccountType → auth.getUser`), neither of
+  which were touched by PR-A/B/C — this is pre-existing on `main`.
+  Workaround for users today: visit `/login` (which is in the
+  middleware allow-list and scrubs the cookie) or clear `sb-*`
+  cookies manually.
+
+- **Audit remaining admin-only surfaces for member UI gating** (logged
+  2026-04-29). The integration test pass on `cursor/pr-c-test-integration`
+  caught a class of bugs where pages render full editable UI to org
+  members, then fail server-side on submit. Fixed in this branch for
+  `/admin/settings` (org details, admin team, discoverability,
+  teammate invites) and locked the nav for `/admin/billing` and
+  `/admin/invites`. Two surfaces deliberately left open for now:
+
+  - `/admin/applications` — approving/rejecting creator applications
+    is admin-only behavior. Likely needs the same treatment: lock from
+    nav for members, server-redirect on direct URL, or render the inbox
+    read-only for members. Confirm RLS gates the approve/reject RPC
+    before deciding if read-only is acceptable.
+  - `/admin/creators` — viewing the roster is fine for members; the
+    promote/demote and "remove from org" actions inside are admin-only.
+    Sub-action gating (hide buttons for members) is probably the right
+    move rather than locking the whole page.
+
+  When picking this up, also do the broader **RLS pass for member
+  permissions** that's been deferred since PR-A: most write policies
+  in `0017_org_scoped_rls.sql` and onward gate on `is_org_admin()`,
+  meaning members can open admin pages but most mutations error out.
+  The intended split (Admin = full; Member = day-to-day brief/claim
+  ops, no team/billing/discoverability) needs RLS reflecting it.
+
+- **Friendlier signup error for Supabase rate limits** (logged
+  2026-04-29). The signup form surfaces raw Supabase strings like
+  `email rate limit exceeded`. Map known error codes to human copy
+  in `LoginForm` (e.g. *"Too many signup attempts. Try again in an
+  hour."*). Easy ~10-min PR.
+
+- **Show redeemed teammate invites in `/admin/settings`** (logged
+  2026-04-29). The active-invites table only renders rows where
+  `used_by IS NULL`. Once redeemed, the row disappears entirely.
+  That's intentional (active = actionable) but admins lose visibility
+  into "who joined via which code". Add a collapsible "Redeemed"
+  section underneath the active list, or push it into a small audit
+  log surface. Quick win.
+
+- **Signup tile visual polish + deep-link entry** (logged 2026-04-29).
+  The `As a creator` / `With invite code` tiles in `LoginForm` are
+  functional but visually thin. Worth doing as a small PR-D ticket:
+  - Stronger tile treatment with a small illustration or icon per
+    path, a one-line value prop, and a path-specific accent (creator
+    = lime, invite = a cooler/org-flavoured tone).
+  - Hero title + subtitle change to match the selected path
+    ("Find paid briefs you love" vs "Join your team's workspace").
+  - Marketing-friendly deep links: `/login?mode=signup-creator` and
+    `/login?mode=signup-invite` already work via search params; make
+    sure email templates and any future landing pages use them.
+  - Auto-select the invite path and pre-fill the code field when the
+    URL carries `?code=ABCD-EFGH` so an invite email is one click
+    from a filled form.
+
+  If a paid-org sales motion later wants its own landing page with
+  trust signals and a "Book a demo" alt-CTA, that's a separate
+  marketing surface (e.g. `/business`) that deep-links into
+  `/login?mode=signup-invite` — not a forked auth page.

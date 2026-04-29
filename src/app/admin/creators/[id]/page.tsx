@@ -14,25 +14,33 @@ export default async function CreatorDetailPage({
   const supabase = await createClient();
   const orgId = await requireActiveOrg(supabase);
 
-  const { data: creator } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [{ data: creator }, { data: membership }, { data: claims }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", id).single(),
+      supabase
+        .from("memberships")
+        .select("role")
+        .eq("user_id", id)
+        .eq("org_id", orgId)
+        .eq("status", "active")
+        .maybeSingle(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from("claims") as any)
+        .select("*, brief:briefs(id, title, price_dkk, category, duration_class)")
+        .eq("user_id", id)
+        .eq("org_id", orgId)
+        .order("claimed_at", { ascending: false }),
+    ]);
 
   if (!creator) {
     notFound();
   }
 
-  // Get all claims for this creator in the active org
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: claims } = await (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category, duration_class)")
-    .eq("user_id", id)
-    .eq("org_id", orgId)
-    .order("claimed_at", { ascending: false });
-
   const profile = creator as Profile;
+  // Per-org role for this user (creator/admin/member). Falls back to
+  // "creator" for users we somehow have records for without an active
+  // membership in this org — shouldn't happen but keeps the page safe.
+  const orgRole = (membership?.role as string | undefined) ?? "creator";
 
   // Calculate stats
   const activeClaims = (claims || []).filter((c: any) => c.status === "active");
@@ -65,7 +73,7 @@ export default async function CreatorDetailPage({
             </a>
           )}
         </div>
-        <RoleBadge role={profile.role} />
+        <RoleBadge role={orgRole} />
       </div>
 
       {/* Stats Grid */}
@@ -156,11 +164,14 @@ export default async function CreatorDetailPage({
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, string> = {
     admin: "bg-accent text-background",
+    member: "bg-accent-muted text-accent",
     creator: "bg-accent-muted text-accent",
   };
 
   return (
-    <span className={`px-3 py-1.5 text-sm font-medium rounded-full capitalize ${styles[role] || styles.creator}`}>
+    <span
+      className={`px-3 py-1.5 text-sm font-medium rounded-full capitalize ${styles[role] || styles.creator}`}
+    >
       {role}
     </span>
   );
