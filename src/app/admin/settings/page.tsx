@@ -12,6 +12,7 @@ import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
 import { DiscoverabilityToggle } from "./discoverability-toggle";
 import { OrgDetailsForm } from "./org-details-form";
+import { TeamInvites, type TeammateInvite } from "./team-invites";
 
 export const dynamic = "force-dynamic";
 
@@ -35,31 +36,79 @@ export default async function AdminSettingsPage() {
     .single();
 
   // Fetch admins and creators via memberships for this org
-  const [{ data: adminMemberships }, { data: creatorMemberships }, { data: me }] =
-    await Promise.all([
-      supabase
-        .from("memberships")
-        .select("user_id, profile:profiles(id, name, email, created_at, notify_submissions)")
-        .eq("org_id", orgId)
-        .eq("role", "admin")
-        .eq("status", "active"),
-      supabase
-        .from("memberships")
-        .select("user_id, profile:profiles(id, name, email, created_at)")
-        .eq("org_id", orgId)
-        .eq("role", "creator")
-        .eq("status", "active"),
-      supabase
-        .from("profiles")
-        .select(
-          "notify_submissions, notify_new_briefs, notify_claim_updates, notify_claim_queue, notify_payments, notify_applications"
-        )
-        .eq("id", user.id)
-        .single(),
-    ]);
+  const [
+    { data: adminMemberships },
+    { data: creatorMemberships },
+    { data: me },
+    { data: myMembership },
+    { data: teammateInvitesRaw },
+  ] = await Promise.all([
+    supabase
+      .from("memberships")
+      .select(
+        "user_id, profile:profiles(id, name, email, created_at, notify_submissions)"
+      )
+      .eq("org_id", orgId)
+      .eq("role", "admin")
+      .eq("status", "active"),
+    supabase
+      .from("memberships")
+      .select("user_id, profile:profiles(id, name, email, created_at)")
+      .eq("org_id", orgId)
+      .eq("role", "creator")
+      .eq("status", "active"),
+    supabase
+      .from("profiles")
+      .select(
+        "notify_submissions, notify_new_briefs, notify_claim_updates, notify_claim_queue, notify_payments, notify_applications"
+      )
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("org_id", orgId)
+      .eq("status", "active")
+      .maybeSingle(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.from("invite_codes") as any)
+      .select(
+        "id, code, role, created_at, expires_at, used_by, intended_account_type, created_by_profile:profiles!invite_codes_created_by_fkey(name, email)"
+      )
+      .eq("org_id", orgId)
+      .eq("intended_account_type", "org")
+      .is("used_by", null)
+      .order("created_at", { ascending: false }),
+  ]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admins = (adminMemberships || []).map((m: any) => m.profile).filter(Boolean);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const creators = (creatorMemberships || []).map((m: any) => m.profile).filter(Boolean);
+
+  const canManageTeam = myMembership?.role === "admin";
+  // Server component runs once per request — `Date.now()` here is a
+  // deliberate, single-call snapshot used to derive `is_expired` so the
+  // client component can stay pure. The lint rule about purity targets
+  // client components.
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
+  const teammateInvites: TeammateInvite[] = (teammateInvitesRaw ?? []).map(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (invite: any) => ({
+      id: invite.id,
+      code: invite.code,
+      role: invite.role,
+      created_at: invite.created_at,
+      expires_at: invite.expires_at,
+      created_by_email: invite.created_by_profile?.email ?? null,
+      created_by_name: invite.created_by_profile?.name ?? null,
+      is_expired: invite.expires_at
+        ? new Date(invite.expires_at).getTime() <= nowMs
+        : false,
+    })
+  );
 
   const myPreferences = preferencesFromProfile(me ?? {});
 
@@ -186,6 +235,8 @@ export default async function AdminSettingsPage() {
           creators={creators ?? []}
           currentUserId={user.id}
         />
+
+        <TeamInvites invites={teammateInvites} canManage={canManageTeam} />
 
         <NotificationsPanel
           role="admin"
