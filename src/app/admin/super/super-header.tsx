@@ -7,6 +7,7 @@ import { PlatformLogo } from "@/components/platform-logo";
 const tabs = [
   { href: "/admin/super", label: "Overview" },
   { href: "/admin/super/orgs", label: "Orgs" },
+  { href: "/admin/super/platform", label: "Platform" },
   { href: "/admin/super/audit", label: "Audit log" },
 ];
 

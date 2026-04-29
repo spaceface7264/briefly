@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { setNotificationPreference } from "@/app/profile/notification-actions";
 import {
   notificationTypesFor,
+  type NotificationAudience,
   type NotificationPreferences,
   type NotificationType,
   type NotificationTypeDef,
 } from "@/lib/notifications";
-import type { UserRole } from "@/types/database";
 
 interface NotificationsPanelProps {
-  role: UserRole;
+  audience: NotificationAudience;
   preferences: NotificationPreferences;
   /** Per-type warnings shown under a row when toggling off would cause
    *  coverage problems. Renders verbatim when provided for that type. */
@@ -22,13 +22,13 @@ interface NotificationsPanelProps {
 }
 
 export function NotificationsPanel({
-  role,
+  audience,
   preferences,
   warningsByType,
   title = "Your email notifications",
   description = "Only applies to your account. You can turn each type on or off individually.",
 }: NotificationsPanelProps) {
-  const types = notificationTypesFor(role);
+  const types = notificationTypesFor(audience);
 
   if (types.length === 0) return null;
 

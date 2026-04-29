@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { requireCreatorAccount } from "@/lib/account";
 import { NotificationsClient } from "./notifications-client";
 import { preferencesFromProfile } from "@/lib/notifications";
-import type { UserRole } from "@/types/database";
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
@@ -29,7 +28,5 @@ export default async function NotificationsPage() {
 
   const preferences = preferencesFromProfile(profile ?? {});
 
-  const role = (profile?.role ?? "creator") as UserRole;
-
-  return <NotificationsClient preferences={preferences} role={role} />;
+  return <NotificationsClient preferences={preferences} />;
 }
