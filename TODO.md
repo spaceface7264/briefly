@@ -255,3 +255,36 @@ work have been resolved or decided. Future items go below this line.
   work was approved. No code change. If a GDPR-style consent concern
   surfaces later, the right answer is a "you'll get email about your
   activity" line on the signup form, not flipping defaults.
+
+- **`/login` stays a single page** (resolved 2026-04-29). After the
+  PR-C2 signup fork, the question came up whether to split `/login`
+  into `/login/creator` and `/login/org`. We decided against it:
+  sign-in is functionally identical for both audiences (same Supabase
+  call), splitting the URL doubles the maintenance surface, and a
+  shared `/login` removes the wrong-funnel risk of misshared links.
+  The shells (`/briefs` + `/discover` vs `/admin/*`) carry the
+  account-type identity post-login, which is where it belongs. See
+  the Backlog entry below for the visual polish that came out of the
+  same discussion.
+
+### Backlog
+
+- **Signup tile visual polish + deep-link entry** (logged 2026-04-29).
+  The `As a creator` / `With invite code` tiles in `LoginForm` are
+  functional but visually thin. Worth doing as a small PR-D ticket:
+  - Stronger tile treatment with a small illustration or icon per
+    path, a one-line value prop, and a path-specific accent (creator
+    = lime, invite = a cooler/org-flavoured tone).
+  - Hero title + subtitle change to match the selected path
+    ("Find paid briefs you love" vs "Join your team's workspace").
+  - Marketing-friendly deep links: `/login?mode=signup-creator` and
+    `/login?mode=signup-invite` already work via search params; make
+    sure email templates and any future landing pages use them.
+  - Auto-select the invite path and pre-fill the code field when the
+    URL carries `?code=ABCD-EFGH` so an invite email is one click
+    from a filled form.
+
+  If a paid-org sales motion later wants its own landing page with
+  trust signals and a "Book a demo" alt-CTA, that's a separate
+  marketing surface (e.g. `/business`) that deep-links into
+  `/login?mode=signup-invite` — not a forked auth page.
