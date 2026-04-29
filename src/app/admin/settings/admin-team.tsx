@@ -16,7 +16,12 @@ interface TeamMember {
 
 interface AdminTeamProps {
   admins: TeamMember[];
+  /** Org-account holders with role='member' — limited write access. */
+  members: TeamMember[];
+  /** External creators on the org's roster — used as the source list for the promote-to-admin modal. */
   creators: TeamMember[];
+  /** Org display name; rendered into the section heading ("<Org> team"). */
+  orgName: string;
   currentUserId: string;
   /**
    * Whether the viewer can promote/demote admins. When false the
@@ -27,9 +32,13 @@ interface AdminTeamProps {
   canManage: boolean;
 }
 
+type TeamRow = TeamMember & { role: "admin" | "member" };
+
 export function AdminTeam({
   admins,
+  members,
   creators,
+  orgName,
   currentUserId,
   canManage,
 }: AdminTeamProps) {
@@ -81,14 +90,32 @@ export function AdminTeam({
     });
   }
 
+  // Combined list rendered in one table — admins first, then members,
+  // each group alphabetically by display name (falling back to email).
+  // Single source of truth for the rendered roster so role-aware
+  // behavior (the demote button, the Role pill) reads from one place.
+  const rows: TeamRow[] = [
+    ...admins
+      .map((a): TeamRow => ({ ...a, role: "admin" }))
+      .sort((a, b) =>
+        (a.name ?? a.email ?? "").localeCompare(b.name ?? b.email ?? "")
+      ),
+    ...members
+      .map((m): TeamRow => ({ ...m, role: "member" }))
+      .sort((a, b) =>
+        (a.name ?? a.email ?? "").localeCompare(b.name ?? b.email ?? "")
+      ),
+  ];
+
   return (
     <section className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-semibold mb-1">Admin team</h2>
+          <h2 className="text-xl font-semibold mb-1">{orgName} team</h2>
           <p className="text-muted text-sm">
-            {admins.length} admin{admins.length !== 1 ? "s" : ""} · at least one
-            admin must always remain
+            {admins.length} admin{admins.length !== 1 ? "s" : ""} ·{" "}
+            {members.length} member{members.length !== 1 ? "s" : ""} · at least
+            one admin must always remain
           </p>
         </div>
         {canManage ? (
@@ -134,7 +161,10 @@ export function AdminTeam({
           <thead>
             <tr className="border-b border-border bg-surface-raised">
               <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
-                Admin
+                Name
+              </th>
+              <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
+                Role
               </th>
               <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">
                 Submissions
@@ -148,12 +178,13 @@ export function AdminTeam({
             </tr>
           </thead>
           <tbody>
-            {admins.map((admin) => {
-              const isSelf = admin.id === currentUserId;
-              const notified = admin.notify_submissions ?? true;
+            {rows.map((person) => {
+              const isSelf = person.id === currentUserId;
+              const isAdminRow = person.role === "admin";
+              const notified = person.notify_submissions ?? true;
               return (
                 <tr
-                  key={admin.id}
+                  key={person.id}
                   className="border-b border-border last:border-0"
                 >
                   <td className="px-4 py-3">
@@ -161,7 +192,7 @@ export function AdminTeam({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-medium truncate">
-                            {admin.name || "No name"}
+                            {person.name || "No name"}
                           </p>
                           {isSelf && (
                             <StatusPill tone="info" dot={false}>
@@ -170,10 +201,21 @@ export function AdminTeam({
                           )}
                         </div>
                         <p className="text-muted text-sm truncate">
-                          {admin.email}
+                          {person.email}
                         </p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {isAdminRow ? (
+                      <StatusPill tone="success" dot={false}>
+                        Admin
+                      </StatusPill>
+                    ) : (
+                      <StatusPill tone="neutral" dot={false}>
+                        Member
+                      </StatusPill>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {notified ? (
@@ -183,13 +225,13 @@ export function AdminTeam({
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted font-mono text-sm">
-                    {new Date(admin.created_at).toLocaleDateString("en-GB")}
+                    {new Date(person.created_at).toLocaleDateString("en-GB")}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {canManage ? (
+                    {canManage && isAdminRow ? (
                       <button
                         type="button"
-                        onClick={() => setDemoteTarget(admin)}
+                        onClick={() => setDemoteTarget(person)}
                         disabled={isSelf || isLastAdmin || pending}
                         title={
                           isSelf

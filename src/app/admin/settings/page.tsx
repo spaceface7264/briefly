@@ -61,6 +61,7 @@ export default async function AdminSettingsPage({
 
   const [
     { data: adminMemberships },
+    { data: memberMemberships },
     { data: creatorMemberships },
     { data: me },
     { data: myMembership },
@@ -73,6 +74,14 @@ export default async function AdminSettingsPage({
       )
       .eq("org_id", orgId)
       .eq("role", "admin")
+      .eq("status", "active"),
+    supabase
+      .from("memberships")
+      .select(
+        "user_id, profile:profiles(id, name, email, created_at, notify_submissions)"
+      )
+      .eq("org_id", orgId)
+      .eq("role", "member")
       .eq("status", "active"),
     supabase
       .from("memberships")
@@ -107,6 +116,8 @@ export default async function AdminSettingsPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admins = (adminMemberships || []).map((m: any) => m.profile).filter(Boolean);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const members = (memberMemberships || []).map((m: any) => m.profile).filter(Boolean);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const creators = (creatorMemberships || []).map((m: any) => m.profile).filter(Boolean);
 
@@ -208,7 +219,9 @@ export default async function AdminSettingsPage({
         <div className="space-y-10">
           <AdminTeam
             admins={admins ?? []}
+            members={members ?? []}
             creators={creators ?? []}
+            orgName={org?.name ?? "Your"}
             currentUserId={user.id}
             canManage={isAdmin}
           />
