@@ -7,7 +7,15 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** True when only org admins (not members) may click into the page. */
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
   {
     href: "/admin",
     label: "Dashboard",
@@ -56,6 +64,7 @@ const navItems = [
   {
     href: "/admin/invites",
     label: "Invites",
+    adminOnly: true,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -65,6 +74,7 @@ const navItems = [
   {
     href: "/admin/billing",
     label: "Billing",
+    adminOnly: true,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -88,6 +98,12 @@ export function AdminNav() {
   const [userId, setUserId] = useState<string | null>(null);
   const [claimUnread, setClaimUnread] = useState(0);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  // Until the role is loaded we treat the user as an admin so the nav
+  // doesn't flash a locked state on every refresh — most viewers ARE
+  // admins and will resolve before render. Members briefly see the
+  // unlocked nav and then see the lock appear after bootstrap; that's
+  // a more forgiving default than the inverse.
+  const [isOrgAdmin, setIsOrgAdmin] = useState(true);
 
   useEffect(() => {
     const supabase = createClient();
@@ -100,12 +116,29 @@ export function AdminNav() {
       if (!user) return;
       setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_platform_admin")
-        .eq("id", user.id)
-        .maybeSingle();
+      // Run profile + memberships in parallel — both are keyed off
+      // the same user_id so neither blocks the other. We resolve
+      // the user's role-in-active-org client-side once both land.
+      const [{ data: profile }, { data: memberships }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("is_platform_admin, active_org_id")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("memberships")
+          .select("role, org_id")
+          .eq("user_id", user.id)
+          .eq("status", "active"),
+      ]);
+
       setIsPlatformAdmin(profile?.is_platform_admin === true);
+
+      const activeOrgId = profile?.active_org_id ?? null;
+      const activeMembership = (memberships ?? []).find(
+        (m) => m.org_id === activeOrgId
+      );
+      setIsOrgAdmin(activeMembership?.role === "admin");
     }
 
     bootstrap();
@@ -174,6 +207,36 @@ export function AdminNav() {
             item.href === "/admin"
               ? pathname === "/admin"
               : pathname.startsWith(item.href);
+
+          const locked = item.adminOnly === true && !isOrgAdmin;
+
+          if (locked) {
+            return (
+              <span
+                key={item.href}
+                role="button"
+                aria-disabled="true"
+                title="Admins only — ask an admin in your org"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted/50 cursor-not-allowed select-none"
+              >
+                {item.icon}
+                {item.label}
+                <svg
+                  className="ml-auto w-3.5 h-3.5 text-muted/60"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
+              </span>
+            );
+          }
 
           return (
             <Link

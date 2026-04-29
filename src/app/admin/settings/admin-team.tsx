@@ -18,9 +18,21 @@ interface AdminTeamProps {
   admins: TeamMember[];
   creators: TeamMember[];
   currentUserId: string;
+  /**
+   * Whether the viewer can promote/demote admins. When false the
+   * roster renders as read-only — server actions reject members
+   * regardless, but hiding the buttons prevents a confusing failed
+   * click.
+   */
+  canManage: boolean;
 }
 
-export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
+export function AdminTeam({
+  admins,
+  creators,
+  currentUserId,
+  canManage,
+}: AdminTeamProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -79,14 +91,33 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
             admin must always remain
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setPromoteOpen(true)}
-          disabled={creators.length === 0}
-          className="px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background text-sm font-semibold rounded-lg transition-colors"
-        >
-          Add admin
-        </button>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() => setPromoteOpen(true)}
+            disabled={creators.length === 0}
+            className="px-4 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background text-sm font-semibold rounded-lg transition-colors"
+          >
+            Add admin
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-raised border border-border text-xs text-muted">
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            Admin only
+          </span>
+        )}
       </div>
 
       {error && !promoteOpen && !demoteTarget && (
@@ -155,21 +186,25 @@ export function AdminTeam({ admins, creators, currentUserId }: AdminTeamProps) {
                     {new Date(admin.created_at).toLocaleDateString("en-GB")}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setDemoteTarget(admin)}
-                      disabled={isSelf || isLastAdmin || pending}
-                      title={
-                        isSelf
-                          ? "You cannot remove your own admin access"
-                          : isLastAdmin
-                            ? "At least one admin must remain"
-                            : undefined
-                      }
-                      className="px-3 py-1.5 text-sm text-muted hover:text-error hover:bg-error-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
-                    >
-                      Remove access
-                    </button>
+                    {canManage ? (
+                      <button
+                        type="button"
+                        onClick={() => setDemoteTarget(admin)}
+                        disabled={isSelf || isLastAdmin || pending}
+                        title={
+                          isSelf
+                            ? "You cannot remove your own admin access"
+                            : isLastAdmin
+                              ? "At least one admin must remain"
+                              : undefined
+                        }
+                        className="px-3 py-1.5 text-sm text-muted hover:text-error hover:bg-error-muted disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+                      >
+                        Remove access
+                      </button>
+                    ) : (
+                      <span className="text-muted text-sm">—</span>
+                    )}
                   </td>
                 </tr>
               );

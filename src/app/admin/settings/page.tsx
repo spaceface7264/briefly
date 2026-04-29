@@ -6,6 +6,7 @@ import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
 import { DiscoverabilityToggle } from "./discoverability-toggle";
 import { OrgDetailsForm } from "./org-details-form";
+import { OrgDetailsView } from "./org-details-view";
 import { PersonalAccountForm } from "./personal-account-form";
 import { TeamInvites, type TeammateInvite } from "./team-invites";
 
@@ -80,7 +81,11 @@ export default async function AdminSettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const creators = (creatorMemberships || []).map((m: any) => m.profile).filter(Boolean);
 
-  const canManageTeam = myMembership?.role === "admin";
+  // Single source of truth for "can this user mutate org-level settings?"
+  // Server actions enforce the same check via `requireOrgAdmin()`; this
+  // flag is for UI gating so members see read-only views instead of
+  // editable forms that fail on submit.
+  const isAdmin = myMembership?.role === "admin";
   // Server component runs once per request — `Date.now()` here is a
   // deliberate, single-call snapshot used to derive `is_expired` so the
   // client component can stay pure. The lint rule about purity targets
@@ -141,30 +146,47 @@ export default async function AdminSettingsPage() {
           orgName={org?.name ?? "your org"}
         />
 
-        {org && (
-          <OrgDetailsForm
-            org={{
-              name: org.name,
-              slug: org.slug,
-              description: org.description,
-              industry: org.industry,
-              logo_url: org.logo_url,
-              accent_color: org.accent_color,
-              contact_email: org.contact_email,
-              address: org.address,
-              cvr: org.cvr,
-              vat_number: org.vat_number,
-            }}
-          />
-        )}
+        {org &&
+          (isAdmin ? (
+            <OrgDetailsForm
+              org={{
+                name: org.name,
+                slug: org.slug,
+                description: org.description,
+                industry: org.industry,
+                logo_url: org.logo_url,
+                accent_color: org.accent_color,
+                contact_email: org.contact_email,
+                address: org.address,
+                cvr: org.cvr,
+                vat_number: org.vat_number,
+              }}
+            />
+          ) : (
+            <OrgDetailsView
+              org={{
+                name: org.name,
+                slug: org.slug,
+                description: org.description,
+                industry: org.industry,
+                logo_url: org.logo_url,
+                accent_color: org.accent_color,
+                contact_email: org.contact_email,
+                address: org.address,
+                cvr: org.cvr,
+                vat_number: org.vat_number,
+              }}
+            />
+          ))}
 
         <AdminTeam
           admins={admins ?? []}
           creators={creators ?? []}
           currentUserId={user.id}
+          canManage={isAdmin}
         />
 
-        <TeamInvites invites={teammateInvites} canManage={canManageTeam} />
+        <TeamInvites invites={teammateInvites} canManage={isAdmin} />
 
         <NotificationsPanel
           audience="org"
@@ -177,6 +199,7 @@ export default async function AdminSettingsPage() {
           discoverable={org?.discoverable ?? false}
           orgName={org?.name ?? ""}
           orgDescription={org?.description ?? ""}
+          canManage={isAdmin}
         />
       </div>
     </div>

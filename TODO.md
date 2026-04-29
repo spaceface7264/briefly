@@ -332,6 +332,45 @@ work have been resolved or decided. Future items go below this line.
   middleware allow-list and scrubs the cookie) or clear `sb-*`
   cookies manually.
 
+- **Audit remaining admin-only surfaces for member UI gating** (logged
+  2026-04-29). The integration test pass on `cursor/pr-c-test-integration`
+  caught a class of bugs where pages render full editable UI to org
+  members, then fail server-side on submit. Fixed in this branch for
+  `/admin/settings` (org details, admin team, discoverability,
+  teammate invites) and locked the nav for `/admin/billing` and
+  `/admin/invites`. Two surfaces deliberately left open for now:
+
+  - `/admin/applications` — approving/rejecting creator applications
+    is admin-only behavior. Likely needs the same treatment: lock from
+    nav for members, server-redirect on direct URL, or render the inbox
+    read-only for members. Confirm RLS gates the approve/reject RPC
+    before deciding if read-only is acceptable.
+  - `/admin/creators` — viewing the roster is fine for members; the
+    promote/demote and "remove from org" actions inside are admin-only.
+    Sub-action gating (hide buttons for members) is probably the right
+    move rather than locking the whole page.
+
+  When picking this up, also do the broader **RLS pass for member
+  permissions** that's been deferred since PR-A: most write policies
+  in `0017_org_scoped_rls.sql` and onward gate on `is_org_admin()`,
+  meaning members can open admin pages but most mutations error out.
+  The intended split (Admin = full; Member = day-to-day brief/claim
+  ops, no team/billing/discoverability) needs RLS reflecting it.
+
+- **Friendlier signup error for Supabase rate limits** (logged
+  2026-04-29). The signup form surfaces raw Supabase strings like
+  `email rate limit exceeded`. Map known error codes to human copy
+  in `LoginForm` (e.g. *"Too many signup attempts. Try again in an
+  hour."*). Easy ~10-min PR.
+
+- **Show redeemed teammate invites in `/admin/settings`** (logged
+  2026-04-29). The active-invites table only renders rows where
+  `used_by IS NULL`. Once redeemed, the row disappears entirely.
+  That's intentional (active = actionable) but admins lose visibility
+  into "who joined via which code". Add a collapsible "Redeemed"
+  section underneath the active list, or push it into a small audit
+  log surface. Quick win.
+
 - **Signup tile visual polish + deep-link entry** (logged 2026-04-29).
   The `As a creator` / `With invite code` tiles in `LoginForm` are
   functional but visually thin. Worth doing as a small PR-D ticket:
