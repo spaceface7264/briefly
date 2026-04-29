@@ -1,0 +1,198 @@
+import {
+  platformDetails,
+  SELF_BILLING_AGREEMENT_VERSION,
+} from "@/lib/invoicing/platform";
+import { DK_STANDARD_VAT_RATE_BP } from "@/lib/invoicing/vat";
+import { StatusPill } from "@/components/status-pill";
+
+export const dynamic = "force-dynamic";
+
+interface PlatformRow {
+  label: string;
+  value: string;
+  env: string;
+  isSet: boolean;
+}
+
+interface ConstantRow {
+  label: string;
+  value: string;
+  note: string;
+}
+
+export default function SuperPlatformPage() {
+  const platform = platformDetails();
+  const contactEmailFromEnv = Boolean(process.env.NEXT_PUBLIC_CONTACT_EMAIL);
+
+  const platformRows: PlatformRow[] = [
+    {
+      label: "Company name",
+      value: platform.name,
+      env: "NEXT_PUBLIC_PLATFORM_NAME",
+      isSet: Boolean(
+        process.env.NEXT_PUBLIC_PLATFORM_NAME || process.env.PLATFORM_NAME
+      ),
+    },
+    {
+      label: "Logo URL",
+      value: platform.logoUrl,
+      env: "NEXT_PUBLIC_LOGO_URL",
+      isSet: Boolean(process.env.NEXT_PUBLIC_LOGO_URL),
+    },
+    {
+      label: "Contact email",
+      value: platform.contactEmail,
+      env: "NEXT_PUBLIC_CONTACT_EMAIL",
+      isSet: contactEmailFromEnv,
+    },
+    {
+      label: "Address",
+      value: platform.address,
+      env: "PLATFORM_ADDRESS",
+      isSet: Boolean(process.env.PLATFORM_ADDRESS),
+    },
+    {
+      label: "CVR",
+      value: platform.cvr,
+      env: "PLATFORM_CVR",
+      isSet: Boolean(process.env.PLATFORM_CVR),
+    },
+    {
+      label: "VAT number",
+      value: platform.vatNumber,
+      env: "PLATFORM_VAT_NUMBER",
+      isSet: Boolean(process.env.PLATFORM_VAT_NUMBER),
+    },
+  ];
+
+  const constantRows: ConstantRow[] = [
+    {
+      label: "Claim expiry window",
+      value: "7 days",
+      note: "Set at claim time in brief-detail-client.tsx",
+    },
+    {
+      label: "Default claim limit",
+      value: "1 slot per brief",
+      note: "Column default on briefs.claim_limit — editable per brief",
+    },
+    {
+      label: "Self-billing agreement",
+      value: SELF_BILLING_AGREEMENT_VERSION,
+      note: "Creators re-accept when the version string changes",
+    },
+    {
+      label: "Danish VAT rate",
+      value: `${(DK_STANDARD_VAT_RATE_BP / 100).toFixed(1)} %`,
+      note: "Applied to invoices when the creator is VAT-registered",
+    },
+    {
+      label: "Invoice number format",
+      value: "YYYY-00000",
+      note: "Zero-padded sequence per calendar year",
+    },
+    {
+      label: "Currency",
+      value: "DKK",
+      note: "All prices and payouts are in Danish kroner",
+    },
+  ];
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Platform configuration</h1>
+        <p className="text-muted">
+          Branding, legal entity, and system constants. Visible to platform
+          admins only — these settings span every org on the platform.
+        </p>
+      </div>
+
+      <div className="space-y-10">
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold mb-1">Platform details</h2>
+            <p className="text-muted text-sm">
+              Configured through environment variables. These appear on
+              invoices, in the footer, and in emails.
+            </p>
+          </div>
+
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <table className="w-full">
+              <tbody>
+                {platformRows.map((row, i) => (
+                  <tr
+                    key={row.env}
+                    className={i > 0 ? "border-t border-border" : ""}
+                  >
+                    <td className="px-4 py-3 w-48">
+                      <p className="text-sm font-medium">{row.label}</p>
+                      <p className="font-mono text-xs text-muted mt-0.5">
+                        {row.env}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.value ? (
+                        <p className="text-sm break-all">{row.value}</p>
+                      ) : (
+                        <p className="text-sm text-warning">Not set</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right w-32">
+                      {row.isSet ? (
+                        <StatusPill tone="neutral" dot={false}>
+                          From env
+                        </StatusPill>
+                      ) : (
+                        <StatusPill tone="warning" dot={false}>
+                          Default
+                        </StatusPill>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold mb-1">System constants</h2>
+            <p className="text-muted text-sm">
+              Defined in code. Changing any of these requires a code change
+              and deploy.
+            </p>
+          </div>
+
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <table className="w-full">
+              <tbody>
+                {constantRows.map((row, i) => (
+                  <tr
+                    key={row.label}
+                    className={i > 0 ? "border-t border-border" : ""}
+                  >
+                    <td className="px-4 py-3 w-48">
+                      <p className="text-sm font-medium">{row.label}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-mono text-sm">{row.value}</p>
+                      <p className="text-xs text-muted mt-0.5">{row.note}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right w-32">
+                      <StatusPill tone="neutral" dot={false}>
+                        In code
+                      </StatusPill>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}

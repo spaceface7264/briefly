@@ -2,14 +2,12 @@
 
 import { NotificationsPanel } from "@/components/notifications-panel";
 import type { NotificationPreferences } from "@/lib/notifications";
-import type { UserRole } from "@/types/database";
 
 interface Props {
   preferences: NotificationPreferences;
-  role: UserRole;
 }
 
-export function NotificationsClient({ preferences, role }: Props) {
+export function NotificationsClient({ preferences }: Props) {
   return (
     <>
       <div className="mb-8">
@@ -19,7 +17,7 @@ export function NotificationsClient({ preferences, role }: Props) {
         </p>
       </div>
 
-      <NotificationsPanel role={role} preferences={preferences} />
+      <NotificationsPanel audience="creator" preferences={preferences} />
     </>
   );
 }
