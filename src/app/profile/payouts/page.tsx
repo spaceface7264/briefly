@@ -1,43 +1,18 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { requireCreatorAccount } from "@/lib/account";
-import { PayoutsClient } from "./payouts-client";
-import { refreshStripeStatus } from "../stripe-actions";
 
-export default async function PayoutsPage({
+// Payouts moved into /profile/settings as a tab. The old URL is kept
+// as a redirect so existing Stripe Connect onboarding sessions
+// (whose return_url was set before the consolidation) still land on
+// the right surface — the ?stripe=return search param is forwarded
+// so the new settings page can refresh Stripe status on arrival.
+export default async function PayoutsRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ stripe?: string }>;
 }) {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  await requireCreatorAccount(supabase);
-
-  const { stripe: stripeFlag } = await searchParams;
-
-  if (stripeFlag === "return") {
-    try {
-      await refreshStripeStatus();
-    } catch (err) {
-      console.error("Failed to refresh Stripe status:", err);
-    }
-  }
-
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  if (error) {
-    console.error("Error fetching profile:", error);
-  }
-
-  return <PayoutsClient profile={profile} />;
+  const { stripe } = await searchParams;
+  const target = stripe
+    ? `/profile/settings?tab=payouts&stripe=${encodeURIComponent(stripe)}`
+    : "/profile/settings?tab=payouts";
+  redirect(target);
 }

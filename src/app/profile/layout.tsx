@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
-import { ProfileNav } from "./profile-nav";
 
 export default async function ProfileLayout({
   children,
@@ -20,7 +19,6 @@ export default async function ProfileLayout({
       <Nav />
       <main className="flex-1">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ProfileNav />
           {children}
         </div>
       </main>

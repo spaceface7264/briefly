@@ -31,10 +31,10 @@ const publicNavItems = [
 ];
 
 const creatorProfileItems = [
-  { href: "/profile", label: "Profile" },
-  { href: "/profile/payouts", label: "Payouts" },
+  { href: "/profile/earnings", label: "Earnings" },
   { href: "/profile/invoices", label: "Invoices" },
-  { href: "/profile/notifications", label: "Notifications" },
+  { href: "/profile/applications", label: "Applications" },
+  { href: "/profile/settings", label: "Settings" },
 ];
 
 type AccountType = "creator" | "org";
@@ -45,6 +45,7 @@ export function Nav() {
   const [accountType, setAccountType] = useState<AccountType | null>(null);
   const [accountChecked, setAccountChecked] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [profileLabel, setProfileLabel] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -61,13 +62,18 @@ export function Nav() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("account_type")
+        .select("account_type, name, email")
         .eq("id", user.id)
         .maybeSingle();
 
-      const value = (profile as { account_type?: string } | null)
-        ?.account_type;
-      setAccountType(value === "org" ? "org" : "creator");
+      const typed = profile as
+        | { account_type?: string; name?: string | null; email?: string | null }
+        | null;
+      setAccountType(typed?.account_type === "org" ? "org" : "creator");
+      // Prefer the profile name; fall back to the email so the
+      // dropdown header is never blank for a freshly-signed-up
+      // creator who hasn't filled out their profile yet.
+      setProfileLabel(typed?.name?.trim() || typed?.email?.trim() || null);
       setAccountChecked(true);
     }
     checkAccount();
@@ -281,9 +287,25 @@ export function Nav() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-surface border-border">
+              <DropdownMenuContent align="end" className="w-56 bg-surface border-border">
+                {profileLabel && (
+                  <>
+                    <div className="px-2 py-1.5">
+                      <p className="text-[10px] uppercase tracking-wider text-muted">
+                        Signed in as
+                      </p>
+                      <p className="text-sm font-medium truncate">
+                        {profileLabel}
+                      </p>
+                    </div>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {creatorProfileItems.map((item) => {
-                  const isActive = pathname === item.href || (item.href !== "/profile" && pathname.startsWith(item.href));
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/profile" &&
+                      pathname.startsWith(item.href));
                   return (
                     <DropdownMenuItem
                       key={item.href}

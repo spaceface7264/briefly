@@ -49,8 +49,8 @@ export async function startStripeOnboarding() {
 
   const link = await stripe().accountLinks.create({
     account: accountId,
-    refresh_url: `${appUrl()}/profile/payouts?stripe=refresh`,
-    return_url: `${appUrl()}/profile/payouts?stripe=return`,
+    refresh_url: `${appUrl()}/profile/settings?tab=payouts&stripe=refresh`,
+    return_url: `${appUrl()}/profile/settings?tab=payouts&stripe=return`,
     type: "account_onboarding",
   });
 
