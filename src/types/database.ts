@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       briefs: {
@@ -88,6 +113,44 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      claim_attachments: {
+        Row: {
+          claim_id: string
+          created_at: string
+          file_size: number
+          filename: string
+          id: string
+          mime_type: string
+          storage_path: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          file_size: number
+          filename: string
+          id?: string
+          mime_type: string
+          storage_path: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          file_size?: number
+          filename?: string
+          id?: string
+          mime_type?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_attachments_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
             referencedColumns: ["id"]
           },
         ]
@@ -1312,6 +1375,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       brief_category: ["entertaining", "ad", "guide", "event", "community"],
@@ -1356,6 +1422,7 @@ export const Constants = {
 export type Profile = Tables<"profiles">;
 export type Brief = Tables<"briefs">;
 export type Claim = Tables<"claims">;
+export type ClaimAttachment = Tables<"claim_attachments">;
 export type Notification = Tables<"notifications">;
 export type NotificationOutbox = Tables<"notification_outbox">;
 export type Payment = Tables<"payments">;

@@ -19,7 +19,7 @@ npm install -g supabase
 ### 2. Link your project
 
 ```bash
-npx supabase link --project-ref hfepjqlbwcwhppbxxpkr
+npx supabase link --project-ref bncuqifjcsrjkohxkwez
 ```
 
 ### 3. Deploy the functions
@@ -33,7 +33,7 @@ npx supabase functions deploy process-notification-outbox
 Set up a Supabase Function schedule (or external cron) to run every minute:
 
 ```bash
-curl -X POST https://hfepjqlbwcwhppbxxpkr.supabase.co/functions/v1/process-notification-outbox \
+curl -X POST https://bncuqifjcsrjkohxkwez.supabase.co/functions/v1/process-notification-outbox \
   -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY"
 ```
 
@@ -61,7 +61,7 @@ Go to Supabase Dashboard > Database > Webhooks > Create new webhook
 | Table | claims |
 | Events | UPDATE |
 | Method | POST |
-| URL | `https://hfepjqlbwcwhppbxxpkr.supabase.co/functions/v1/notify-submission` |
+| URL | `https://bncuqifjcsrjkohxkwez.supabase.co/functions/v1/notify-submission` |
 
 Add header:
 - `Authorization`: `Bearer YOUR_ANON_KEY`
@@ -74,7 +74,7 @@ Add header:
 | Table | briefs |
 | Events | INSERT |
 | Method | POST |
-| URL | `https://hfepjqlbwcwhppbxxpkr.supabase.co/functions/v1/notify-new-brief` |
+| URL | `https://bncuqifjcsrjkohxkwez.supabase.co/functions/v1/notify-new-brief` |
 
 Add header:
 - `Authorization`: `Bearer YOUR_ANON_KEY`
