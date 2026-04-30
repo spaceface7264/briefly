@@ -926,32 +926,100 @@ migrate.
 
 #### 1.1 Escrow & money flow
 
-Defines the trust model. Decision needed and recommended:
-**charge org on brief publish, hold funds, release on approval,
-refund on cancel/expire/archive.**
+**Path A confirmed 2026-04-30** (charge on brief publish; hold;
+release on approval; refund on cancel/expire/archive). Today's flow
+has the platform fronting every payout from its own Stripe balance
+with no per-transaction org charge — this rebuilds the money model.
 
-- [ ] Stripe PaymentIntent on brief publish (amount =
-  `price_dkk × claim_limit`, plus VAT if applicable)
-- [ ] Schema: `briefs.funded_status` enum
-  (`unfunded` | `funded` | `partially_released` | `released` |
-  `refunded`), `briefs.stripe_payment_intent_id`
-- [ ] Reserve / release accounting on the `claims` row (or a
-  `claim_holds` table if it gets more complex than one slot per claim)
-- [ ] On approval: `transfers.create` from platform balance →
-  creator's connected account (refactor current direct-charge flow)
-- [ ] On cancel/reject/expire: return slot's worth to org's available
-  balance — usable on the next brief, no refund unless org explicitly
-  withdraws
-- [ ] Brief publish form shows total upfront cost prominently
-- [ ] Admin sees "Funded ✓" badge on brief list and detail
-- [ ] Settle-up flow on org account closure / brief archive
+Sliced into sub-phases for reviewable diffs and safer rollout.
 
-Open question: do we hold funds for unclaimed slots until the brief
-deadline passes, or release them sooner if the org archives early?
-Cleanest UX: release on archive OR deadline, whichever first.
+##### 1.1a — Schema only ✅
 
-What we're explicitly NOT doing: net-30 settlement period. Pay creator
-on approval, immediate Stripe transfer.
+Shipped 2026-04-30 via migration `0037_brief_escrow_schema.sql`.
+Additive only — no behaviour changes, no triggers, no UI changes.
+Existing briefs land as `unfunded` with NULL escrow columns; current
+pay flow keeps working unchanged.
+
+- ✅ Enum `brief_funded_status` (`unfunded` | `funded` |
+  `partially_released` | `released` | `refunded`).
+- ✅ `briefs.funded_status` (default `unfunded`),
+  `briefs.stripe_payment_intent_id`, `briefs.escrow_amount_dkk`
+  (gross commitment at publish), `briefs.escrow_held_dkk` (running
+  balance).
+- ✅ CHECK constraints: amount > 0, held in [0, amount], both NULL
+  or both non-NULL.
+- ✅ Partial index on `funded_status` for active states only.
+- ✅ `organizations.stripe_customer_id` (UNIQUE) +
+  `organizations.default_payment_method_id`.
+- ✅ Types regenerated with `BriefFundedStatus` helper alias.
+
+##### 1.1b — Org payment-method capture ❌
+
+Org needs a saved payment method before publishing a paid brief.
+
+- [ ] Server actions: lazily create Stripe Customer for the org if
+  it doesn't have a `stripe_customer_id` yet, then create a
+  `SetupIntent` and return its `client_secret` to the browser.
+- [ ] UI surface: probably `/admin/billing` (already exists for
+  subscription) — add a "Payment method" section that uses Stripe
+  Elements to collect a card and confirm the SetupIntent.
+- [ ] On confirm: persist the resulting `pm_…` as
+  `organizations.default_payment_method_id`.
+- [ ] Admin-only (uses `requireOrgAdmin()`), per the existing billing
+  pattern.
+
+##### 1.1c — Charge on brief publish ❌
+
+- [ ] BriefForm: prominent "Total upfront cost: 1.500 DKK × 3 slots
+  = 4.500 DKK" panel before the Publish button.
+- [ ] Server action: on publish, require `organizations.default_payment_method_id`;
+  create PaymentIntent for `price_dkk × claim_limit` with `off_session=true`
+  + `confirm=true` against the stored card.
+- [ ] On success: brief.funded_status = `funded`,
+  `escrow_amount_dkk` + `escrow_held_dkk` set,
+  `stripe_payment_intent_id` recorded.
+- [ ] On payment failure: brief stays unpublished, friendly error to
+  admin (maps known Stripe failure codes to copy).
+
+##### 1.1d — Refactor `payClaim` to draw from escrow ❌
+
+- [ ] In `pay-action.ts`: validate brief.funded_status ∈
+  (`funded`, `partially_released`) and held >= gross slot.
+- [ ] Decrement `escrow_held_dkk` by `gross_dkk` (the org's gross,
+  before fee + VAT split).
+- [ ] Update `funded_status` to `partially_released` or `released`
+  based on remaining held balance.
+- [ ] Existing `transfers.create` call stays — funds are already in
+  the platform balance.
+
+##### 1.1e — Refund flow ❌
+
+- [ ] On claim cancel/reject/expire: nothing to refund per-claim
+  (the slot is still held). On brief archive while held > 0: refund
+  the unreleased balance.
+- [ ] Refund via `stripe.refunds.create({ payment_intent })` to the
+  source payment method.
+- [ ] Update `funded_status` to `refunded` and zero `escrow_held_dkk`.
+- [ ] What about partially released briefs being archived? Refund
+  the held remainder, leave released amounts alone, mark as
+  `refunded`.
+
+##### 1.1f — UI polish ❌
+
+- [ ] Brief list & detail: "Funded ✓" / "Partially released" / etc.
+  badges.
+- [ ] /admin/billing: optional "Escrow balance" panel showing
+  outstanding unreleased amounts across active briefs.
+
+Open questions still:
+- Hold funds for unclaimed slots until deadline, or refund earlier on
+  org-initiated archive? Cleanest UX is "release on whichever comes
+  first." Settled in 1.1e.
+- VAT on the org-charge side (org pays platform, platform handles
+  VAT depending on cross-border rules) — coordinate with 1.2.
+
+What we're explicitly NOT doing: net-30 settlement period. Pay
+creator on approval, immediate Stripe transfer.
 
 #### 1.2 EU VAT & self-billing
 

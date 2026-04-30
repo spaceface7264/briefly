@@ -49,6 +49,9 @@ export type Database = {
           deliverable_specs: Json | null
           description: string
           duration_class: Database["public"]["Enums"]["brief_duration_class"]
+          escrow_amount_dkk: number | null
+          escrow_held_dkk: number | null
+          funded_status: Database["public"]["Enums"]["brief_funded_status"]
           id: string
           is_ad_intended: boolean
           location: string | null
@@ -56,6 +59,7 @@ export type Database = {
           price_dkk: number
           reference_urls: string[] | null
           status: Database["public"]["Enums"]["brief_status"]
+          stripe_payment_intent_id: string | null
           title: string
           updated_at: string
           usage_rights: string | null
@@ -69,6 +73,9 @@ export type Database = {
           deliverable_specs?: Json | null
           description: string
           duration_class?: Database["public"]["Enums"]["brief_duration_class"]
+          escrow_amount_dkk?: number | null
+          escrow_held_dkk?: number | null
+          funded_status?: Database["public"]["Enums"]["brief_funded_status"]
           id?: string
           is_ad_intended?: boolean
           location?: string | null
@@ -76,6 +83,7 @@ export type Database = {
           price_dkk: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
+          stripe_payment_intent_id?: string | null
           title: string
           updated_at?: string
           usage_rights?: string | null
@@ -89,6 +97,9 @@ export type Database = {
           deliverable_specs?: Json | null
           description?: string
           duration_class?: Database["public"]["Enums"]["brief_duration_class"]
+          escrow_amount_dkk?: number | null
+          escrow_held_dkk?: number | null
+          funded_status?: Database["public"]["Enums"]["brief_funded_status"]
           id?: string
           is_ad_intended?: boolean
           location?: string | null
@@ -96,6 +107,7 @@ export type Database = {
           price_dkk?: number
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
+          stripe_payment_intent_id?: string | null
           title?: string
           updated_at?: string
           usage_rights?: string | null
@@ -614,6 +626,7 @@ export type Database = {
           created_at: string
           currency: string
           cvr: string | null
+          default_payment_method_id: string | null
           description: string | null
           discoverable: boolean
           id: string
@@ -624,6 +637,7 @@ export type Database = {
           sender_email: string | null
           sender_name: string | null
           slug: string
+          stripe_customer_id: string | null
           updated_at: string
           vat_number: string | null
         }
@@ -635,6 +649,7 @@ export type Database = {
           created_at?: string
           currency?: string
           cvr?: string | null
+          default_payment_method_id?: string | null
           description?: string | null
           discoverable?: boolean
           id?: string
@@ -645,6 +660,7 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           slug: string
+          stripe_customer_id?: string | null
           updated_at?: string
           vat_number?: string | null
         }
@@ -656,6 +672,7 @@ export type Database = {
           created_at?: string
           currency?: string
           cvr?: string | null
+          default_payment_method_id?: string | null
           description?: string | null
           discoverable?: boolean
           id?: string
@@ -666,6 +683,7 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           slug?: string
+          stripe_customer_id?: string | null
           updated_at?: string
           vat_number?: string | null
         }
@@ -1228,6 +1246,12 @@ export type Database = {
     Enums: {
       brief_category: "entertaining" | "ad" | "guide" | "event" | "community"
       brief_duration_class: "short" | "medium" | "long" | "static"
+      brief_funded_status:
+        | "unfunded"
+        | "funded"
+        | "partially_released"
+        | "released"
+        | "refunded"
       brief_status:
         | "open"
         | "claimed"
@@ -1382,6 +1406,13 @@ export const Constants = {
     Enums: {
       brief_category: ["entertaining", "ad", "guide", "event", "community"],
       brief_duration_class: ["short", "medium", "long", "static"],
+      brief_funded_status: [
+        "unfunded",
+        "funded",
+        "partially_released",
+        "released",
+        "refunded",
+      ],
       brief_status: [
         "open",
         "claimed",
@@ -1434,6 +1465,7 @@ export type OrgSubscriptionRow = Tables<"org_subscriptions">;
 export type BriefCategory = Enums<"brief_category">;
 export type BriefDurationClass = Enums<"brief_duration_class">;
 export type BriefStatus = Enums<"brief_status">;
+export type BriefFundedStatus = Enums<"brief_funded_status">;
 export type PaymentStatus = Enums<"payment_status">;
 export type NotificationEventType = Enums<"notification_event_type">;
 export type VatScheme = Enums<"vat_scheme">;
