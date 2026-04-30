@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { switchOrg } from "@/app/admin/settings/org-actions";
+
+// Paths whose [id] segment is org-scoped and would 404 after a switch
+// to an org that doesn't have access to that resource. Used to bounce
+// the user up to the parent listing on switch instead of refreshing
+// in place.
+const ORG_SCOPED_DETAIL_PATTERNS: { pattern: RegExp; parent: string }[] = [
+  { pattern: /^\/briefs\/[^/]+/, parent: "/briefs" },
+];
 
 interface Org {
   id: string;
@@ -13,6 +21,7 @@ interface Org {
 
 export function OrgSwitcher() {
   const router = useRouter();
+  const pathname = usePathname();
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -65,7 +74,17 @@ export function OrgSwitcher() {
     const result = await switchOrg(orgId);
     if (result.ok) {
       setActiveOrgId(orgId);
-      router.refresh();
+      // If we're on an org-scoped detail page (e.g. /briefs/[id]),
+      // the resource almost certainly belongs to the previous org and
+      // would 404 in the new one. Bounce to the parent listing.
+      const detailMatch = ORG_SCOPED_DETAIL_PATTERNS.find((p) =>
+        p.pattern.test(pathname)
+      );
+      if (detailMatch) {
+        router.push(detailMatch.parent);
+      } else {
+        router.refresh();
+      }
     }
     setSwitching(false);
   }
