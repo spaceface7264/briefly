@@ -1044,10 +1044,11 @@ Known dev-only quirk:
   correctly. Likely a non-issue in prod (compiled bundle); revisit
   if it surfaces there.
 
-##### 1.1d — Refactor `payClaim` to draw from escrow 🟡
+##### 1.1d — Refactor `payClaim` to draw from escrow ✅
 
-Code shipped 2026-04-30 — pending end-to-end browser verification on
-a funded brief.
+Shipped + verified in dev 2026-04-30. Live Stripe transfer end-to-
+end is gated on the sandbox `Incoming → Available` settlement timing
+(separate Stripe-side wait, not a code concern).
 
 - ✅ pay-action.ts loads `funded_status`, `escrow_amount_dkk`,
   `escrow_held_dkk` along with the existing brief join.
@@ -1081,10 +1082,11 @@ Single-slot brief after pay → `released`, held = 0. Multi-slot
 brief with one slot paid → `partially_released`, held = amount -
 gross.
 
-##### 1.1e — Refund flow 🟡
+##### 1.1e — Refund flow ✅
 
-Code shipped 2026-04-30. Pending end-to-end verification (blocked
-on the same Stripe sandbox settlement timing as 1.1d).
+Shipped + verified in dev 2026-04-30. Same Stripe-side caveat as
+1.1d — refund actually firing depends on the sandbox settling, but
+the code path and confirm-dialog UX are both confirmed.
 
 - ✅ `archiveBriefWithRefund(briefId)` in
   `src/app/admin/briefs/actions.ts`. Admin-only via
@@ -1119,9 +1121,11 @@ Per-claim refunds (cancel/reject/expire) intentionally do nothing —
 the slot stays held for the next creator. Only brief archive
 triggers a refund.
 
-##### 1.1f — UI polish 🟡
+##### 1.1f — UI polish ✅
 
-Code shipped 2026-04-30. Pending visual review.
+Shipped + visually verified 2026-04-30. Funded badges live on
+/admin/briefs list, brief detail header, and the new Escrow held
+panel on /admin/billing.
 
 - ✅ `badgeToneByFundedStatus` + `fundedStatusLabel` added to
   `src/lib/admin-badge-tones.ts`. Tones: `funded` accent (lime),
