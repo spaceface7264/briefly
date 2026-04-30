@@ -1189,11 +1189,11 @@ exists; the actual flow doesn't.
 E-invoicing (mandatory in IT, PL, FR coming): defer until we have an
 org in one of those countries. Add as a known-deferred item.
 
-#### 1.3 Creator earnings dashboard 🟡
+#### 1.3 Creator earnings dashboard ✅
 
-Code shipped 2026-04-30. New surface at `/profile/earnings`. Reads
-the existing `payments` table (with VAT + platform-fee splits frozen
-at payout time per migrations 0007 / 0026).
+Shipped + verified 2026-04-30. New surface at `/profile/earnings`.
+Reads the existing `payments` table (with VAT + platform-fee splits
+frozen at payout time per migrations 0007 / 0026).
 
 - ✅ KPI cards: Lifetime / This year / This month / Pending. Pending
   uses approved-but-not-paid claims, summed at gross brief price
@@ -1214,7 +1214,6 @@ at payout time per migrations 0007 / 0026).
 - ⏭️ Annual summary PDF — deferred to land alongside 1.2 (the same
   invoice template work that needs to produce the canonical
   EU-style annual summary).
-- 🟡 Pending verification in browser by a creator with paid history.
 
 ---
 
