@@ -1,10 +1,25 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, ConfirmDialog } from "@/components/modal";
 import { payClaim } from "./pay-action";
+import { getClaimAttachmentSignedUrls } from "@/app/briefs/[id]/actions";
+
+type Attachment = {
+  id: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+  signed_url: string;
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 interface ClaimActionsProps {
   claim: {
@@ -95,14 +110,12 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
   if (claim.status === "submitted") {
     return (
       <div className="flex items-center gap-2 justify-end">
-        {claim.submission_url && (
-          <button
-            onClick={() => setShowSubmission(true)}
-            className="px-3 py-1.5 text-sm text-accent hover:bg-accent-muted rounded-lg transition-colors"
-          >
-            View
-          </button>
-        )}
+        <button
+          onClick={() => setShowSubmission(true)}
+          className="px-3 py-1.5 text-sm text-accent hover:bg-accent-muted rounded-lg transition-colors"
+        >
+          Review
+        </button>
         <button
           onClick={() => setPending("approve")}
           disabled={loading}
@@ -254,6 +267,29 @@ function SubmissionModal({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const [attachments, setAttachments] = useState<Attachment[] | null>(null);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
+  const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
+
+  // Fetch signed URLs each time the modal opens. Signed URLs have a
+  // short TTL (15 min server-side), so re-fetching on every open beats
+  // caching and serving stale URLs.
+  useEffect(() => {
+    if (!open) return;
+    setLoadingAttachments(true);
+    setAttachmentsError(null);
+    setAttachments(null);
+    (async () => {
+      const result = await getClaimAttachmentSignedUrls(claim.id);
+      if (result.ok) {
+        setAttachments(result.attachments);
+      } else {
+        setAttachmentsError(result.error);
+      }
+      setLoadingAttachments(false);
+    })();
+  }, [open, claim.id]);
+
   return (
     <Modal
       open={open}
@@ -315,6 +351,30 @@ function SubmissionModal({
           </div>
         )}
 
+        <div>
+          <dt className="text-xs text-muted uppercase tracking-wider mb-2">
+            Files
+          </dt>
+          <dd>
+            {loadingAttachments && (
+              <p className="text-sm text-muted">Loading…</p>
+            )}
+            {attachmentsError && (
+              <p className="text-sm text-error">{attachmentsError}</p>
+            )}
+            {attachments && attachments.length === 0 && (
+              <p className="text-sm text-muted">No files uploaded.</p>
+            )}
+            {attachments && attachments.length > 0 && (
+              <ul className="space-y-3">
+                {attachments.map((att) => (
+                  <AttachmentPreview key={att.id} attachment={att} />
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
+
         {claim.submission_notes && (
           <div>
             <dt className="text-xs text-muted uppercase tracking-wider mb-1">
@@ -327,5 +387,50 @@ function SubmissionModal({
         )}
       </dl>
     </Modal>
+  );
+}
+
+function AttachmentPreview({ attachment }: { attachment: Attachment }) {
+  const isImage = attachment.mime_type.startsWith("image/");
+  const isVideo = attachment.mime_type.startsWith("video/");
+
+  return (
+    <li className="bg-surface border border-border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border">
+        <span className="text-sm font-medium truncate">{attachment.filename}</span>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-muted">{formatBytes(attachment.file_size)}</span>
+          <a
+            href={attachment.signed_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent hover:underline"
+          >
+            Download
+          </a>
+        </div>
+      </div>
+      {isImage && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={attachment.signed_url}
+          alt={attachment.filename}
+          className="block w-full max-h-96 object-contain bg-background"
+        />
+      )}
+      {isVideo && (
+        <video
+          src={attachment.signed_url}
+          controls
+          preload="metadata"
+          className="block w-full max-h-96 bg-background"
+        />
+      )}
+      {!isImage && !isVideo && (
+        <div className="px-3 py-3 text-xs text-muted">
+          {attachment.mime_type} — open via Download to preview.
+        </div>
+      )}
+    </li>
   );
 }

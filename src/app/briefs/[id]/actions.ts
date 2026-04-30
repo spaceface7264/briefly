@@ -56,6 +56,119 @@ type PrepareResult =
 
 type ConfirmResult = { ok: true } | { ok: false; error: string };
 
+type AttachmentWithUrl = {
+  id: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+  created_at: string;
+  signed_url: string;
+};
+
+type AttachmentsResult =
+  | { ok: true; attachments: AttachmentWithUrl[] }
+  | { ok: false; error: string };
+
+// 15-minute TTL for signed download URLs. Long enough for an admin to
+// look at a long video; short enough that a leaked URL goes stale
+// quickly. The Storage bucket from 0035 is private, so signed URLs are
+// the only way to read these objects.
+const SIGNED_URL_TTL_SECONDS = 15 * 60;
+
+/**
+ * Returns one short-TTL signed download URL per attachment for the
+ * given claim. Used by both the creator's "see what I submitted" view
+ * and the admin/member review surface.
+ *
+ * Permission model: the caller must be either the claim's creator OR
+ * an active member (admin or member role) of the claim's org. RLS on
+ * `claim_attachments` already enforces this for the metadata fetch;
+ * the same check runs explicitly here so we can return a friendly
+ * error instead of an empty list when permission is missing.
+ */
+export async function getClaimAttachmentSignedUrls(
+  claimId: string
+): Promise<AttachmentsResult> {
+  if (!claimId) {
+    return { ok: false, error: "claimId is required" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "You must be signed in" };
+  }
+
+  const { data: claim, error: claimErr } = await supabase
+    .from("claims")
+    .select("id, user_id, org_id")
+    .eq("id", claimId)
+    .maybeSingle();
+  if (claimErr) {
+    return { ok: false, error: `Lookup failed: ${claimErr.message}` };
+  }
+  if (!claim) {
+    return { ok: false, error: "Claim not found" };
+  }
+
+  const isOwner = claim.user_id === user.id;
+  let isMember = false;
+  if (!isOwner) {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("org_id", claim.org_id)
+      .eq("status", "active")
+      .maybeSingle();
+    isMember = Boolean(membership);
+  }
+  if (!isOwner && !isMember) {
+    return { ok: false, error: "Not authorised to view these attachments" };
+  }
+
+  const { data: rows, error: rowsErr } = await supabase
+    .from("claim_attachments")
+    .select("id, storage_path, filename, mime_type, file_size, created_at")
+    .eq("claim_id", claim.id)
+    .order("created_at", { ascending: true });
+  if (rowsErr) {
+    return { ok: false, error: `Attachments lookup failed: ${rowsErr.message}` };
+  }
+
+  if (!rows || rows.length === 0) {
+    return { ok: true, attachments: [] };
+  }
+
+  const admin = createAdminClient();
+  const attachments: AttachmentWithUrl[] = [];
+  for (const row of rows) {
+    const { data: signed, error: signErr } = await admin.storage
+      .from(SUBMISSIONS_BUCKET)
+      .createSignedUrl(row.storage_path, SIGNED_URL_TTL_SECONDS);
+    if (signErr || !signed) {
+      return {
+        ok: false,
+        error: `Could not sign URL for ${row.filename}: ${
+          signErr?.message ?? "unknown error"
+        }`,
+      };
+    }
+    attachments.push({
+      id: row.id,
+      filename: row.filename,
+      mime_type: row.mime_type,
+      file_size: row.file_size,
+      created_at: row.created_at,
+      signed_url: signed.signedUrl,
+    });
+  }
+
+  return { ok: true, attachments };
+}
+
 /**
  * Phase 1 of a two-step submission flow.
  *
