@@ -844,21 +844,35 @@ Open question: once escrow (1.1) lands, should approve + pay collapse
 into one button for prefunded briefs? Yes — make approval the payment
 trigger when funds are already held.
 
-#### 0.5 Application decision UI
+#### 0.5 Application decision UI ✅
 
-`/admin/applications` shows pending applications but has no buttons.
-RPC `approve_application` already exists (per migration 0022).
+Verified 2026-04-30 — already shipped. The TODO description above
+was based on a stale audit snapshot.
 
-- [ ] On each pending row: **Approve** / **Reject** buttons
-- [ ] Approve: calls `approve_application` RPC → membership(role=
-  "creator") created, notification fires via 0024 trigger
-- [ ] Reject: writes `status=rejected` + optional reason, fires
-  `application_rejected`
-- [ ] Empty state when no pending applications
-- [ ] Tabs/filter: Pending (default) | Approved | Rejected
+- ✅ Approve / Reject buttons in
+  `src/app/admin/applications/application-list.tsx` (`ApplicationRow`,
+  lines 142–156)
+- ✅ `reviewApplication(id, decision)` server action in
+  `src/app/admin/applications/actions.ts`. Approve calls the
+  `approve_application` RPC from migration 0022 (creates the
+  membership + fires the notification via the 0024 trigger). Reject
+  writes `status=rejected` + `reviewed_by` + `reviewed_at` (the
+  trigger fires `application_rejected` automatically).
+- ✅ Pending / Reviewed split (sections, not tabs — fine for the
+  current volume).
+- ✅ Empty state with a hint to enable org discoverability.
+- ✅ Member-vs-admin gating: members see a "Pending review" badge
+  instead of the action buttons. `requireOrgAdmin()` enforces it
+  server-side too.
+- ✅ Plan-limit errors surface with an upgrade prompt linking to
+  `/admin/billing` (uses the `PLAN_LIMIT_EXCEEDED:` prefix from the
+  triggers in migration 0029).
 
-Pair with the deferred RLS work in §7 Backlog (member-vs-admin gating
-on `/admin/applications`).
+Optional follow-ups (not blockers):
+- ⏭️ Required reason on rejection (would need a small reason modal —
+  pair with the same on claim rejection in 0.3).
+- ⏭️ Tabs at the top with counts (Pending | Approved | Rejected),
+  matching the `/admin/claims` filter style.
 
 #### 0.6 Multi-org creator UI
 
