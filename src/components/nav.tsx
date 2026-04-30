@@ -82,13 +82,13 @@ export function Nav() {
     async function loadNotifications() {
       const { data } = await supabase
         .from("notifications")
-        .select("*")
+        .select("*, org:organizations(name, logo_url)")
         .eq("recipient_id", currentUserId)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(20);
 
-      const rows = (data ?? []) as NotificationRow[];
+      const rows = (data ?? []) as unknown as NotificationRow[];
       setNotifications(rows);
       setUnreadCount(rows.filter((row) => !row.read_at).length);
     }

@@ -1,6 +1,12 @@
 import type { Tables } from "@/types/database";
 
-export type NotificationRow = Tables<"notifications">;
+// The base row plus the optional joined org info we surface in the
+// notification card. The join is cheap and lets a creator who's in
+// multiple orgs (or an org admin who's just signed back in) tell which
+// brand each notification refers to without clicking through.
+export type NotificationRow = Tables<"notifications"> & {
+  org?: { name: string; logo_url: string | null } | null;
+};
 
 export const NOTIFICATION_PAGE_SIZE = 20;
 

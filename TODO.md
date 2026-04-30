@@ -874,24 +874,42 @@ Optional follow-ups (not blockers):
 - ⏭️ Tabs at the top with counts (Pending | Approved | Rejected),
   matching the `/admin/claims` filter style.
 
-#### 0.6 Multi-org creator UI
+#### 0.6 Multi-org creator UI ✅
 
-Schema is many-to-many already. UI assumes single-org. Fix the
+Verified 2026-04-30 — most of this was already in place; only the
+notification org context needed adding.
+
+- ✅ Org switcher in creator nav: `<OrgSwitcher>` already renders for
+  any non-org logged-in user (`src/components/nav.tsx:148`). The
+  component itself hides when there's ≤1 active membership.
+  `switchOrg` server action is generic and used for both audiences.
+- ✅ `/briefs` and `/my-briefs` queries scoped by `active_org_id` via
+  `requireActiveOrg(supabase)` — same mechanism the admin shell uses.
+- ✅ `/profile/applications` is the canonical "manage my org
+  relationships" surface (already multi-org aware).
+- ✅ Sign-in redirect prefers last-active implicitly: `switchOrg`
+  writes `profiles.active_org_id`, which is sticky across sessions.
+  New creators with no `active_org_id` fall through to first
+  membership — acceptable, rare edge case.
+- ✅ Notification cards now show org name (added 2026-04-30): the
+  notifications query in `nav.tsx` joins `organizations(name,
+  logo_url)`, and the meta line in `NotificationCenter` renders the
+  org name after the timestamp ("just now · Acme Corp"). Costs
+  almost nothing visually for single-org creators / org admins;
+  unblocks multi-org creators who'd otherwise see ambiguous
+  notifications.
+
+What we're explicitly NOT doing: separate inboxes per org. One
+unified `/my-briefs`, filterable by org via the switcher. Fewer
 surfaces.
 
-- [ ] Org switcher in creator nav (mirror admin org switcher), shown
-  only when creator has 2+ active memberships
-- [ ] `/briefs` queries scoped by `active_org_id`; switcher updates it
-- [ ] `/my-briefs` claim cards show org badge; optional filter by org
-- [ ] `/profile/applications` confirmed as the canonical "manage my org
-  relationships" surface (it already shows multi-org)
-- [ ] Notification cards include org name/logo so creators know which
-  brand fired what
-- [ ] Sign-in redirect: with 2+ active memberships, prefer last-active
-  over first-membership
-
-What we're explicitly NOT doing: separate inboxes per org. One unified
-`/my-briefs`, filterable by org. Fewer surfaces.
+Optional follow-ups (not blockers):
+- ⏭️ Org logo in notification cards (data is fetched, just not
+  rendered yet — small avatar would be nice once we settle on a UI
+  for it).
+- ⏭️ /my-briefs claim card org badge — only useful if we ever add an
+  "all orgs" view to /my-briefs, which contradicts the switcher
+  model. Defer indefinitely.
 
 ---
 

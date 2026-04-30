@@ -171,6 +171,12 @@ export function NotificationCenter({
                   <div className="flex items-center justify-between pt-1">
                     <p className="text-[11px] text-muted">
                       {relativeTimeFrom(notification.created_at)}
+                      {notification.org?.name && (
+                        <>
+                          <span className="mx-1.5">·</span>
+                          <span>{notification.org.name}</span>
+                        </>
+                      )}
                     </p>
                     <button
                       type="button"
