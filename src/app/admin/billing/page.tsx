@@ -83,7 +83,7 @@ export default async function BillingPage({
     redirect("/admin");
   }
 
-  const [pricing, subRow, planRows, pmSummary] = await Promise.all([
+  const [pricing, subRow, planRows, pmSummary, escrowRows] = await Promise.all([
     resolveOrgPricing(supabase, orgId),
     supabase
       .from("org_subscriptions")
@@ -100,9 +100,22 @@ export default async function BillingPage({
       .eq("visible", true)
       .order("monthly_price_dkk", { ascending: true }),
     getOrgPaymentMethodSummary(),
+    // For the escrow-held panel: only count briefs that still have
+    // unreleased funds. Released / refunded / unfunded contribute 0.
+    supabase
+      .from("briefs")
+      .select("id, escrow_held_dkk")
+      .eq("org_id", orgId)
+      .in("funded_status", ["funded", "partially_released"]),
   ]);
 
   const paymentMethod = pmSummary.ok ? pmSummary.pm : null;
+
+  const escrowHeldDkk = (escrowRows.data ?? []).reduce(
+    (sum, b) => sum + (b.escrow_held_dkk ?? 0),
+    0
+  );
+  const escrowBriefCount = (escrowRows.data ?? []).length;
 
   const subscription = subRow.data as unknown as SubscriptionRow | null;
   const plans: PlanCard[] = (planRows.data ?? [])
@@ -176,6 +189,11 @@ export default async function BillingPage({
       />
 
       <PaymentMethodSection paymentMethod={paymentMethod} />
+
+      <EscrowHeldSection
+        heldDkk={escrowHeldDkk}
+        briefCount={escrowBriefCount}
+      />
 
       <PlanCardsSection
         plans={plans}
@@ -309,6 +327,35 @@ function PaymentMethodSection({
           )}
         </div>
         <PaymentMethodButton hasExisting={hasPm} />
+      </div>
+    </section>
+  );
+}
+
+function EscrowHeldSection({
+  heldDkk,
+  briefCount,
+}: {
+  heldDkk: number;
+  briefCount: number;
+}) {
+  return (
+    <section className="mb-10">
+      <h2 className="text-xl font-semibold mb-2">Escrow held</h2>
+      <p className="text-sm text-muted mb-4">
+        Funds you&apos;ve committed to active briefs but haven&apos;t yet
+        released to creators. Released on approval, refunded on
+        archive.
+      </p>
+      <div className="bg-surface border border-border rounded-xl p-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-2xl font-bold">{formatDkk(heldDkk)}</p>
+          <p className="text-xs text-muted mt-1">
+            {briefCount === 0
+              ? "Nothing held — publish a paid brief to commit funds."
+              : `Across ${briefCount} active brief${briefCount === 1 ? "" : "s"}.`}
+          </p>
+        </div>
       </div>
     </section>
   );

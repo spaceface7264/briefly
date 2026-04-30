@@ -1,4 +1,10 @@
-import type { BriefCategory, BriefDurationClass, BriefStatus, ClaimStatus } from "@/types/database";
+import type {
+  BriefCategory,
+  BriefDurationClass,
+  BriefFundedStatus,
+  BriefStatus,
+  ClaimStatus,
+} from "@/types/database";
 
 export type BriefPlatform = "instagram" | "tiktok" | "youtube";
 
@@ -40,4 +46,25 @@ export const claimStatusLabel: Record<ClaimStatus, string> = {
   approved: "Approved",
   paid: "Paid",
   cancelled: "Cancelled",
+};
+
+// Phase 1.1f. `unfunded` is intentionally not in the tone map — the
+// list/detail views suppress the badge entirely for unfunded briefs
+// (legacy data + free briefs that never escrowed). `funded` /
+// `partially_released` / `released` / `refunded` are the only states
+// worth surfacing.
+export const badgeToneByFundedStatus: Partial<
+  Record<BriefFundedStatus, string>
+> = {
+  funded: "bg-accent-muted text-accent",
+  partially_released: "bg-info-muted text-info",
+  released: "bg-muted/20 text-muted",
+  refunded: "bg-error/15 text-error",
+};
+
+export const fundedStatusLabel: Partial<Record<BriefFundedStatus, string>> = {
+  funded: "Funded",
+  partially_released: "Partially released",
+  released: "Released",
+  refunded: "Refunded",
 };

@@ -5,7 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { planLimitErrorMessage } from "@/lib/pricing";
 import { BriefForm } from "../brief-form";
-import type { Brief, Claim } from "@/types/database";
+import { archiveBriefWithRefund, reopenBrief } from "../actions";
+import { formatDkk } from "@/lib/pricing";
+import {
+  badgeToneByFundedStatus,
+  fundedStatusLabel,
+} from "@/lib/admin-badge-tones";
+import type { Brief, BriefFundedStatus, Claim } from "@/types/database";
 import Link from "next/link";
 
 export default function EditBriefPage() {
@@ -47,51 +53,39 @@ export default function EditBriefPage() {
   }, [briefId]);
 
   async function handleArchive() {
-    if (!confirm("Archive this brief? It will no longer be visible to creators.")) return;
+    if (!brief) return;
+    const heldDkk = brief.escrow_held_dkk ?? 0;
+    const willRefund =
+      (brief.funded_status === "funded" ||
+        brief.funded_status === "partially_released") &&
+      heldDkk > 0;
+    const message = willRefund
+      ? `Archive this brief? The held escrow of ${formatDkk(heldDkk)} will be refunded to your saved payment method, and the brief will no longer be visible to creators.`
+      : "Archive this brief? It will no longer be visible to creators.";
+    if (!confirm(message)) return;
 
     setArchiving(true);
-    const supabase = createClient();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from("briefs") as any)
-      .update({ status: "archived" })
-      .eq("id", briefId);
-
-    if (error) {
-      console.error("Archive error:", error);
-      alert("Failed to archive brief");
-      setArchiving(false);
-      return;
-    }
-
-    router.push("/admin/briefs");
-    router.refresh();
+    // archiveBriefWithRefund redirects to /admin/briefs on success.
+    // If we receive a result back here, it's an error.
+    const result = await archiveBriefWithRefund(briefId);
+    alert(result.error);
+    setArchiving(false);
   }
 
   async function handleReopen() {
     setArchiving(true);
-    const supabase = createClient();
+    const result = await reopenBrief(briefId);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from("briefs") as any)
-      .update({ status: "open" })
-      .eq("id", briefId);
-
-    if (error) {
-      console.error("Reopen error:", error);
-      const limitMessage = planLimitErrorMessage(error);
-      if (limitMessage) {
-        alert(`${limitMessage}\n\nUpgrade your plan at /admin/billing.`);
-      } else {
-        alert("Failed to reopen brief");
-      }
+    if (!result.ok) {
+      const limitMessage = planLimitErrorMessage({ message: result.error });
+      alert(limitMessage ?? result.error);
       setArchiving(false);
       return;
     }
 
     router.refresh();
     setArchiving(false);
-    setBrief((prev) => prev ? { ...prev, status: "open" } : null);
+    setBrief((prev) => (prev ? { ...prev, status: "open" } : null));
   }
 
   if (loading) {
@@ -124,7 +118,14 @@ export default function EditBriefPage() {
           <Link href="/admin/briefs" className="text-muted hover:text-foreground text-sm mb-2 inline-block">
             &larr; Back to Briefs
           </Link>
-          <h1 className="text-3xl font-bold">Edit Brief</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold">Edit Brief</h1>
+            <FundedHeaderBadge
+              status={brief.funded_status as BriefFundedStatus | null}
+              heldDkk={brief.escrow_held_dkk}
+              amountDkk={brief.escrow_amount_dkk}
+            />
+          </div>
         </div>
         <div className="flex gap-3">
           {brief.status === "archived" ? (
@@ -227,6 +228,45 @@ export default function EditBriefPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function FundedHeaderBadge({
+  status,
+  heldDkk,
+  amountDkk,
+}: {
+  status: BriefFundedStatus | null;
+  heldDkk: number | null;
+  amountDkk: number | null;
+}) {
+  if (!status || status === "unfunded") return null;
+  const tone = badgeToneByFundedStatus[status];
+  const label = fundedStatusLabel[status];
+  if (!tone || !label) return null;
+
+  // Add an inline amount summary so admins can see escrow state at a
+  // glance without opening the form. e.g. "Funded · 1.500 DKK held"
+  // or "Partially released · 500 / 1.500 DKK held".
+  let suffix = "";
+  if (status === "funded" && heldDkk != null) {
+    suffix = ` · ${formatDkk(heldDkk)} held`;
+  } else if (status === "partially_released" && heldDkk != null && amountDkk != null) {
+    suffix = ` · ${formatDkk(heldDkk)} / ${formatDkk(amountDkk)} held`;
+  } else if (status === "released" && amountDkk != null) {
+    suffix = ` · ${formatDkk(amountDkk)} paid out`;
+  } else if (status === "refunded" && amountDkk != null) {
+    suffix = ` · ${formatDkk(amountDkk)} returned`;
+  }
+
+  return (
+    <span
+      className={`px-2.5 py-1 text-xs font-medium rounded-full ${tone}`}
+      title="Escrow state for this brief"
+    >
+      {label}
+      {suffix}
+    </span>
   );
 }
 

@@ -9,8 +9,11 @@ import { type ColumnKey } from "./columns-dropdown";
 import {
   badgeToneByCategory,
   badgeToneByDurationClass,
+  badgeToneByFundedStatus,
   badgeToneByStatus,
+  fundedStatusLabel,
 } from "@/lib/admin-badge-tones";
+import type { BriefFundedStatus } from "@/types/database";
 
 type SortField = "created_at" | "title" | "price_dkk";
 type SortOrder = "asc" | "desc";
@@ -29,6 +32,18 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
 ];
 
 type BriefWithCount = Brief & { activeClaimCount: number };
+
+function FundedBadge({ status }: { status: BriefFundedStatus | null }) {
+  if (!status || status === "unfunded") return null;
+  const tone = badgeToneByFundedStatus[status];
+  const label = fundedStatusLabel[status];
+  if (!tone || !label) return null;
+  return (
+    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${tone}`}>
+      {label}
+    </span>
+  );
+}
 
 function SortIcon({ activeOrder }: { activeOrder?: SortOrder }) {
   if (activeOrder === "asc") return <ArrowUpIcon className="h-3.5 w-3.5" aria-hidden="true" />;
@@ -252,9 +267,12 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
                   {visibleColumns.has("claims") && <td className="px-4 py-3 text-sm">{brief.activeClaimCount} / {brief.claim_limit}</td>}
                   {visibleColumns.has("status") && (
                     <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full capitalize ${badgeToneByStatus[brief.status as BriefStatus]}`}>
-                        {brief.status}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`px-2.5 py-1 text-xs font-medium rounded-full capitalize ${badgeToneByStatus[brief.status as BriefStatus]}`}>
+                          {brief.status}
+                        </span>
+                        <FundedBadge status={brief.funded_status as BriefFundedStatus | null} />
+                      </div>
                     </td>
                   )}
                   {visibleColumns.has("created") && <td className="px-4 py-3 text-muted text-sm">{new Date(brief.created_at).toLocaleDateString("en-GB")}</td>}

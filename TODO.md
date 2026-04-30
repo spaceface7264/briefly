@@ -1081,17 +1081,67 @@ Single-slot brief after pay → `released`, held = 0. Multi-slot
 brief with one slot paid → `partially_released`, held = amount -
 gross.
 
-##### 1.1e — Refund flow ❌
+##### 1.1e — Refund flow 🟡
 
-- [ ] On claim cancel/reject/expire: nothing to refund per-claim
-  (the slot is still held). On brief archive while held > 0: refund
-  the unreleased balance.
-- [ ] Refund via `stripe.refunds.create({ payment_intent })` to the
-  source payment method.
-- [ ] Update `funded_status` to `refunded` and zero `escrow_held_dkk`.
-- [ ] What about partially released briefs being archived? Refund
-  the held remainder, leave released amounts alone, mark as
-  `refunded`.
+Code shipped 2026-04-30. Pending end-to-end verification (blocked
+on the same Stripe sandbox settlement timing as 1.1d).
+
+- ✅ `archiveBriefWithRefund(briefId)` in
+  `src/app/admin/briefs/actions.ts`. Admin-only via
+  `requireOrgAdmin()` — refunds move money so members can't trigger
+  them. Per-state behaviour:
+  - `funded` / `partially_released` (held > 0): partial refund of
+    `escrow_held_dkk × 100` øre against the brief's
+    `stripe_payment_intent_id`, then status → `archived` +
+    `funded_status` → `refunded` + `escrow_held_dkk` → 0.
+  - `released` / `refunded` / `unfunded`: just archive, no refund
+    call.
+  - Idempotency key on the refund (`archive-refund-{brief.id}`)
+    so a retry after a partial failure doesn't double-refund.
+  - Insert ordering: refund first, DB update second. If the DB
+    update fails after a successful refund, returns a "Refund
+    succeeded but archive failed" error pointing the admin at
+    support — funds are out of the platform balance regardless.
+  - Redirects to `/admin/briefs` on success (mirrors 1.1c
+    `createBriefWithEscrow` pattern; no client-side router race).
+- ✅ `reopenBrief(briefId)` — same file, blocks reopen of refunded
+  briefs with a clear "publish a new brief instead" message.
+  Unfunded briefs and never-funded archived briefs reopen normally.
+  Plan-limit errors (from migration 0029 triggers) surface
+  unwrapped so the existing client-side `planLimitErrorMessage`
+  helper can map them.
+- ✅ `/admin/briefs/[id]` archive/reopen handlers refactored to
+  call the actions instead of inline supabase writes. Confirm
+  dialog now reads "The held escrow of X DKK will be refunded…"
+  when the brief actually has held funds.
+
+Per-claim refunds (cancel/reject/expire) intentionally do nothing —
+the slot stays held for the next creator. Only brief archive
+triggers a refund.
+
+##### 1.1f — UI polish 🟡
+
+Code shipped 2026-04-30. Pending visual review.
+
+- ✅ `badgeToneByFundedStatus` + `fundedStatusLabel` added to
+  `src/lib/admin-badge-tones.ts`. Tones: `funded` accent (lime),
+  `partially_released` info, `released` muted, `refunded` error
+  tint. `unfunded` intentionally not in the map — list/detail
+  views suppress the badge entirely so legacy briefs and free
+  briefs don't carry a confusing "Unfunded" tag.
+- ✅ `/admin/briefs` (`admin-briefs-client.tsx`) status column now
+  stacks the existing status pill on top of a small funded-status
+  pill. Tiny `FundedBadge` helper renders `null` for unfunded.
+- ✅ `/admin/briefs/[id]` header gets a `FundedHeaderBadge` next
+  to "Edit Brief" with an inline summary like
+  "Funded · 1.500 DKK held" or "Partially released · 500 / 1.500
+  DKK held" or "Released · 1.500 DKK paid out" or "Refunded ·
+  1.500 DKK returned".
+- ✅ `/admin/billing` gets a new **Escrow held** section between
+  the payment-method panel and the plan cards. Sums
+  `escrow_held_dkk` across the org's briefs in `funded` /
+  `partially_released` state. Empty state copy nudges to publish a
+  paid brief.
 
 ##### 1.1f — UI polish ❌
 

@@ -4,7 +4,7 @@ import type Stripe from "stripe";
 import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe/server";
 import { getOrCreateOrgStripeCustomer } from "@/lib/stripe/customer";
-import { requireActiveOrg } from "@/lib/org";
+import { requireActiveOrg, requireOrgAdmin } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
@@ -12,6 +12,13 @@ import type {
   BriefDurationClass,
 } from "@/types/database";
 import type { Json } from "@/types/database";
+
+type SimpleResult = { ok: true } | { ok: false; error: string };
+
+// For actions that redirect on success — the only value the client
+// ever observes is the failure case, so the return type narrows to
+// the error variant. Same shape as createBriefWithEscrow's return.
+type RedirectingResult = { ok: false; error: string };
 
 interface NewBriefInput {
   title: string;
@@ -239,4 +246,164 @@ function friendlyStripeError(err: unknown): string {
     }
   }
   return err instanceof Error ? err.message : "Charge failed";
+}
+
+/**
+ * Archive a brief and refund any unreleased escrow back to the org's
+ * payment method. Phase 1.1e of the post-genericization roadmap.
+ *
+ * Refund logic per `funded_status` at archive time:
+ *   - `funded`             → refund full escrow_held_dkk (no slots
+ *                            were paid out)
+ *   - `partially_released` → refund the remaining escrow_held_dkk
+ *                            (released amounts stay with creators)
+ *   - `released`           → nothing to refund (held = 0)
+ *   - `refunded`           → nothing to refund (already done)
+ *   - `unfunded`           → nothing to refund (legacy / free brief)
+ *
+ * After a successful refund, funded_status flips to `refunded` and
+ * escrow_held_dkk is zeroed.
+ *
+ * Stripe `refunds.create({ payment_intent, amount })` issues a
+ * partial refund against the original PaymentIntent, going back to
+ * the original payment method.
+ *
+ * Admin-only — refunds move real money. Members can publish briefs
+ * (which pulls from the org's saved card) but only admins can move
+ * money back out.
+ *
+ * Redirects to /admin/briefs on success so the browser navigates
+ * immediately without the form / detail page rendering stale state.
+ */
+export async function archiveBriefWithRefund(
+  briefId: string
+): Promise<RedirectingResult> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const adminDb = createAdminClient();
+
+  const { data: brief, error: briefErr } = await adminDb
+    .from("briefs")
+    .select(
+      "id, org_id, status, funded_status, escrow_held_dkk, stripe_payment_intent_id"
+    )
+    .eq("id", briefId)
+    .single();
+  if (briefErr || !brief) {
+    return { ok: false, error: "Brief not found" };
+  }
+  if (brief.org_id !== gate.orgId) {
+    return { ok: false, error: "Brief does not belong to your org" };
+  }
+  if (brief.status === "archived") {
+    return { ok: false, error: "Brief is already archived" };
+  }
+
+  const heldDkk = brief.escrow_held_dkk ?? 0;
+  const needsRefund =
+    (brief.funded_status === "funded" ||
+      brief.funded_status === "partially_released") &&
+    heldDkk > 0;
+
+  if (needsRefund) {
+    if (!brief.stripe_payment_intent_id) {
+      return {
+        ok: false,
+        error:
+          "Brief has held escrow but no PaymentIntent on file — cannot refund. Contact platform support.",
+      };
+    }
+    try {
+      await stripe().refunds.create(
+        {
+          payment_intent: brief.stripe_payment_intent_id,
+          amount: heldDkk * 100, // DKK → øre
+          reason: "requested_by_customer",
+          metadata: {
+            org_id: gate.orgId,
+            brief_id: brief.id,
+            refund_kind: "escrow_archive",
+          },
+        },
+        { idempotencyKey: `archive-refund-${brief.id}` }
+      );
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Refund failed: ${
+          err instanceof Error ? err.message : "unknown error"
+        }`,
+      };
+    }
+  }
+
+  const updatePayload: Record<string, unknown> = { status: "archived" };
+  if (needsRefund) {
+    updatePayload.funded_status = "refunded";
+    updatePayload.escrow_held_dkk = 0;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updErr } = await (adminDb.from("briefs") as any)
+    .update(updatePayload)
+    .eq("id", brief.id);
+  if (updErr) {
+    return {
+      ok: false,
+      error: `Refund succeeded but archive failed: ${updErr.message}. Contact support.`,
+    };
+  }
+
+  redirect("/admin/briefs");
+}
+
+/**
+ * Reopen an archived brief.
+ *
+ * Refunded briefs are blocked here — the escrow is gone, so there's
+ * nothing to back creator payouts. The admin must publish a new
+ * brief (which charges the org's card) instead. Unfunded / free
+ * briefs reopen freely. Briefs that were archived without ever being
+ * funded (legacy data) also pass through.
+ */
+export async function reopenBrief(briefId: string): Promise<SimpleResult> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const adminDb = createAdminClient();
+
+  const { data: brief, error: briefErr } = await adminDb
+    .from("briefs")
+    .select("id, org_id, status, funded_status")
+    .eq("id", briefId)
+    .single();
+  if (briefErr || !brief) {
+    return { ok: false, error: "Brief not found" };
+  }
+  if (brief.org_id !== gate.orgId) {
+    return { ok: false, error: "Brief does not belong to your org" };
+  }
+  if (brief.status !== "archived") {
+    return { ok: false, error: "Brief is not archived" };
+  }
+  if (brief.funded_status === "refunded") {
+    return {
+      ok: false,
+      error:
+        "This brief was refunded when archived — escrow is gone. Publish a new brief instead.",
+    };
+  }
+
+  const { error: updErr } = await adminDb
+    .from("briefs")
+    .update({ status: "open" })
+    .eq("id", brief.id);
+  if (updErr) {
+    // Surface plan-limit errors with the standard prefix so the
+    // client can show the upgrade prompt.
+    return { ok: false, error: updErr.message };
+  }
+
+  return { ok: true };
 }
