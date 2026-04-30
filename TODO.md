@@ -953,9 +953,10 @@ pay flow keeps working unchanged.
   `organizations.default_payment_method_id`.
 - ✅ Types regenerated with `BriefFundedStatus` helper alias.
 
-##### 1.1b — Org payment-method capture 🟡
+##### 1.1b — Org payment-method capture ✅
 
-Code shipped 2026-04-30 — pending browser verification.
+Shipped + verified end-to-end 2026-04-30 with Stripe test card
+4242 4242 4242 4242 in sandbox.
 
 Implementation revised vs. the original plan: instead of Stripe
 Elements + SetupIntent client_secret, used **Stripe-hosted Checkout
@@ -990,9 +991,12 @@ existing upgrade button.
 - ⚠️ Browser-test pending. Build clean; Stripe test card flow not
   yet exercised by the engineer.
 
-##### 1.1c — Charge on brief publish 🟡
+##### 1.1c — Charge on brief publish ✅
 
-Code shipped 2026-04-30 — pending browser verification.
+Shipped + verified end-to-end 2026-04-30 (paid brief published,
+charge succeeded in Stripe sandbox, redirect to /admin/briefs
+worked, brief landed with funded_status=funded and matching
+escrow_amount_dkk).
 
 - ✅ New server action `createBriefWithEscrow` at
   `src/app/admin/briefs/actions.ts`. Charge-then-insert ordering:
