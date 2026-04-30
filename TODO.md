@@ -19,12 +19,13 @@ Dashboard → SQL Editor (copy/paste each file, run in numerical order).
 Order matters — later migrations reference structures created by earlier
 ones.
 
-All migrations 0022–0034 have been confirmed applied to the live
-Briefly project (verified 2026-04-29 by signature-object check against
-`information_schema` + `pg_catalog` + `pg_enum` + `storage.buckets`).
-The list is preserved as a record of what each migration delivers —
-useful when re-running on a fresh project (use `combined_fresh_install.sql`
-for that) or onboarding a new dev environment.
+All migrations 0022–0037 have been confirmed applied to the live
+Briefly project (0022–0034 verified 2026-04-29 by signature-object
+check; 0035–0037 applied in-session 2026-04-30 alongside the Phase
+0 / 1.1 work that introduced them). The list is preserved as a
+record of what each migration delivers — useful when re-running on
+a fresh project (use `combined_fresh_install.sql` for that) or
+onboarding a new dev environment.
 
 - ✅ `0022_creator_discovery.sql` — adds `organizations.discoverable`,
   the `org_applications` table + RLS, and the `approve_application` RPC
@@ -140,6 +141,33 @@ The following migrations were missing from this list — added in the
   claims + read on profiles/org_applications from `is_org_admin()` to
   `is_org_member()` so members can do day-to-day brief/claim work
   (admins keep team/billing/discoverability gating).
+
+These three landed in the 2026-04-30 session alongside the Phase 0
+/ 1.1 product work that needed them. Same convention — additive,
+backwards-compatible — but worth highlighting because they touch
+new tables and storage.
+
+- ➕ ✅ `0035_submissions_storage_bucket.sql` — creates the private
+  `submissions` Storage bucket (250 MB cap, video/image/pdf MIME
+  allowlist). No user-facing RLS on `storage.objects` — the upload
+  flow uses signed URLs minted server-side from the prepare action
+  in `src/app/briefs/[id]/actions.ts`. Backs creator submission
+  attachments (Phase 0.2).
+- ➕ ✅ `0036_claim_attachments.sql` — `claim_attachments` table
+  (`id`, `claim_id` FK CASCADE, `storage_path` UNIQUE, `filename`,
+  `mime_type`, `file_size`, `created_at`). RLS allows SELECT for
+  the claim's creator and any active org member of the claim's
+  org; writes via service-role only. Backs the multi-file
+  submission flow that replaced the URL-only inline write (Phase
+  0.2a).
+- ➕ ✅ `0037_brief_escrow_schema.sql` — `brief_funded_status` enum
+  (`unfunded` | `funded` | `partially_released` | `released` |
+  `refunded`), plus `briefs.funded_status` (default `unfunded`),
+  `stripe_payment_intent_id`, `escrow_amount_dkk`, `escrow_held_dkk`
+  with CHECK constraints + a partial index on active states. Adds
+  `organizations.stripe_customer_id` (UNIQUE) and
+  `default_payment_method_id`. Foundation for the escrow flow
+  shipped in Phase 1.1.
 
 After applying, sanity-check:
 
@@ -677,6 +705,24 @@ Phases are sequenced for dependency reasons (you can't open self-serve
 signup before money mechanics are correct, can't add brand assets
 without Storage, etc.). Items within a phase can be parallelised.
 
+### Status snapshot (2026-04-30)
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0.1 Storage | ✅ | submissions bucket live |
+| 0.2 Submission UI | ✅ | direct browser → Storage upload, signed URLs |
+| 0.3 Review/approve | 🟡 | Approve+Reject shipped; Request-revision deferred to 4.1 |
+| 0.4 Pay action | 🟡 | shipped pre-session; end-to-end Stripe transfer untested this session |
+| 0.5 Application decisions | ✅ | already shipped before audit |
+| 0.6 Multi-org creator UI | ✅ | org switcher + scoped queries + notification org name |
+| 1.1 Escrow & money flow | ✅ | all six sub-phases (a–f) verified |
+| 1.2 EU VAT & self-billing | ❌ | **next big piece** — multi-session, regulatory must-have |
+| 1.3 Creator earnings dashboard | ✅ | /profile/earnings + CSV export live |
+| 2.x Self-serve & open marketplace | ❌ | gated on 1.2 per sequencing |
+| 3.x Org leverage (brand kit, campaigns, audit log) | ❌ | parallel-safe once 1.x done |
+| 4.x Quality of work (revisions, messaging, ratings, profiles) | ❌ | |
+| 5.x Scale polish (mobile, notification granularity, search) | ❌ | |
+
 ### Phase 0 — Close the loop & multi-org
 
 Make today's flow actually work end-to-end. The data model supports
@@ -708,7 +754,7 @@ Open question (still deferred): CDN/transcode layer (Mux, Cloudflare
 Stream) for video previews vs. raw originals. Mux is the right answer
 at scale; raw storage is fine to start. Decide before launch traffic.
 
-#### 0.2 Submission UI
+#### 0.2 Submission UI ✅
 
 ⚠️ **Discovered during implementation 2026-04-30**: a URL-only
 submission flow already exists inline in
@@ -815,39 +861,56 @@ infrastructure).
   between prepare and confirm) — see 0.2a "Tradeoff captured."
   Defer.
 
-#### 0.3 Review/approve UI
+#### 0.3 Review/approve UI 🟡
 
-Admins need to see submissions and act on them.
+Most of the original spec shipped 2026-04-30; a couple of items
+deferred (noted below).
 
-- [ ] On `/admin/claims` row with status `submitted`: "Review" link →
-  modal or detail page
-- [ ] Surface: inline preview of attachments (video player, image
-  thumbnails, PDF embed), notes, creator info, brief reference
-- [ ] Three actions: **Approve** / **Request revision** / **Reject**
-- [ ] Approve: `status=approved`, fire `claim_approved` notification
-- [ ] Request revision: bounce to `active` with required feedback
-  message stored on the claim (full revision history → 4.1)
-- [ ] Reject: `status=cancelled` with required reason
-- [ ] Same surface accessible from `/admin/briefs/[id]` Pending Review
-  sidebar
+- ✅ "Review" button on every `/admin/claims` row with status
+  `submitted` (no longer URL-gated). Opens `SubmissionModal` in
+  `src/app/admin/claims/claim-actions.tsx`.
+- ✅ Modal shows creator info, submission URL (if any), notes, and
+  Files section with per-attachment cards. Inline preview: `<img>`
+  for image/*, `<video controls>` for video/*, mime-type fallback
+  with Download link for everything else.
+- ✅ Approve / Reject actions inline with confirm dialogs;
+  approve fires `claim_approved` notification via the existing
+  Postgres trigger (migration 0018).
+- ⚠️ "Request revision" deferred to Phase 4.1 — needs the proper
+  revision history schema (`claim_revisions` table) rather than a
+  bolted-on feedback field.
+- ⚠️ Required-reason on reject — not enforced. Easy follow-up if
+  it surfaces as a real ops gap. Pair with the same on application
+  reject in 0.5.
+- ⚠️ "Same surface accessible from `/admin/briefs/[id]` Pending
+  Review sidebar" — NOT done. Today admins reach the review modal
+  from `/admin/claims` only. Brief-detail-side review would
+  duplicate the modal mount; defer until someone asks.
 
-#### 0.4 Pay action
+#### 0.4 Pay action 🟡
 
-Approval and payment are two data-model steps but should feel like one
-in the UI.
+Already shipped pre-session in `src/app/admin/claims/pay-action.ts`
+(invoice numbering, VAT calc, snapshots, Stripe transfer, webhook
+on transfer completion). Phase 1.1d extended it to decrement brief
+escrow on each successful payout.
 
-- [ ] On approved claim row: "Pay" button (disabled if creator has no
-  Stripe Connect account, with tooltip explaining)
-- [ ] Confirm modal: amount, fee breakdown (placeholder until 1.2),
-  creator's payout account, invoice number preview
-- [ ] On confirm: server action creates `payments` row, calls Stripe
-  transfer, generates invoice
-- [ ] Existing webhook updates `payments.status` on transfer completion
-- [ ] Bulk action: "Pay all approved" on the claims table
-
-Open question: once escrow (1.1) lands, should approve + pay collapse
-into one button for prefunded briefs? Yes — make approval the payment
-trigger when funds are already held.
+- ✅ "Pay" button on approved claim rows with the
+  no-payouts-account / no-billing-details / no-self-billing-consent
+  guards.
+- ✅ Confirm dialog shows amount + creator email + warning copy.
+- ✅ Server action: payments row, Stripe transfer, invoice
+  generation, claim → `paid`, brief escrow decrement (1.1d), all in
+  one shot.
+- ✅ Webhook handler updates payments status on transfer events.
+- ⏭️ "Bulk action: Pay all approved" — not built. Defer until
+  there's volume to justify it.
+- ⏭️ "Approve + Pay collapse for prefunded briefs" — single-click
+  approve-and-pay was an open question. Worth revisiting after a
+  few cycles in production. For now the two-click approve → pay
+  preserves the natural review beat.
+- 🟡 End-to-end pay (with a real Stripe transfer) untested this
+  session — gated on the sandbox `Incoming → Available`
+  settlement timer. Code path verified via 1.1d.
 
 #### 0.5 Application decision UI ✅
 
