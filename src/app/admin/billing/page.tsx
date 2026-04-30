@@ -9,6 +9,11 @@ import {
 } from "@/lib/pricing";
 import { BillingActions } from "./billing-actions";
 import { UpgradeButton } from "./upgrade-button";
+import { PaymentMethodButton } from "./payment-method-button";
+import {
+  getOrgPaymentMethodSummary,
+  syncPaymentMethodFromSession,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +45,11 @@ interface PlanCard {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ checkout?: string }>;
+  searchParams: Promise<{
+    checkout?: string;
+    setup?: string;
+    session_id?: string;
+  }>;
 }) {
   const supabase = await createClient();
   const {
@@ -49,7 +58,18 @@ export default async function BillingPage({
   if (!user) redirect("/login");
 
   const orgId = await requireActiveOrg(supabase);
-  const { checkout } = await searchParams;
+  const { checkout, setup, session_id: setupSessionId } = await searchParams;
+
+  // Setup callback: if Stripe sent us back with ?setup=success&session_id=…,
+  // sync the resulting pm_id onto the org BEFORE we render so the
+  // Payment method section reflects the new card immediately.
+  // Idempotent — safe even if the user refreshes with the param still
+  // in the URL.
+  let setupSyncError: string | null = null;
+  if (setup === "success" && setupSessionId) {
+    const result = await syncPaymentMethodFromSession(setupSessionId);
+    if (!result.ok) setupSyncError = result.error;
+  }
 
   // Confirm the user is an admin of the org — billing is admin-only.
   const { data: membership } = await supabase
@@ -63,7 +83,7 @@ export default async function BillingPage({
     redirect("/admin");
   }
 
-  const [pricing, subRow, planRows] = await Promise.all([
+  const [pricing, subRow, planRows, pmSummary] = await Promise.all([
     resolveOrgPricing(supabase, orgId),
     supabase
       .from("org_subscriptions")
@@ -79,7 +99,10 @@ export default async function BillingPage({
       )
       .eq("visible", true)
       .order("monthly_price_dkk", { ascending: true }),
+    getOrgPaymentMethodSummary(),
   ]);
+
+  const paymentMethod = pmSummary.ok ? pmSummary.pm : null;
 
   const subscription = subRow.data as unknown as SubscriptionRow | null;
   const plans: PlanCard[] = (planRows.data ?? [])
@@ -124,12 +147,35 @@ export default async function BillingPage({
           body="No changes were made to your plan."
         />
       )}
+      {setup === "success" && !setupSyncError && (
+        <Banner
+          tone="success"
+          title="Payment method saved"
+          body="Briefs you publish will charge the upfront escrow to this card."
+        />
+      )}
+      {setup === "success" && setupSyncError && (
+        <Banner
+          tone="muted"
+          title="Couldn't save payment method"
+          body={setupSyncError}
+        />
+      )}
+      {setup === "cancelled" && (
+        <Banner
+          tone="muted"
+          title="Setup cancelled"
+          body="No payment method was added."
+        />
+      )}
 
       <CurrentPlanSection
         pricing={pricing}
         subscription={subscription}
         orgId={orgId}
       />
+
+      <PaymentMethodSection paymentMethod={paymentMethod} />
 
       <PlanCardsSection
         plans={plans}
@@ -212,6 +258,57 @@ function CurrentPlanSection({
           hasStripeCustomer={Boolean(subscription?.stripe_customer_id)}
           hasActiveSubscription={Boolean(subscription?.stripe_subscription_id)}
         />
+      </div>
+    </section>
+  );
+}
+
+function PaymentMethodSection({
+  paymentMethod,
+}: {
+  paymentMethod: {
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+  } | null;
+}) {
+  const hasPm = paymentMethod !== null;
+  return (
+    <section className="mb-10">
+      <h2 className="text-xl font-semibold mb-2">
+        Payment method for brief escrow
+      </h2>
+      <p className="text-sm text-muted mb-4">
+        Charged when you publish a paid brief — the upfront amount is
+        held in escrow and released to the creator when you approve
+        their submission.
+      </p>
+      <div className="bg-surface border border-border rounded-xl p-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          {hasPm ? (
+            <>
+              <p className="text-base font-medium">
+                <span className="capitalize">{paymentMethod.brand}</span>
+                <span className="mx-2 text-muted">••••</span>
+                <span className="font-mono">{paymentMethod.last4}</span>
+              </p>
+              <p className="text-xs text-muted mt-1">
+                Expires{" "}
+                {String(paymentMethod.expMonth).padStart(2, "0")}/
+                {paymentMethod.expYear}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-base font-medium">No payment method on file</p>
+              <p className="text-xs text-muted mt-1">
+                Required before you can publish a paid brief.
+              </p>
+            </>
+          )}
+        </div>
+        <PaymentMethodButton hasExisting={hasPm} />
       </div>
     </section>
   );

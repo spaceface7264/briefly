@@ -2,6 +2,7 @@
 
 import type Stripe from "stripe";
 import { stripe, appUrl } from "@/lib/stripe/server";
+import { getOrCreateOrgStripeCustomer } from "@/lib/stripe/customer";
 import { requireOrgAdmin } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/types/database";
@@ -71,27 +72,10 @@ export async function createCheckoutSession(
     .eq("id", gate.userId)
     .single();
 
-  const { data: subRow } = await adminDb
-    .from("org_subscriptions")
-    .select("id, stripe_customer_id")
-    .eq("org_id", gate.orgId)
-    .single();
-
-  let customerId = subRow?.stripe_customer_id ?? null;
-  if (!customerId) {
-    const customer = await stripe().customers.create({
-      name: org.name,
-      email: admin?.email ?? undefined,
-      metadata: { org_id: gate.orgId },
-    });
-    customerId = customer.id;
-    if (subRow) {
-      await adminDb
-        .from("org_subscriptions")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", subRow.id);
-    }
-  }
+  const customerId = await getOrCreateOrgStripeCustomer(adminDb, gate.orgId, {
+    name: org.name,
+    email: admin?.email ?? null,
+  });
 
   const session = await stripe().checkout.sessions.create({
     mode: "subscription",
@@ -247,4 +231,180 @@ export async function syncSubscriptionFromStripe(
     .from("org_subscriptions")
     .update(update)
     .eq("org_id", orgId);
+}
+
+/**
+ * Open a Stripe-hosted Checkout in `mode: setup` so the org admin can
+ * collect a card without charging it. The resulting payment method is
+ * attached to the org's Stripe Customer; on return,
+ * `syncPaymentMethodFromSession` records the `pm_…` id on
+ * `organizations.default_payment_method_id`.
+ *
+ * Used by Phase 1.1c onwards as the source for escrow PaymentIntent
+ * charges when a brief is published.
+ */
+export async function createPaymentMethodSetupSession(): Promise<
+  ActionResult<{ url: string }>
+> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const adminDb = createAdminClient();
+
+  const { data: org } = await adminDb
+    .from("organizations")
+    .select("id, name")
+    .eq("id", gate.orgId)
+    .single();
+  if (!org) return { ok: false, error: "Org not found" };
+
+  const { data: admin } = await adminDb
+    .from("profiles")
+    .select("email")
+    .eq("id", gate.userId)
+    .single();
+
+  const customerId = await getOrCreateOrgStripeCustomer(adminDb, gate.orgId, {
+    name: org.name,
+    email: admin?.email ?? null,
+  });
+
+  const session = await stripe().checkout.sessions.create({
+    mode: "setup",
+    customer: customerId,
+    payment_method_types: ["card"],
+    success_url: `${appUrl()}/admin/billing?setup=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appUrl()}/admin/billing?setup=cancelled`,
+  });
+
+  if (!session.url) {
+    return { ok: false, error: "Stripe did not return a setup URL" };
+  }
+  return { ok: true, url: session.url };
+}
+
+/**
+ * Called from `/admin/billing` when the page loads with
+ * `?setup=success&session_id=…`. Reads the completed setup session,
+ * extracts the payment method, sets it as the customer's
+ * `invoice_settings.default_payment_method`, and records the id on
+ * `organizations.default_payment_method_id`.
+ *
+ * Idempotent — safe to call multiple times for the same session.
+ * Verifies the session's customer belongs to the caller's org so a
+ * malicious caller can't pass an arbitrary session id and rebind
+ * someone else's payment method.
+ */
+export async function syncPaymentMethodFromSession(
+  sessionId: string
+): Promise<ActionResult<{ pmId: string }>> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const adminDb = createAdminClient();
+
+  const { data: org } = await adminDb
+    .from("organizations")
+    .select("stripe_customer_id")
+    .eq("id", gate.orgId)
+    .single();
+  if (!org?.stripe_customer_id) {
+    return { ok: false, error: "Org has no Stripe customer on file" };
+  }
+
+  const session = await stripe().checkout.sessions.retrieve(sessionId, {
+    expand: ["setup_intent.payment_method"],
+  });
+
+  if (session.mode !== "setup") {
+    return { ok: false, error: "Not a setup session" };
+  }
+
+  const sessionCustomerId =
+    typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id ?? null;
+  if (sessionCustomerId !== org.stripe_customer_id) {
+    return {
+      ok: false,
+      error: "Setup session customer does not match this org",
+    };
+  }
+
+  const setupIntent = session.setup_intent;
+  const setupIntentObj =
+    typeof setupIntent === "object" && setupIntent ? setupIntent : null;
+  if (!setupIntentObj) {
+    return { ok: false, error: "Setup session has no setup intent" };
+  }
+
+  const pm = setupIntentObj.payment_method;
+  const pmId =
+    typeof pm === "string" ? pm : typeof pm === "object" && pm ? pm.id : null;
+  if (!pmId) {
+    return { ok: false, error: "No payment method on the setup session" };
+  }
+
+  // Make this the default for any future invoices/charges on the
+  // customer (used by 1.1c when we charge the escrow PaymentIntent).
+  await stripe().customers.update(org.stripe_customer_id, {
+    invoice_settings: { default_payment_method: pmId },
+  });
+
+  await adminDb
+    .from("organizations")
+    .update({ default_payment_method_id: pmId })
+    .eq("id", gate.orgId);
+
+  // Intentionally no revalidatePath: this action is invoked from the
+  // /admin/billing Server Component render itself when Stripe redirects
+  // back with ?setup=success&session_id=…. Calling revalidatePath
+  // during a render is forbidden by Next 16. The page is
+  // `dynamic = "force-dynamic"` and fetches fresh data on every load,
+  // so the just-saved pm shows up on the same render that triggered
+  // this sync.
+  return { ok: true, pmId };
+}
+
+/**
+ * Read the cached payment method's display details for the
+ * "Payment method on file" section on /admin/billing. Returns
+ * brand + last4 + exp; null if none configured.
+ */
+export async function getOrgPaymentMethodSummary(): Promise<
+  | { ok: true; pm: { brand: string; last4: string; expMonth: number; expYear: number } | null }
+  | { ok: false; error: string }
+> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const adminDb = createAdminClient();
+  const { data: org } = await adminDb
+    .from("organizations")
+    .select("default_payment_method_id")
+    .eq("id", gate.orgId)
+    .single();
+
+  if (!org?.default_payment_method_id) {
+    return { ok: true, pm: null };
+  }
+
+  try {
+    const pm = await stripe().paymentMethods.retrieve(
+      org.default_payment_method_id
+    );
+    if (!pm.card) return { ok: true, pm: null };
+    return {
+      ok: true,
+      pm: {
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        expMonth: pm.card.exp_month,
+        expYear: pm.card.exp_year,
+      },
+    };
+  } catch {
+    // PM was deleted / detached on Stripe's side. Treat as none.
+    return { ok: true, pm: null };
+  }
 }

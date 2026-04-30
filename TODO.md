@@ -953,20 +953,42 @@ pay flow keeps working unchanged.
   `organizations.default_payment_method_id`.
 - ✅ Types regenerated with `BriefFundedStatus` helper alias.
 
-##### 1.1b — Org payment-method capture ❌
+##### 1.1b — Org payment-method capture 🟡
 
-Org needs a saved payment method before publishing a paid brief.
+Code shipped 2026-04-30 — pending browser verification.
 
-- [ ] Server actions: lazily create Stripe Customer for the org if
-  it doesn't have a `stripe_customer_id` yet, then create a
-  `SetupIntent` and return its `client_secret` to the browser.
-- [ ] UI surface: probably `/admin/billing` (already exists for
-  subscription) — add a "Payment method" section that uses Stripe
-  Elements to collect a card and confirm the SetupIntent.
-- [ ] On confirm: persist the resulting `pm_…` as
-  `organizations.default_payment_method_id`.
-- [ ] Admin-only (uses `requireOrgAdmin()`), per the existing billing
-  pattern.
+Implementation revised vs. the original plan: instead of Stripe
+Elements + SetupIntent client_secret, used **Stripe-hosted Checkout
+in `mode: "setup"`** to mirror the existing subscription Checkout
+pattern. No new client-side Stripe deps; same redirect flow as the
+existing upgrade button.
+
+- ✅ `src/lib/stripe/customer.ts` — new
+  `getOrCreateOrgStripeCustomer(adminDb, orgId, ctx)` helper.
+  Single source of truth: reads `organizations.stripe_customer_id`
+  first, falls back to legacy `org_subscriptions.stripe_customer_id`
+  (auto-backfilled to `organizations` on legacy hit), creates a new
+  Stripe Customer if neither exists.
+- ✅ Refactored `createCheckoutSession` (existing subscription flow)
+  to use the new helper. Removes the inline customer-create block.
+- ✅ New server action `createPaymentMethodSetupSession` — opens a
+  Stripe Checkout session in setup mode, returns the URL.
+- ✅ New server action `syncPaymentMethodFromSession(sessionId)` —
+  called from page on setup return, validates the session belongs to
+  the caller's org, sets the card as the customer's
+  `invoice_settings.default_payment_method`, persists the `pm_…` to
+  `organizations.default_payment_method_id`. Idempotent.
+- ✅ New server action `getOrgPaymentMethodSummary` — returns brand /
+  last4 / expiry from Stripe for the org's default payment method
+  (or null if none / detached).
+- ✅ `/admin/billing/page.tsx` — new "Payment method for brief
+  escrow" section between Current Plan and Available Plans. Banners
+  for `?setup=success` / `?setup=cancelled`. Auto-syncs on
+  `?setup=success&session_id=…`.
+- ✅ `payment-method-button.tsx` — small client component that calls
+  `createPaymentMethodSetupSession` and navigates to Stripe.
+- ⚠️ Browser-test pending. Build clean; Stripe test card flow not
+  yet exercised by the engineer.
 
 ##### 1.1c — Charge on brief publish ❌
 
