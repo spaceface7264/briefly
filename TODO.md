@@ -797,10 +797,15 @@ infrastructure).
 - ⏭️ /my-briefs already routes claim cards to `/briefs/[id]` — no
   separate "Submit work" CTA needed. The brief detail page is the
   canonical surface.
-- ⏭️ Showing submitted assets back to the creator → defers to **0.3**
-  (the admin review surface needs the same
-  `getClaimAttachmentSignedUrls` action, so we build it once and use
-  it in both places).
+- ✅ Showing submitted assets back to the creator (shipped 2026-04-30
+  alongside Phase 0.6 wrap-up). The "Under review / Approved /
+  Completed" sidebar on `/briefs/[id]` now has a "View your
+  submission" button that opens a `MySubmissionModal`. The modal
+  fetches signed URLs via `getClaimAttachmentSignedUrls` (the same
+  action used by the admin review modal in 0.3), and renders
+  attachments with the same image / video / download pattern.
+  Reachable from `/my-briefs` via the existing card → brief detail
+  click-through.
 - ⏭️ Per-file upload progress indicator → not implemented (the
   browser shows the request progress at the network layer; explicit
   in-UI progress bars per file would need wrapping

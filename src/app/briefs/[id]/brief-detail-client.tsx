@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
-import { ConfirmDialog } from "@/components/modal";
+import { ConfirmDialog, Modal } from "@/components/modal";
 import { createClient } from "@/lib/supabase/client";
-import { prepareSubmissionUploads, confirmSubmission } from "./actions";
+import {
+  prepareSubmissionUploads,
+  confirmSubmission,
+  getClaimAttachmentSignedUrls,
+} from "./actions";
 import type { Brief, Claim } from "@/types/database";
+
+type SubmissionAttachment = {
+  id: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+  signed_url: string;
+};
 
 const SUBMISSIONS_BUCKET = "submissions";
 
@@ -405,6 +417,7 @@ function ClaimedState({
   const router = useRouter();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [showSubmission, setShowSubmission] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -571,12 +584,24 @@ function ClaimedState({
         </div>
         <p className="font-semibold text-sm mb-0.5">{stateConfig.label}</p>
         <p className="text-muted text-sm mb-3">{stateConfig.desc}</p>
+        <button
+          onClick={() => setShowSubmission(true)}
+          className="block w-full min-h-11 py-2 mb-1.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-md transition-colors"
+        >
+          View your submission
+        </button>
         <Link
           href="/my-briefs"
           className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
         >
           My Briefs
         </Link>
+
+        <MySubmissionModal
+          open={showSubmission}
+          onClose={() => setShowSubmission(false)}
+          claim={claim}
+        />
       </div>
     );
   }
@@ -781,5 +806,182 @@ function SubmissionChecklist() {
         </p>
       )}
     </div>
+  );
+}
+
+function MySubmissionModal({
+  open,
+  onClose,
+  claim,
+}: {
+  open: boolean;
+  onClose: () => void;
+  claim: Claim;
+}) {
+  const [attachments, setAttachments] = useState<SubmissionAttachment[] | null>(
+    null
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Re-fetch on every open. Signed URLs have a short server-side TTL,
+  // so caching would just serve stale links.
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    setError(null);
+    setAttachments(null);
+    (async () => {
+      const result = await getClaimAttachmentSignedUrls(claim.id);
+      if (result.ok) {
+        setAttachments(result.attachments);
+      } else {
+        setError(result.error);
+      }
+      setLoading(false);
+    })();
+  }, [open, claim.id]);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Your submission"
+      size="lg"
+      footer={
+        <button
+          onClick={onClose}
+          className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+        >
+          Close
+        </button>
+      }
+    >
+      <dl className="space-y-5 text-left">
+        {claim.submission_url && (
+          <div>
+            <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+              Submission URL
+            </dt>
+            <dd>
+              <a
+                href={claim.submission_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-accent hover:underline break-all font-mono text-sm"
+              >
+                {claim.submission_url}
+                <svg
+                  className="w-3.5 h-3.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </a>
+            </dd>
+          </div>
+        )}
+
+        <div>
+          <dt className="text-xs text-muted uppercase tracking-wider mb-2">
+            Files
+          </dt>
+          <dd>
+            {loading && <p className="text-sm text-muted">Loading…</p>}
+            {error && <p className="text-sm text-error">{error}</p>}
+            {attachments && attachments.length === 0 && (
+              <p className="text-sm text-muted">No files uploaded.</p>
+            )}
+            {attachments && attachments.length > 0 && (
+              <ul className="space-y-3">
+                {attachments.map((att) => (
+                  <SubmissionAttachmentPreview key={att.id} attachment={att} />
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
+
+        {claim.submission_notes && (
+          <div>
+            <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+              Your notes
+            </dt>
+            <dd className="bg-surface border border-border rounded-lg p-3 text-sm whitespace-pre-wrap">
+              {claim.submission_notes}
+            </dd>
+          </div>
+        )}
+
+        {!claim.submission_url &&
+          !claim.submission_notes &&
+          attachments &&
+          attachments.length === 0 && (
+            <p className="text-sm text-muted text-center py-6">
+              Nothing was attached to this submission.
+            </p>
+          )}
+      </dl>
+    </Modal>
+  );
+}
+
+function SubmissionAttachmentPreview({
+  attachment,
+}: {
+  attachment: SubmissionAttachment;
+}) {
+  const isImage = attachment.mime_type.startsWith("image/");
+  const isVideo = attachment.mime_type.startsWith("video/");
+
+  return (
+    <li className="bg-surface border border-border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-border">
+        <span className="text-sm font-medium truncate">
+          {attachment.filename}
+        </span>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-muted">
+            {formatBytes(attachment.file_size)}
+          </span>
+          <a
+            href={attachment.signed_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent hover:underline"
+          >
+            Download
+          </a>
+        </div>
+      </div>
+      {isImage && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={attachment.signed_url}
+          alt={attachment.filename}
+          className="block w-full max-h-96 object-contain bg-background"
+        />
+      )}
+      {isVideo && (
+        <video
+          src={attachment.signed_url}
+          controls
+          preload="metadata"
+          className="block w-full max-h-96 bg-background"
+        />
+      )}
+      {!isImage && !isVideo && (
+        <div className="px-3 py-3 text-xs text-muted">
+          {attachment.mime_type} — open via Download to preview.
+        </div>
+      )}
+    </li>
   );
 }
