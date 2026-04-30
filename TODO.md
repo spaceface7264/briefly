@@ -1044,16 +1044,42 @@ Known dev-only quirk:
   correctly. Likely a non-issue in prod (compiled bundle); revisit
   if it surfaces there.
 
-##### 1.1d — Refactor `payClaim` to draw from escrow ❌
+##### 1.1d — Refactor `payClaim` to draw from escrow 🟡
 
-- [ ] In `pay-action.ts`: validate brief.funded_status ∈
-  (`funded`, `partially_released`) and held >= gross slot.
-- [ ] Decrement `escrow_held_dkk` by `gross_dkk` (the org's gross,
-  before fee + VAT split).
-- [ ] Update `funded_status` to `partially_released` or `released`
-  based on remaining held balance.
-- [ ] Existing `transfers.create` call stays — funds are already in
-  the platform balance.
+Code shipped 2026-04-30 — pending end-to-end browser verification on
+a funded brief.
+
+- ✅ pay-action.ts loads `funded_status`, `escrow_amount_dkk`,
+  `escrow_held_dkk` along with the existing brief join.
+- ✅ Pre-transfer guards: if brief is escrowed (funded_status !=
+  unfunded) and held < slot's gross, returns a "corrupted state"
+  error rather than silently transferring more than escrow holds.
+  If status is anything other than funded / partially_released
+  (e.g. already released or refunded), blocks with a clear message.
+- ✅ Post-transfer accounting: decrements `escrow_held_dkk` by
+  `slot_gross_dkk` (the brief's price_dkk, before fee + VAT split)
+  and flips `funded_status` to `released` (held becomes 0) or
+  `partially_released` (some slots remain).
+- ✅ Legacy briefs (`funded_status = unfunded`, no escrow rows): the
+  guard short-circuits and the existing transfer-from-platform-
+  balance flow runs unchanged. Backwards compatible with any briefs
+  created before 1.1c.
+- 🟡 Atomicity: the brief escrow update + claim status update +
+  payment status update are sequential, not transactional. A
+  Postgres-side failure between the steps would leave inconsistent
+  state. Accepted risk for v1; the ops impact is bounded since
+  transfer already completed and a manual fix is straightforward
+  via SQL. A future RPC could collapse the three writes into one
+  transaction.
+
+Verify after a full pay:
+```sql
+SELECT funded_status, escrow_amount_dkk, escrow_held_dkk
+FROM briefs ORDER BY created_at DESC LIMIT 1;
+```
+Single-slot brief after pay → `released`, held = 0. Multi-slot
+brief with one slot paid → `partially_released`, held = amount -
+gross.
 
 ##### 1.1e — Refund flow ❌
 
