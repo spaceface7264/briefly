@@ -7,6 +7,8 @@ import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
 import { planLimitErrorMessage } from "@/lib/pricing";
+import { createBriefWithEscrow } from "./actions";
+import { formatDkk } from "@/lib/pricing";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory; label: string }[] = [
@@ -95,9 +97,13 @@ function entriesToSpecs(entries: SpecEntry[]): Record<string, string> {
 
 interface BriefFormProps {
   brief?: Brief;
+  /** Whether the org has a saved payment method on file. Drives the
+   * "missing payment method" warning + disables the submit button on
+   * paid create flows. Edits and zero-price briefs ignore this. */
+  hasPaymentMethod?: boolean;
 }
 
-export function BriefForm({ brief }: BriefFormProps) {
+export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   const router = useRouter();
   const orgId = useOrgId();
   const isEditing = !!brief;
@@ -244,16 +250,61 @@ export function BriefForm({ brief }: BriefFormProps) {
     setSaving(true);
     setError("");
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    if (isEditing) {
+      // Edit path stays a direct client-side update — no escrow
+      // re-charge on edits (escrow is locked at publish time per
+      // 1.1a). Refunds on price/limit changes are out of scope.
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      setError("You must be logged in");
-      setSaving(false);
+      if (!user) {
+        setError("You must be logged in");
+        setSaving(false);
+        return;
+      }
+
+      // Build the update payload. Skip price + claim_limit on funded
+      // briefs even if the disabled inputs were tampered with — the
+      // disabled attribute is a UX hint, not a security boundary.
+      const updatePayload: Record<string, unknown> = {
+        title,
+        description,
+        category,
+        duration_class: durationClass,
+        deadline: deadline || null,
+        location: location || null,
+        reference_urls: referenceUrls.map((u) => u.trim()).filter(Boolean),
+        usage_rights: usageRights || null,
+        deliverable_specs: entriesToSpecs(specEntries),
+        is_ad_intended: isAdIntended,
+      };
+      if (!escrowLocked) {
+        updatePayload.price_dkk = parseInt(priceDkk) || 0;
+        updatePayload.claim_limit = parseInt(claimLimit) || 1;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (supabase.from("briefs") as any)
+        .update(updatePayload)
+        .eq("id", brief.id);
+
+      if (result.error) {
+        const limitError = planLimitErrorMessage(result.error);
+        setError(limitError ?? "Failed to save brief");
+        setSaving(false);
+        return;
+      }
+
+      router.push("/admin/briefs");
+      router.refresh();
       return;
     }
 
-    const briefData = {
+    // Create path — server action runs the escrow PaymentIntent +
+    // insert, then redirects to /admin/briefs on success. The
+    // redirect throws inside the action, so any value we receive
+    // back here is by definition a failure result.
+    const result = await createBriefWithEscrow({
       title,
       description,
       category,
@@ -266,32 +317,27 @@ export function BriefForm({ brief }: BriefFormProps) {
       usage_rights: usageRights || null,
       deliverable_specs: entriesToSpecs(specEntries),
       is_ad_intended: isAdIntended,
-      created_by: user.id,
-      org_id: orgId,
-    };
+    });
 
-    let result;
-    if (isEditing) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      result = await (supabase.from("briefs") as any)
-        .update(briefData)
-        .eq("id", brief.id);
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      result = await (supabase.from("briefs") as any).insert(briefData);
-    }
-
-    if (result.error) {
-      console.error("Save error:", result.error);
-      const limitError = planLimitErrorMessage(result.error);
-      setError(limitError ?? "Failed to save brief");
-      setSaving(false);
-      return;
-    }
-
-    router.push("/admin/briefs");
-    router.refresh();
+    const limitError = planLimitErrorMessage({ message: result.error });
+    setError(limitError ?? result.error);
+    setSaving(false);
   }
+
+  const priceNum = parseInt(priceDkk) || 0;
+  const slotsNum = parseInt(claimLimit) || 1;
+  const escrowTotal = priceNum * slotsNum;
+  const isPaidCreate = !isEditing && priceNum > 0;
+  const blockedOnPaymentMethod = isPaidCreate && !hasPaymentMethod;
+
+  // Once a brief has been funded, the escrow PaymentIntent locks in
+  // `price_dkk × claim_limit` at publish time. Allowing edits to those
+  // two fields after funding would let an admin silently inflate the
+  // price (so payClaim transfers more than escrow holds) or shrink the
+  // slot count (stranding funds in escrow). Lock the inputs.
+  // Adjustments to a funded brief require archive + republish.
+  const escrowLocked =
+    isEditing && (brief?.funded_status ?? "unfunded") !== "unfunded";
 
   const inputClass = "w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors";
 
@@ -447,9 +493,18 @@ export function BriefForm({ brief }: BriefFormProps) {
             onWheel={(e) => e.currentTarget.blur()}
             required
             min="0"
-            className={`${inputClass} font-mono`}
+            disabled={escrowLocked}
+            className={`${inputClass} font-mono ${
+              escrowLocked ? "opacity-60 cursor-not-allowed" : ""
+            }`}
             placeholder="2500"
           />
+          {escrowLocked && (
+            <p className="text-muted text-xs mt-1">
+              Locked — escrow set when published. Archive & republish to
+              change.
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="claimLimit" className="block text-sm font-medium mb-2">
@@ -462,10 +517,17 @@ export function BriefForm({ brief }: BriefFormProps) {
             onChange={(e) => setClaimLimit(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
             min="1"
-            className={`${inputClass} font-mono`}
+            disabled={escrowLocked}
+            className={`${inputClass} font-mono ${
+              escrowLocked ? "opacity-60 cursor-not-allowed" : ""
+            }`}
             placeholder="1"
           />
-          <p className="text-muted text-sm mt-1">How many creators can claim this</p>
+          <p className="text-muted text-sm mt-1">
+            {escrowLocked
+              ? "Locked — escrow covers the original slot count."
+              : "How many creators can claim this"}
+          </p>
         </div>
       </div>
 
@@ -667,14 +729,68 @@ export function BriefForm({ brief }: BriefFormProps) {
         </p>
       )}
 
+      {/* Upfront cost panel — only on the create flow with a paid
+          brief. Editing keeps the original escrow contract; free
+          briefs (price 0) skip the charge entirely. */}
+      {isPaidCreate && (
+        <div
+          className={`border rounded-lg p-4 ${
+            blockedOnPaymentMethod
+              ? "bg-error/5 border-error/30"
+              : "bg-accent/5 border-accent/30"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted mb-1">
+                Upfront escrow charge
+              </p>
+              <p className="text-lg font-semibold">
+                {formatDkk(priceNum)}{" "}
+                <span className="text-muted font-normal">×</span>{" "}
+                {slotsNum} {slotsNum === 1 ? "slot" : "slots"}{" "}
+                <span className="text-muted font-normal">=</span>{" "}
+                <span className="text-accent">{formatDkk(escrowTotal)}</span>
+              </p>
+              <p className="text-xs text-muted mt-1">
+                Charged to your saved card when you publish. Held in
+                escrow and released to creators as you approve their
+                submissions.
+              </p>
+            </div>
+          </div>
+          {blockedOnPaymentMethod && (
+            <div className="mt-3 pt-3 border-t border-error/20">
+              <p className="text-sm text-error">
+                No payment method on file.{" "}
+                <Link
+                  href="/admin/billing"
+                  className="underline hover:no-underline font-medium"
+                >
+                  Add one on /admin/billing →
+                </Link>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-4 pt-4">
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || blockedOnPaymentMethod}
           className="px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
         >
-          {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Brief"}
+          {saving
+            ? isPaidCreate
+              ? "Charging…"
+              : "Saving..."
+            : isEditing
+              ? "Save Changes"
+              : isPaidCreate
+                ? `Publish & charge ${formatDkk(escrowTotal)}`
+                : "Create Brief"}
         </button>
         <button
           type="button"

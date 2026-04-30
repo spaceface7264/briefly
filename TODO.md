@@ -990,18 +990,55 @@ existing upgrade button.
 - ⚠️ Browser-test pending. Build clean; Stripe test card flow not
   yet exercised by the engineer.
 
-##### 1.1c — Charge on brief publish ❌
+##### 1.1c — Charge on brief publish 🟡
 
-- [ ] BriefForm: prominent "Total upfront cost: 1.500 DKK × 3 slots
-  = 4.500 DKK" panel before the Publish button.
-- [ ] Server action: on publish, require `organizations.default_payment_method_id`;
-  create PaymentIntent for `price_dkk × claim_limit` with `off_session=true`
-  + `confirm=true` against the stored card.
-- [ ] On success: brief.funded_status = `funded`,
-  `escrow_amount_dkk` + `escrow_held_dkk` set,
-  `stripe_payment_intent_id` recorded.
-- [ ] On payment failure: brief stays unpublished, friendly error to
-  admin (maps known Stripe failure codes to copy).
+Code shipped 2026-04-30 — pending browser verification.
+
+- ✅ New server action `createBriefWithEscrow` at
+  `src/app/admin/briefs/actions.ts`. Charge-then-insert ordering:
+  if Stripe fails, brief is never created. If insert fails after a
+  successful charge, the action issues a best-effort refund to
+  avoid orphan PaymentIntents.
+- ✅ PaymentIntent uses `off_session=true confirm=true` against the
+  org's saved `default_payment_method_id`. Blocks browser redirects
+  via `automatic_payment_methods.allow_redirects: "never"` — SCA
+  failures surface as a clean error rather than redirecting away
+  from the brief form.
+- ✅ Friendly Stripe error mapping: insufficient_funds, card_declined,
+  expired_card, authentication_required → human copy with
+  `/admin/billing` pointer.
+- ✅ Free briefs (`price_dkk === 0`) skip the charge entirely and
+  land as `unfunded`. Useful for community / non-monetary briefs.
+- ✅ BriefForm:
+  - Upfront escrow panel before the action row, only on paid
+    create flow. Format: `500 DKK × 2 slots = 1.000 DKK`.
+  - Submit button copy changes to `Publish & charge 1.000 DKK` for
+    paid create; stays `Create Brief` for free briefs and
+    `Save Changes` on edit.
+  - "No payment method on file" warning + disabled submit when org
+    is missing `default_payment_method_id`.
+- ✅ /admin/briefs/new fetches org's `default_payment_method_id`
+  server-side and passes `hasPaymentMethod` prop down.
+- 🟡 Edit flow intentionally untouched — no escrow re-charge on
+  edits. Refunds-on-price-change is out of scope; if a brief needs a
+  different escrow, archive and republish.
+- ✅ Edit lock for escrow-affecting fields (added 2026-04-30 after
+  testing surfaced the gap): `price_dkk` and `claim_limit` inputs
+  are disabled in the form when editing a brief whose
+  `funded_status` is anything other than `unfunded`. The edit
+  payload also strips those keys client-side as a defensive backstop
+  — disabled attr is a UX hint, not a security boundary. Without
+  this, an admin could bump price after publish and `payClaim` would
+  transfer more than escrow holds.
+
+Known dev-only quirk:
+- The submit handler has no extra spinner / "redirecting…" state
+  between the action returning success and `router.push("/admin/briefs")`
+  completing the navigation. In dev, Turbopack compiles the briefs
+  list cold on first navigate and the button stays "Charging…" for a
+  few seconds. Reload after the hang shows the brief was created
+  correctly. Likely a non-issue in prod (compiled bundle); revisit
+  if it surfaces there.
 
 ##### 1.1d — Refactor `payClaim` to draw from escrow ❌
 
