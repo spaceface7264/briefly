@@ -6,11 +6,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const SUBMISSIONS_BUCKET = "submissions";
 
-// Mirrors the Storage bucket constraints defined in
-// 0035_submissions_storage_bucket.sql. Duplicated here so the action
-// can return a friendly error before the bucket would reject the
-// upload itself.
-const MAX_FILE_BYTES = 250 * 1024 * 1024;
+// 50 MB while on the Supabase Free tier — the project-wide upload
+// limit caps individual files there, regardless of the per-bucket
+// `file_size_limit = 250 MB` set in
+// 0035_submissions_storage_bucket.sql. When the project moves to Pro
+// (5 GB project cap), bump this to 250 to match the bucket. Keep this
+// constant in sync with MAX_FILE_BYTES in brief-detail-client.tsx so
+// the client validation matches the server.
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   "video/mp4",
   "video/quicktime",
@@ -23,54 +26,65 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
 ]);
 
-// Soft cap to keep one submission from accidentally uploading hundreds
-// of files in a single request. The bucket itself has no per-claim
-// limit; this is purely a sanity guard.
+// Soft cap to keep one submission from accidentally creating hundreds
+// of upload URLs in a single request. The bucket itself has no
+// per-claim limit; this is purely a sanity guard.
 const MAX_ATTACHMENTS_PER_SUBMIT = 10;
 
-type SubmitResult = { ok: true } | { ok: false; error: string };
+type FileSpec = {
+  filename: string;
+  mime_type: string;
+  file_size: number;
+};
+
+type PreparedUpload = {
+  storage_path: string;
+  signed_url: string;
+  token: string;
+};
+
+type AttachmentRecord = {
+  storage_path: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+};
+
+type PrepareResult =
+  | { ok: true; uploads: PreparedUpload[] }
+  | { ok: false; error: string };
+
+type ConfirmResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Submit a creator's claim. Accepts any combination of:
- *   - `submissionUrl` — single hosted link (YouTube / Vimeo / IG)
- *   - `submissionNotes` — free-text notes for the reviewer
- *   - `files` — zero or more native uploads, each within the bucket
- *     limits from migration 0035
+ * Phase 1 of a two-step submission flow.
  *
- * At least one of `submissionUrl` or `files` must be present — there's
- * no point flipping a claim to "submitted" with nothing attached.
+ * The server action signature here intentionally only takes file
+ * metadata — never the file bytes. Files are uploaded directly from
+ * the browser to Supabase Storage using the per-file signed URLs
+ * returned below. This bypasses both the Next.js server-action body
+ * size limit (default 1 MB) AND the Cloudflare Workers request size
+ * limit (100 MB free / 500 MB paid) we'd otherwise hit on the prod
+ * deploy target.
  *
- * Permission model: the caller must be the claim's owner and the claim
- * must currently be in `active` state. Both checks happen against the
- * standard (RLS-bound) client before any service-role write fires, so
- * the caller can't observe or mutate someone else's claim through this
- * action even with a service-role bug elsewhere.
+ * Permission model: caller must own the claim and the claim must be in
+ * `active` state. Both checks happen against the standard (RLS-bound)
+ * client. Path namespacing (`{user_id}/{claim_id}/…`) is enforced
+ * here so a malicious client can't ask for upload URLs targeting
+ * another user's directory.
  *
- * The Postgres trigger from migration 0018 takes care of firing the
- * `claim_submitted` notification to org admins when the status flips.
- *
- * Rollback: if any step after the first storage upload fails, all
- * uploaded objects and any attachment rows we managed to insert are
- * removed best-effort so we don't leave orphans.
+ * Storage objects created via these signed URLs may end up orphaned
+ * if the client never calls confirmSubmission (browser closed,
+ * upload aborted). A future cleanup job should sweep
+ * storage.objects under `submissions/` for paths whose claim_id has
+ * no matching claim_attachments row, older than ~24 h.
  */
-export async function submitClaim(formData: FormData): Promise<SubmitResult> {
-  const claimId = formData.get("claimId")?.toString().trim();
-  const submissionUrl =
-    formData.get("submissionUrl")?.toString().trim() || null;
-  const submissionNotes =
-    formData.get("submissionNotes")?.toString().trim() || null;
-  const files = formData
-    .getAll("files")
-    .filter((f): f is File => f instanceof File && f.size > 0);
-
+export async function prepareSubmissionUploads(
+  claimId: string,
+  files: FileSpec[]
+): Promise<PrepareResult> {
   if (!claimId) {
     return { ok: false, error: "claimId is required" };
-  }
-  if (!submissionUrl && files.length === 0) {
-    return {
-      ok: false,
-      error: "Provide either a submission URL or at least one file",
-    };
   }
   if (files.length > MAX_ATTACHMENTS_PER_SUBMIT) {
     return {
@@ -79,21 +93,143 @@ export async function submitClaim(formData: FormData): Promise<SubmitResult> {
     };
   }
   for (const file of files) {
-    if (file.size > MAX_FILE_BYTES) {
+    if (file.file_size <= 0 || file.file_size > MAX_FILE_BYTES) {
       return {
         ok: false,
-        error: `${file.name} exceeds the 250 MB limit`,
+        error: `${file.filename} exceeds the 50 MB limit`,
       };
     }
-    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    if (!ALLOWED_MIME_TYPES.has(file.mime_type)) {
       return {
         ok: false,
-        error: `${file.name}: file type "${file.type}" is not allowed`,
+        error: `${file.filename}: file type "${file.mime_type}" is not allowed`,
       };
     }
   }
 
-  // Auth + ownership + state check via standard (RLS-bound) client.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "You must be signed in" };
+  }
+
+  const { data: claim, error: claimErr } = await supabase
+    .from("claims")
+    .select("id, user_id, status")
+    .eq("id", claimId)
+    .maybeSingle();
+  if (claimErr) {
+    return { ok: false, error: `Lookup failed: ${claimErr.message}` };
+  }
+  if (!claim) {
+    return { ok: false, error: "Claim not found" };
+  }
+  if (claim.user_id !== user.id) {
+    return { ok: false, error: "Not your claim" };
+  }
+  if (claim.status !== "active") {
+    return {
+      ok: false,
+      error: `Claim is ${claim.status}; only active claims can be submitted`,
+    };
+  }
+
+  if (files.length === 0) {
+    return { ok: true, uploads: [] };
+  }
+
+  const admin = createAdminClient();
+  const uploads: PreparedUpload[] = [];
+  for (const file of files) {
+    const safeName = file.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${user.id}/${claim.id}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}-${safeName}`;
+    const { data, error: signErr } = await admin.storage
+      .from(SUBMISSIONS_BUCKET)
+      .createSignedUploadUrl(path);
+    if (signErr || !data) {
+      return {
+        ok: false,
+        error: `Could not prepare upload for ${file.filename}: ${
+          signErr?.message ?? "unknown error"
+        }`,
+      };
+    }
+    uploads.push({
+      storage_path: path,
+      signed_url: data.signedUrl,
+      token: data.token,
+    });
+  }
+
+  return { ok: true, uploads };
+}
+
+/**
+ * Phase 2 of the two-step submission flow.
+ *
+ * Called after the client has uploaded every file to its signed URL.
+ * Records the attachment rows and flips the claim status to
+ * `submitted`. The Postgres trigger from migration 0018 fires the
+ * `claim_submitted` notification automatically when the status flips.
+ *
+ * Validation:
+ *   * Re-checks ownership + active state (the prepare action could
+ *     have been called minutes ago; state may have changed).
+ *   * Re-checks per-file MIME and size against the same allowlist.
+ *   * Verifies every attachment's storage_path starts with
+ *     `{user_id}/{claim_id}/`. This is the security check that
+ *     prevents a malicious client from claiming any storage path it
+ *     wants — even if it had a stale signed URL for a sibling
+ *     directory, the prepare action enforces the same prefix, so
+ *     the client never receives a URL outside its namespace.
+ *
+ * No rollback on partial failure. If the attachment insert succeeds
+ * but the claim update fails, attachments are orphaned and need
+ * manual cleanup (or the future sweep job mentioned in
+ * prepareSubmissionUploads).
+ */
+export async function confirmSubmission(
+  claimId: string,
+  submissionUrl: string | null,
+  submissionNotes: string | null,
+  attachments: AttachmentRecord[]
+): Promise<ConfirmResult> {
+  if (!claimId) {
+    return { ok: false, error: "claimId is required" };
+  }
+  const trimmedUrl = submissionUrl?.trim() || null;
+  const trimmedNotes = submissionNotes?.trim() || null;
+  if (!trimmedUrl && attachments.length === 0) {
+    return {
+      ok: false,
+      error: "Provide either a submission URL or at least one file",
+    };
+  }
+  if (attachments.length > MAX_ATTACHMENTS_PER_SUBMIT) {
+    return {
+      ok: false,
+      error: `Max ${MAX_ATTACHMENTS_PER_SUBMIT} files per submission`,
+    };
+  }
+  for (const a of attachments) {
+    if (a.file_size <= 0 || a.file_size > MAX_FILE_BYTES) {
+      return {
+        ok: false,
+        error: `${a.filename} exceeds the 50 MB limit`,
+      };
+    }
+    if (!ALLOWED_MIME_TYPES.has(a.mime_type)) {
+      return {
+        ok: false,
+        error: `${a.filename}: file type "${a.mime_type}" is not allowed`,
+      };
+    }
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -123,88 +259,50 @@ export async function submitClaim(formData: FormData): Promise<SubmitResult> {
     };
   }
 
-  // Service-role for storage + claim_attachments (no user-facing
-  // INSERT policies on either).
+  // Path-namespace guard: every attachment's storage path must live
+  // under this user + claim. Cheap defence against a malicious client
+  // claiming someone else's path.
+  const expectedPrefix = `${user.id}/${claim.id}/`;
+  for (const a of attachments) {
+    if (!a.storage_path.startsWith(expectedPrefix)) {
+      return {
+        ok: false,
+        error: `Attachment path ${a.storage_path} is not in your claim's namespace`,
+      };
+    }
+  }
+
   const admin = createAdminClient();
-  const uploadedPaths: string[] = [];
-  const attachmentRows: {
-    claim_id: string;
-    storage_path: string;
-    filename: string;
-    mime_type: string;
-    file_size: number;
-  }[] = [];
 
-  try {
-    for (const file of files) {
-      // Sanitise the filename for the path; keep the original on the
-      // attachment row so the UI can render it untouched.
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${user.id}/${claim.id}/${Date.now()}-${safeName}`;
-      const { error: upErr } = await admin.storage
-        .from(SUBMISSIONS_BUCKET)
-        .upload(path, file, {
-          contentType: file.type,
-          upsert: false,
-        });
-      if (upErr) {
-        throw new Error(
-          `Upload failed for ${file.name}: ${upErr.message}`
-        );
-      }
-      uploadedPaths.push(path);
-      attachmentRows.push({
+  if (attachments.length > 0) {
+    const { error: attErr } = await admin.from("claim_attachments").insert(
+      attachments.map((a) => ({
         claim_id: claim.id,
-        storage_path: path,
-        filename: file.name,
-        mime_type: file.type,
-        file_size: file.size,
-      });
+        storage_path: a.storage_path,
+        filename: a.filename,
+        mime_type: a.mime_type,
+        file_size: a.file_size,
+      }))
+    );
+    if (attErr) {
+      return {
+        ok: false,
+        error: `Attachment record save failed: ${attErr.message}`,
+      };
     }
+  }
 
-    if (attachmentRows.length > 0) {
-      const { error: attErr } = await admin
-        .from("claim_attachments")
-        .insert(attachmentRows);
-      if (attErr) {
-        throw new Error(
-          `Attachment record save failed: ${attErr.message}`
-        );
-      }
-    }
-
-    // Claim row update: standard client so RLS provides the same
-    // safety net as the existing inline submission flow in
-    // brief-detail-client.tsx.
-    const { error: updErr } = await supabase
-      .from("claims")
-      .update({
-        status: "submitted",
-        submission_url: submissionUrl,
-        submission_notes: submissionNotes,
-        submitted_at: new Date().toISOString(),
-      })
-      .eq("id", claim.id);
-    if (updErr) {
-      throw new Error(`Submit failed: ${updErr.message}`);
-    }
-  } catch (err) {
-    if (uploadedPaths.length > 0) {
-      await admin.storage.from(SUBMISSIONS_BUCKET).remove(uploadedPaths);
-    }
-    if (attachmentRows.length > 0) {
-      await admin
-        .from("claim_attachments")
-        .delete()
-        .in(
-          "storage_path",
-          attachmentRows.map((r) => r.storage_path)
-        );
-    }
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
+  const { error: updErr } = await supabase
+    .from("claims")
+    .update({
+      status: "submitted",
+      submission_url: trimmedUrl,
+      submission_notes: trimmedNotes,
+      submitted_at: new Date().toISOString(),
+    })
+    .eq("id", claim.id);
+  if (updErr) {
+    return { ok: false, error: `Submit failed: ${updErr.message}` };
   }
 
   revalidatePath(`/briefs/${claim.brief_id}`);

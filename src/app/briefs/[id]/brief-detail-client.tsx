@@ -9,7 +9,33 @@ import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
 import { ConfirmDialog } from "@/components/modal";
 import { createClient } from "@/lib/supabase/client";
+import { prepareSubmissionUploads, confirmSubmission } from "./actions";
 import type { Brief, Claim } from "@/types/database";
+
+const SUBMISSIONS_BUCKET = "submissions";
+
+// 50 MB while on the Supabase Free tier (project-wide cap binds
+// below the bucket's 250 MB). Bump to 250 with the matching constant
+// in actions.ts when the project moves to Pro.
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_ATTACHMENTS = 10;
+const ALLOWED_MIME = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+]);
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 import {
   formatPrice,
   formatDeadline,
@@ -384,6 +410,33 @@ function ClaimedState({
   const [error, setError] = useState("");
   const [submissionUrl, setSubmissionUrl] = useState("");
   const [submissionNotes, setSubmissionNotes] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+
+  function addFiles(newFiles: FileList | null) {
+    if (!newFiles || newFiles.length === 0) return;
+    setError("");
+    const incoming = Array.from(newFiles);
+    const combined = [...files, ...incoming];
+    if (combined.length > MAX_ATTACHMENTS) {
+      setError(`Max ${MAX_ATTACHMENTS} files per submission`);
+      return;
+    }
+    for (const f of incoming) {
+      if (f.size > MAX_FILE_BYTES) {
+        setError(`${f.name} exceeds the 50 MB limit`);
+        return;
+      }
+      if (!ALLOWED_MIME.has(f.type)) {
+        setError(`${f.name}: file type "${f.type}" is not allowed`);
+        return;
+      }
+    }
+    setFiles(combined);
+  }
+
+  function removeFile(index: number) {
+    setFiles(files.filter((_, i) => i !== index));
+  }
 
   async function handleCancel() {
     setCancelling(true);
@@ -408,29 +461,71 @@ function ClaimedState({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!submissionUrl.trim()) {
-      setError("Please enter a submission URL");
+    const trimmedUrl = submissionUrl.trim();
+    if (!trimmedUrl && files.length === 0) {
+      setError("Add a URL or at least one file to submit");
       return;
     }
 
     setSubmitting(true);
     setError("");
 
+    // Two-step flow: ask the server for signed upload URLs, push the
+    // file bytes directly to Supabase Storage from the browser, then
+    // call back to record the attachments and flip the claim. This
+    // avoids both the Next server-action body limit and the
+    // Cloudflare Workers request size limit on the prod deploy
+    // target.
+    const fileSpecs = files.map((f) => ({
+      filename: f.name,
+      mime_type: f.type,
+      file_size: f.size,
+    }));
+
+    const prep = await prepareSubmissionUploads(claim.id, fileSpecs);
+    if (!prep.ok) {
+      setError(prep.error);
+      setSubmitting(false);
+      return;
+    }
+
     const supabase = createClient();
+    try {
+      await Promise.all(
+        files.map(async (file, i) => {
+          const upload = prep.uploads[i];
+          const { error: uploadErr } = await supabase.storage
+            .from(SUBMISSIONS_BUCKET)
+            .uploadToSignedUrl(upload.storage_path, upload.token, file, {
+              contentType: file.type,
+              upsert: false,
+            });
+          if (uploadErr) {
+            throw new Error(`Upload failed for ${file.name}: ${uploadErr.message}`);
+          }
+        })
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+      setSubmitting(false);
+      return;
+    }
 
-    const { error: updateError } = await (supabase as any)
-      .from("claims")
-      .update({
-        status: "submitted",
-        submission_url: submissionUrl.trim(),
-        submission_notes: submissionNotes.trim() || null,
-        submitted_at: new Date().toISOString(),
-      })
-      .eq("id", claim.id);
+    const attachments = files.map((f, i) => ({
+      storage_path: prep.uploads[i].storage_path,
+      filename: f.name,
+      mime_type: f.type,
+      file_size: f.size,
+    }));
 
-    if (updateError) {
-      console.error("Submit error:", updateError);
-      setError("Failed to submit");
+    const result = await confirmSubmission(
+      claim.id,
+      trimmedUrl || null,
+      submissionNotes.trim() || null,
+      attachments
+    );
+    if (!result.ok) {
+      setError(result.error);
       setSubmitting(false);
       return;
     }
@@ -544,7 +639,7 @@ function ClaimedState({
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label htmlFor="submissionUrl" className="block text-sm font-medium mb-1.5">
-              URL <span className="text-error">*</span>
+              URL
             </label>
             <input
               id="submissionUrl"
@@ -552,10 +647,52 @@ function ClaimedState({
               value={submissionUrl}
               onChange={(e) => setSubmissionUrl(e.target.value)}
               placeholder="https://instagram.com/reel/..."
-              required
               className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent"
             />
+            <p className="text-xs text-muted mt-1">
+              Optional if you upload files below.
+            </p>
           </div>
+
+          <div>
+            <label htmlFor="submissionFiles" className="block text-sm font-medium mb-1.5">
+              Files
+            </label>
+            <input
+              id="submissionFiles"
+              type="file"
+              multiple
+              accept="video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp,image/heic,image/heif,application/pdf"
+              onChange={(e) => addFiles(e.target.files)}
+              className="block w-full text-xs text-muted file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-surface-raised file:text-foreground hover:file:bg-surface-hover file:cursor-pointer"
+            />
+            <p className="text-xs text-muted mt-1">
+              Up to {MAX_ATTACHMENTS} files, 50 MB each.
+              Video, image, or PDF.
+            </p>
+            {files.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {files.map((file, i) => (
+                  <li
+                    key={`${file.name}-${i}`}
+                    className="flex items-center justify-between gap-2 text-xs bg-surface-raised border border-border rounded px-2 py-1.5"
+                  >
+                    <span className="truncate flex-1">{file.name}</span>
+                    <span className="text-muted shrink-0">{formatBytes(file.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="text-muted hover:text-error shrink-0"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div>
             <label htmlFor="submissionNotes" className="block text-sm font-medium mb-1.5">
               Notes

@@ -33,7 +33,13 @@ export default async function BriefDetailPage({ params }: Props) {
     .eq("brief_id", id)
     .eq("status", "active");
 
-  // Check if user has claimed
+  // Fetch the user's most recent live claim for this brief — any state
+  // EXCEPT cancelled. The earlier `.eq("status", "active")` filter
+  // dropped the claim from the page the moment it flipped to
+  // `submitted`, leaving the user staring at a "Claim brief" button
+  // after they'd just submitted. ClaimedState in brief-detail-client
+  // handles all live states (active / submitted / approved / paid) with
+  // the right UI per state, so we just need to feed it the row.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: userClaim } = user
     ? await (supabase
@@ -41,7 +47,9 @@ export default async function BriefDetailPage({ params }: Props) {
         .select("*")
         .eq("brief_id", id)
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle()
     : { data: null };
 

@@ -718,9 +718,13 @@ direct Supabase write that updates `claims.status` to `submitted` with
 is **augment, not build from scratch**: add file uploads, move the
 write to a server action, surface the submitted assets back.
 
-##### 0.2a — Schema + server action ✅
+##### 0.2a — Schema + server actions ✅
 
-Shipped 2026-04-30.
+Shipped 2026-04-30. **Architecture revised the same day** after
+testing surfaced Next 15 / Cloudflare Workers body-size limits — the
+original single `submitClaim` action that took files as FormData was
+replaced with a two-step flow that uploads directly browser →
+Storage. See "Why two steps" below.
 
 - ✅ Migration `0036_claim_attachments.sql`: new `claim_attachments`
   table (`id`, `claim_id` FK CASCADE, `storage_path` UNIQUE,
@@ -729,36 +733,82 @@ Shipped 2026-04-30.
   claim's org. No INSERT/UPDATE/DELETE policies — those go through
   the server action with the service-role client, mirroring the
   org-logos pattern.
-- ✅ Server action `submitClaim` at
-  `src/app/briefs/[id]/actions.ts`: accepts FormData with `claimId`,
-  optional `submissionUrl`, optional `submissionNotes`, optional
-  `files[]`. Validates ownership + claim state via the standard
-  client; uploads + attachment inserts via service-role; rolls back
-  uploaded objects + attachment rows on any failure. Existing
-  Postgres trigger from migration 0018 fires `claim_submitted`
-  notification when status flips.
+- ✅ Server actions at `src/app/briefs/[id]/actions.ts`:
+  - `prepareSubmissionUploads(claimId, files[])` — validates
+    ownership + active state + per-file MIME/size; returns one
+    signed upload URL per file (Supabase
+    `createSignedUploadUrl`). All paths namespaced
+    `{user_id}/{claim_id}/…`.
+  - `confirmSubmission(claimId, url, notes, attachments[])` — re-
+    validates state + each attachment's path prefix, inserts
+    attachment rows, flips claim to `submitted`. Existing Postgres
+    trigger (migration 0018) fires `claim_submitted` notification
+    automatically.
 - ✅ Types regenerated, helper aliases re-appended, build clean
   (`ClaimAttachment` added to the helper-alias block).
-- 🟡 The existing inline client-side submission flow on
-  `brief-detail-client.tsx` still works unchanged — it'll be
-  refactored to call `submitClaim` in 0.2b, where the file-upload UI
-  also lands.
 
-##### 0.2b — UI
+**Why two steps:** the original single-action flow took files inside
+FormData and uploaded them server-side. Hit the Next 15 default 1 MB
+server-action body limit during testing. Bumping that limit doesn't
+help in production because Cloudflare Workers (the deploy target,
+via OpenNext) caps requests at 100 MB on Free / 500 MB on Paid. The
+two-step flow streams bytes directly browser → Supabase Storage,
+bypassing both layers entirely. Server actions only carry small
+metadata payloads now.
 
-- [ ] Refactor `ClaimedState` in
-  `src/app/briefs/[id]/brief-detail-client.tsx` to call
-  `submitClaim` instead of the inline `.update({...})`.
-- [ ] Modal: multi-file upload + textarea notes + optional hosted-URL
-  field (the existing single URL field becomes one option among
-  several inputs).
-- [ ] On `/my-briefs` claim card with status `active`: "Submit work"
-  CTA that routes to `/briefs/[id]` (or opens a modal in place — TBD,
-  probably routing is simpler).
-- [ ] On `/my-briefs` Under Review section: show submitted assets
-  (signed URLs) + notes back to the creator. Will need a sibling
-  server action `getClaimAttachmentSignedUrls(claimId)` that
-  re-checks permission and returns short-TTL signed URLs.
+**Tradeoff captured:** if the browser closes between
+`prepareSubmissionUploads` and `confirmSubmission`, files are
+orphaned in Storage. A future cleanup job should sweep
+`storage.objects` under `submissions/` for paths whose claim_id has
+no matching `claim_attachments` row, older than ~24 h. Logged as a
+follow-up.
+
+**Effective per-file cap is 50 MB** while on the Supabase Free
+tier — the project-wide upload limit binds below the bucket's 250 MB
+`file_size_limit`. When the project upgrades to Pro, change
+`MAX_FILE_BYTES` in BOTH `src/app/briefs/[id]/actions.ts` and
+`src/app/briefs/[id]/brief-detail-client.tsx` from `50 * 1024 * 1024`
+to `250 * 1024 * 1024`, and update the form helper text + error
+strings ("50 MB" → "250 MB"). Migration 0035 already targets
+250 MB, so no SQL change is needed.
+
+##### 0.2b — UI 🟡
+
+Partial: form refactor + file upload landed 2026-04-30. The
+post-submission "see what you sent" view is deferred to land alongside
+the admin review UI in Phase 0.3 (both need the same signed-URL
+infrastructure).
+
+- ✅ Refactored `ClaimedState` in
+  `src/app/briefs/[id]/brief-detail-client.tsx` — `handleSubmit` now
+  runs the two-step flow:
+  1. Calls `prepareSubmissionUploads()` with file metadata
+  2. Uploads each file in parallel via
+     `supabase.storage.uploadToSignedUrl()` directly from the browser
+  3. Calls `confirmSubmission()` with the URL, notes, and attachment
+     records to finalize
+  Cancel flow untouched.
+- ✅ Inline form now has a multi-file picker (drag-and-drop via
+  `<input type="file" multiple>`, MIME-restricted via the same
+  allowlist as the server action), client-side size + count
+  validation for fast feedback, removable file chips with byte sizes.
+  URL field is no longer `required` — `confirmSubmission` enforces
+  "URL OR files".
+- ⏭️ /my-briefs already routes claim cards to `/briefs/[id]` — no
+  separate "Submit work" CTA needed. The brief detail page is the
+  canonical surface.
+- ⏭️ Showing submitted assets back to the creator → defers to **0.3**
+  (the admin review surface needs the same
+  `getClaimAttachmentSignedUrls` action, so we build it once and use
+  it in both places).
+- ⏭️ Per-file upload progress indicator → not implemented (the
+  browser shows the request progress at the network layer; explicit
+  in-UI progress bars per file would need wrapping
+  `uploadToSignedUrl` with XHR. Defer until creators report bad
+  feel on big uploads).
+- ⏭️ Cleanup job for orphaned Storage objects (browser closed
+  between prepare and confirm) — see 0.2a "Tradeoff captured."
+  Defer.
 
 #### 0.3 Review/approve UI
 
