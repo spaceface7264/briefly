@@ -1189,17 +1189,32 @@ exists; the actual flow doesn't.
 E-invoicing (mandatory in IT, PL, FR coming): defer until we have an
 org in one of those countries. Add as a known-deferred item.
 
-#### 1.3 Creator earnings dashboard
+#### 1.3 Creator earnings dashboard 🟡
 
-New surface at `/profile/earnings`. Reads existing `payments` and
-`invoices`.
+Code shipped 2026-04-30. New surface at `/profile/earnings`. Reads
+the existing `payments` table (with VAT + platform-fee splits frozen
+at payout time per migrations 0007 / 0026).
 
-- [ ] Total earned: lifetime, this year, this month
-- [ ] Breakdown by org
-- [ ] Breakdown by month (chart)
-- [ ] Pending earnings (approved but not yet paid)
-- [ ] Annual summary download (PDF) — same artefact as 1.2's tax doc
-- [ ] CSV export of all payments
+- ✅ KPI cards: Lifetime / This year / This month / Pending. Pending
+  uses approved-but-not-paid claims, summed at gross brief price
+  (real receipt depends on platform fee + VAT resolved at pay
+  time — flagged in helper text).
+- ✅ "By organisation" table — payments grouped, sorted by total
+  desc, with payment count + total per org.
+- ✅ "Last 12 months" bar list — pre-fills empty months so the
+  rolling window stays visible. Bar width is proportional to the
+  largest month in the window.
+- ✅ "Earnings" tab added to `ProfileNav` between Profile and
+  Payouts.
+- ✅ CSV export at `/api/earnings/export.csv` (route handler).
+  Headers: invoice_number, invoice_date, status, org, brief,
+  gross_dkk, platform_fee_dkk, platform_fee_bp, subtotal_dkk,
+  vat_dkk, vat_rate_bp, vat_scheme, total_received_dkk. Filename
+  `earnings-YYYY-MM-DD.csv`. RFC 4180 quoting on string fields.
+- ⏭️ Annual summary PDF — deferred to land alongside 1.2 (the same
+  invoice template work that needs to produce the canonical
+  EU-style annual summary).
+- 🟡 Pending verification in browser by a creator with paid history.
 
 ---
 
