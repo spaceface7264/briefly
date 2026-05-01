@@ -116,8 +116,8 @@ export default async function EarningsPage() {
         {byOrg.length === 0 ? (
           <EmptyState body="No paid earnings yet — your first invoice will land here." />
         ) : (
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
+          <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[480px]">
               <thead>
                 <tr className="border-b border-border text-left text-sm text-muted">
                   <th className="px-4 py-3 font-medium">Organisation</th>

@@ -417,7 +417,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       </div>
 
       {/* Category & Duration */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="category" className="block text-sm font-medium mb-2">
             Category <span className="text-error">*</span>
@@ -480,7 +480,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       )}
 
       {/* Price & Claim Limit */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="price" className="block text-sm font-medium mb-2">
             Price (DKK) <span className="text-error">*</span>
@@ -532,7 +532,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       </div>
 
       {/* Deadline & Gym */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="deadline" className="block text-sm font-medium mb-2">
             Deadline

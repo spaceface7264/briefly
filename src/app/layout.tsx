@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { Footer } from "@/components/footer";
@@ -28,6 +28,12 @@ const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
 export const metadata: Metadata = {
   title: platformName,
   description: `Content creator platform for ${platformName}`,
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#C8FF00",
 };
 
 export default async function RootLayout({
