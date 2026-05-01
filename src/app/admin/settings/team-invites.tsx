@@ -22,8 +22,21 @@ export interface TeammateInvite {
   is_expired: boolean;
 }
 
+export interface RedeemedInvite {
+  id: string;
+  code: string;
+  role: string;
+  used_at: string | null;
+  redeemed_by_name: string | null;
+  redeemed_by_email: string | null;
+}
+
 interface Props {
   invites: TeammateInvite[];
+  /** Recently-redeemed teammate invites (most recent 20). Reference-only —
+   *  shown collapsed under the active table so admins can audit who joined
+   *  via which code without crowding the actionable list. */
+  redeemedInvites: RedeemedInvite[];
   /** Disables the "Send invite" affordance for non-admins (i.e. members). */
   canManage: boolean;
 }
@@ -38,7 +51,13 @@ const EXPIRY_OPTIONS = [
 function roleLabel(role: string): string {
   if (role === "admin") return "Admin";
   if (role === "member") return "Member";
+  if (role === "creator") return "Creator";
   return role;
+}
+
+function formatRedeemedAt(value: string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-GB");
 }
 
 function formatExpiry(value: string | null, expired: boolean): string {
@@ -47,7 +66,7 @@ function formatExpiry(value: string | null, expired: boolean): string {
   return new Date(value).toLocaleDateString("en-GB");
 }
 
-export function TeamInvites({ invites, canManage }: Props) {
+export function TeamInvites({ invites, redeemedInvites, canManage }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -245,6 +264,75 @@ export function TeamInvites({ invites, canManage }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Redeemed history — collapsed by default. Reference info only;
+          there's nothing to act on, so we hide it behind a disclosure to
+          keep the active table the focal point. Native <details> keeps
+          this dependency-free and accessible without extra JS. */}
+      {redeemedInvites.length > 0 && (
+        <details className="bg-surface border border-border rounded-xl overflow-hidden group">
+          <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-muted hover:text-foreground hover:bg-surface-raised transition-colors flex items-center justify-between list-none [&::-webkit-details-marker]:hidden">
+            <span>
+              Redeemed{" "}
+              <span className="text-xs text-muted ml-1">
+                ({redeemedInvites.length})
+              </span>
+            </span>
+            <svg
+              className="w-4 h-4 transition-transform group-open:rotate-180"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </summary>
+          <div className="border-t border-border">
+            <table className="w-full">
+              <thead className="bg-surface-raised">
+                <tr>
+                  <Th>Code</Th>
+                  <Th>Role</Th>
+                  <Th>Redeemed by</Th>
+                  <Th>Redeemed at</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {redeemedInvites.map((invite) => (
+                  <tr key={invite.id} className="border-t border-border">
+                    <Td>
+                      <code className="font-mono text-sm tracking-wider text-muted">
+                        {invite.code}
+                      </code>
+                    </Td>
+                    <Td>
+                      <StatusPill
+                        tone={invite.role === "admin" ? "info" : "neutral"}
+                        dot={false}
+                      >
+                        {roleLabel(invite.role)}
+                      </StatusPill>
+                    </Td>
+                    <Td className="text-sm">
+                      {invite.redeemed_by_name ||
+                        invite.redeemed_by_email ||
+                        "—"}
+                    </Td>
+                    <Td className="text-muted font-mono text-sm">
+                      {formatRedeemedAt(invite.used_at)}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       )}
 
       <Modal
