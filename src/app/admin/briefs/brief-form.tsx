@@ -290,7 +290,19 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
 
       if (result.error) {
         const limitError = planLimitErrorMessage(result.error);
-        setError(limitError ?? "Failed to save brief");
+        // Surface the escrow-immutability trigger from migration 0038
+        // as a friendly message instead of a raw Postgres exception.
+        // The trigger is the security boundary; the disabled inputs
+        // above are only a UX hint, so a tampered payload can still
+        // trip the trigger.
+        const rawMessage = (result.error as { message?: string }).message ?? "";
+        const isEscrowLockError =
+          rawMessage.includes("escrow column") ||
+          rawMessage.includes("funded_status");
+        const escrowError = isEscrowLockError
+          ? "Price, slot count, and escrow fields are locked once a brief is funded. Archive and republish to change them."
+          : null;
+        setError(limitError ?? escrowError ?? "Failed to save brief");
         setSaving(false);
         return;
       }
