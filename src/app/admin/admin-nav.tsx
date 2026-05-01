@@ -131,6 +131,25 @@ export function AdminNav({
   // flags arrive from the parent server layout, so the very first
   // render already has the correct lock state — no flash.
   const [claimUnread, setClaimUnread] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDrawerOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerOpen]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -176,7 +195,66 @@ export function AdminNav({
   const orgAccent = org.accentColor ?? "#C8FF00";
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
+    <>
+      {/* Mobile top bar — only visible below md. Hosts the hamburger,
+          a compact org identity, and the claim-submitted unread badge
+          so admins don't have to open the drawer to see it. */}
+      <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-surface/90 backdrop-blur-xl border-b border-border">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open navigation"
+          aria-expanded={drawerOpen}
+          className="-ml-2 inline-flex items-center justify-center w-10 h-10 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <Link href="/admin" className="flex items-center gap-2 min-w-0">
+          {org.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={org.logoUrl}
+              alt={org.name}
+              className="w-7 h-7 rounded object-cover shrink-0 border border-border bg-background"
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="w-7 h-7 rounded flex items-center justify-center text-background font-bold text-sm shrink-0"
+              style={{ backgroundColor: orgAccent }}
+            >
+              {orgInitial}
+            </div>
+          )}
+          <span className="text-sm font-semibold truncate">{org.name}</span>
+        </Link>
+        {claimUnread > 0 && (
+          <span
+            aria-label={`${claimUnread} unread claim notifications`}
+            className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-accent text-background px-1.5 text-[11px] font-semibold"
+          >
+            {claimUnread > 99 ? "99+" : claimUnread}
+          </span>
+        )}
+      </div>
+
+      {/* Backdrop on mobile when drawer is open. Tapping it closes
+          the drawer; the aside itself sits above this layer. */}
+      {drawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-background/70 backdrop-blur-sm"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-0 z-50 h-screen w-64 bg-surface border-r border-border flex flex-col transition-transform duration-200 md:translate-x-0 ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
       <div className="p-4 border-b border-border">
         <Link
           href="/admin"
@@ -322,6 +400,7 @@ export function AdminNav({
           textClassName="text-[10px] font-bold tracking-tight"
         />
       </Link>
-    </aside>
+      </aside>
+    </>
   );
 }

@@ -48,6 +48,20 @@ export function Nav() {
   const [profileLabel, setProfileLabel] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     async function checkAccount() {
@@ -143,7 +157,7 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 gap-6">
+        <div className="flex items-center justify-between h-14 gap-3 sm:gap-6">
           <div className="flex items-center gap-3 shrink-0">
             <Link
               href={homeHref}
@@ -156,27 +170,40 @@ export function Nav() {
 
           {isLoggedOut ? (
             <nav className="flex items-center gap-1 overflow-visible">
-              {publicNavItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  pathname.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                      isActive
-                        ? "text-brand"
-                        : "text-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
+              <div className="hidden md:flex items-center gap-1">
+                {publicNavItems.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                        isActive
+                          ? "text-brand"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen((o) => !o)}
+                aria-label="Open navigation"
+                aria-expanded={mobileNavOpen}
+                className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileNavOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+                </svg>
+              </button>
               <Link
                 href="/login"
-                className="ml-2 px-4 py-1.5 rounded-md bg-accent hover:bg-accent-hover text-background text-sm font-semibold transition-colors whitespace-nowrap"
+                className="ml-1 sm:ml-2 px-3 sm:px-4 py-1.5 rounded-md bg-accent hover:bg-accent-hover text-background text-sm font-semibold transition-colors whitespace-nowrap"
               >
                 Login
               </Link>
@@ -235,24 +262,38 @@ export function Nav() {
             </nav>
           ) : (
           <nav className="flex items-center gap-1 overflow-visible">
-            {creatorNavItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                pathname.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                    isActive
-                      ? "text-brand"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+            <div className="hidden md:flex items-center gap-1">
+              {creatorNavItems.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                      isActive
+                        ? "text-brand"
+                        : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((o) => !o)}
+              aria-label="Open navigation"
+              aria-expanded={mobileNavOpen}
+              className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileNavOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+              </svg>
+            </button>
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -335,6 +376,42 @@ export function Nav() {
           )}
         </div>
       </div>
+
+      {/* Mobile nav drop-down. Hosts the inline links that get hidden
+          behind the hamburger on small screens. Org users get an
+          icon-only header (Back to dashboard + sign out) so they
+          don't need this. */}
+      {mobileNavOpen && !isOrgUser && (
+        <>
+          <div
+            className="md:hidden fixed inset-0 top-14 z-30 bg-background/40"
+            onClick={() => setMobileNavOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="md:hidden absolute left-0 right-0 top-full z-40 bg-surface border-b border-border shadow-xl">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-col">
+              {(isLoggedOut ? publicNavItems : creatorNavItems).map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`px-3 py-3 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-accent/10 text-brand"
+                        : "text-muted hover:text-foreground hover:bg-surface-hover"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </header>
   );
 }

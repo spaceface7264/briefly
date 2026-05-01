@@ -84,8 +84,8 @@ export default async function AdminLayout({
           accentColor: org.accent_color,
         }}
       />
-      <main className="flex-1 ml-64">
-        <div className="p-8">{children}</div>
+      <main className="flex-1 md:ml-64">
+        <div className="p-4 sm:p-6 md:p-8">{children}</div>
       </main>
     </div>
   );
