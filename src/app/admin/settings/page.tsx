@@ -6,7 +6,11 @@ import { NotificationsPanel } from "@/components/notifications-panel";
 import { preferencesFromProfile } from "@/lib/notifications";
 import { AdminTeam } from "./admin-team";
 import { PersonalAccountForm } from "./personal-account-form";
-import { TeamInvites, type TeammateInvite } from "./team-invites";
+import {
+  TeamInvites,
+  type TeammateInvite,
+  type RedeemedInvite,
+} from "./team-invites";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +70,7 @@ export default async function AdminSettingsPage({
     { data: me },
     { data: myMembership },
     { data: teammateInvitesRaw },
+    { data: redeemedInvitesRaw },
   ] = await Promise.all([
     supabase
       .from("memberships")
@@ -112,6 +117,19 @@ export default async function AdminSettingsPage({
       .eq("intended_account_type", "org")
       .is("used_by", null)
       .order("created_at", { ascending: false }),
+    // Recently redeemed teammate invites — surfaced underneath the active
+    // table so admins can see "who joined via which code" without losing
+    // the actionable list above. Capped at 20 most recent by used_at.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.from("invite_codes") as any)
+      .select(
+        "id, code, role, used_at, used_by, intended_account_type, used_by_profile:profiles!invite_codes_used_by_fkey(name, email)"
+      )
+      .eq("org_id", orgId)
+      .eq("intended_account_type", "org")
+      .not("used_by", "is", null)
+      .order("used_at", { ascending: false })
+      .limit(20),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,6 +163,18 @@ export default async function AdminSettingsPage({
       is_expired: invite.expires_at
         ? new Date(invite.expires_at).getTime() <= nowMs
         : false,
+    })
+  );
+
+  const redeemedInvites: RedeemedInvite[] = (redeemedInvitesRaw ?? []).map(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (invite: any) => ({
+      id: invite.id,
+      code: invite.code,
+      role: invite.role,
+      used_at: invite.used_at,
+      redeemed_by_name: invite.used_by_profile?.name ?? null,
+      redeemed_by_email: invite.used_by_profile?.email ?? null,
     })
   );
 
@@ -226,7 +256,11 @@ export default async function AdminSettingsPage({
             canManage={isAdmin}
           />
 
-          <TeamInvites invites={teammateInvites} canManage={isAdmin} />
+          <TeamInvites
+            invites={teammateInvites}
+            redeemedInvites={redeemedInvites}
+            canManage={isAdmin}
+          />
         </div>
       )}
 
