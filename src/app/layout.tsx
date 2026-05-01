@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { Footer } from "@/components/footer";
 import { ScrollToTopOnRouteChange } from "@/components/scroll-to-top-on-route-change";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { OrgProvider } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrg } from "@/lib/org";
@@ -28,6 +29,16 @@ const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
 export const metadata: Metadata = {
   title: platformName,
   description: `Content creator platform for ${platformName}`,
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: platformName,
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -59,6 +70,7 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <ScrollToTopOnRouteChange />
         </Suspense>
+        <ServiceWorkerRegistration />
         <OrgProvider orgId={orgId}>
           {children}
         </OrgProvider>
