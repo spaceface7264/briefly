@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOrgId } from "@/lib/org-context";
@@ -129,6 +129,14 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   });
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mint a fresh attempt id on each form mount. Stable across
+  // submits within this mount (so a retry after a network blip
+  // dedupes against the original Stripe charge via the idempotency
+  // key in createBriefWithEscrow), regenerated on remount (so a
+  // user who deliberately wants to publish the same brief twice can
+  // still do so by navigating back to the form).
+  const clientAttemptId = useMemo(() => crypto.randomUUID(), []);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -329,6 +337,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       usage_rights: usageRights || null,
       deliverable_specs: entriesToSpecs(specEntries),
       is_ad_intended: isAdIntended,
+      client_attempt_id: clientAttemptId,
     });
 
     const limitError = planLimitErrorMessage({ message: result.error });

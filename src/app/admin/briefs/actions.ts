@@ -33,6 +33,15 @@ interface NewBriefInput {
   usage_rights: string | null;
   deliverable_specs: Json;
   is_ad_intended: boolean;
+  /**
+   * Client-generated UUID minted when the form mounts. Used to derive
+   * the Stripe idempotency key for the escrow PaymentIntent so a
+   * resubmit of the same form instance (e.g. retry after a network
+   * blip) deduplicates against the original charge. A fresh form
+   * mount mints a new UUID, so a deliberate republish of the same
+   * brief still goes through. Transport-only; never persisted.
+   */
+  client_attempt_id: string;
 }
 
 // Failure-only return shape. On success the action calls
@@ -76,6 +85,22 @@ export async function createBriefWithEscrow(
     return { ok: false, error: "Invalid price or slot count" };
   }
 
+  // Minimal shape check on the client-supplied attempt id. We don't
+  // need a strict UUID validator here: the value is only used as
+  // entropy in the Stripe idempotency key, which Stripe accepts as
+  // any string up to 255 chars. We just want to reject empty / wildly
+  // long values that would either weaken dedup or blow past the cap.
+  if (
+    typeof input.client_attempt_id !== "string" ||
+    input.client_attempt_id.length === 0 ||
+    input.client_attempt_id.length >= 80
+  ) {
+    return {
+      ok: false,
+      error: "Invalid form state. Reload the page and try again.",
+    };
+  }
+
   const isPaid = input.price_dkk > 0;
   const escrowDkk = input.price_dkk * input.claim_limit;
 
@@ -115,27 +140,38 @@ export async function createBriefWithEscrow(
     });
 
     try {
-      const paymentIntent = await stripe().paymentIntents.create({
-        amount: escrowDkk * 100, // DKK → øre
-        currency: "dkk",
-        customer: customerId,
-        payment_method: org.default_payment_method_id,
-        confirm: true,
-        off_session: true,
-        description: `Escrow for brief: ${input.title.slice(0, 80)}`,
-        metadata: {
-          org_id: orgId,
-          escrow_dkk: String(escrowDkk),
-          claim_limit: String(input.claim_limit),
-          price_dkk: String(input.price_dkk),
+      const paymentIntent = await stripe().paymentIntents.create(
+        {
+          amount: escrowDkk * 100, // DKK → øre
+          currency: "dkk",
+          customer: customerId,
+          payment_method: org.default_payment_method_id,
+          confirm: true,
+          off_session: true,
+          description: `Escrow for brief: ${input.title.slice(0, 80)}`,
+          metadata: {
+            org_id: orgId,
+            escrow_dkk: String(escrowDkk),
+            claim_limit: String(input.claim_limit),
+            price_dkk: String(input.price_dkk),
+            client_attempt_id: input.client_attempt_id,
+          },
+          // Don't redirect for next-action handling: surface the error
+          // and let the user retry from the org-side.
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: "never",
+          },
         },
-        // Don't redirect for next-action handling — surface the error
-        // and let the user retry from the org-side.
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never",
-        },
-      });
+        {
+          // Scope the key to org + the form-mount attempt id. A retry
+          // of the same submit (network blip, Workers timeout) reuses
+          // the key and Stripe returns the original PaymentIntent
+          // instead of charging again. A deliberate republish gets a
+          // fresh attempt id at form mount and so a fresh key.
+          idempotencyKey: `brief-publish-${orgId}-${input.client_attempt_id}`,
+        }
+      );
 
       if (paymentIntent.status !== "succeeded") {
         return {
@@ -185,13 +221,39 @@ export async function createBriefWithEscrow(
 
   if (insertErr || !brief) {
     if (stripePaymentIntentId) {
-      // Best-effort refund — don't block the error return.
-      stripe()
-        .refunds.create({ payment_intent: stripePaymentIntentId })
-        .catch(() => {
-          // Logged via Stripe Dashboard; the user already sees the
-          // insert error.
-        });
+      // Await the rollback refund. On Cloudflare Workers the runtime
+      // tears down the request as soon as the response returns, so a
+      // fire-and-forget Promise from a server action gets cancelled
+      // mid-flight and the org keeps the charge with no brief to back
+      // it. The idempotency key keeps a (very unlikely) double action
+      // execution from issuing two refunds against the same PI.
+      try {
+        await stripe().refunds.create(
+          {
+            payment_intent: stripePaymentIntentId,
+            reason: "requested_by_customer",
+            metadata: {
+              reason: "brief_insert_failed",
+              org_id: orgId,
+            },
+          },
+          {
+            idempotencyKey: `brief-publish-rollback-${stripePaymentIntentId}`,
+          }
+        );
+      } catch (refundErr) {
+        // Both the insert and the refund failed. Surface the
+        // PaymentIntent id explicitly so support can reconcile the
+        // charge by hand. Include the original insert error since
+        // that's the bug worth investigating.
+        const insertMsg = insertErr?.message ?? "unknown";
+        const refundMsg =
+          refundErr instanceof Error ? refundErr.message : "unknown";
+        return {
+          ok: false,
+          error: `Brief save failed AND escrow refund failed. Contact support. Original error: ${insertMsg}. Refund error: ${refundMsg}. PaymentIntent: ${stripePaymentIntentId}.`,
+        };
+      }
     }
     return {
       ok: false,
