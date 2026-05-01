@@ -107,6 +107,20 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  /* Stop iOS Safari surfacing the gray flash on tap. We rely on
+     :hover/:focus-visible for our own affordances. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Kill the legacy 300ms double-tap-zoom delay on iOS for actionable
+   surfaces; modern browsers ignore this since pinch-zoom isn't tied
+   to double-tap there, but iOS Safari still respects it. */
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"] {
+  touch-action: manipulation;
 }
 
 /* Numeric/value typography: cleaner than mono for UI metrics */

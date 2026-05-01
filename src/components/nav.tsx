@@ -155,7 +155,7 @@ export function Nav() {
   const homeHref = isLoggedOut ? "/" : isOrgUser ? "/admin" : "/briefs";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 pt-[env(safe-area-inset-top)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 gap-3 sm:gap-6">
           <div className="flex items-center gap-3 shrink-0">

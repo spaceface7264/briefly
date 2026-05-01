@@ -37,7 +37,7 @@ export async function Footer() {
   const links = isLoggedOut ? publicPlatformLinks : platformLinks;
 
   return (
-    <footer className="mt-16 border-t border-border bg-surface/30">
+    <footer className="mt-16 border-t border-border bg-surface/30 pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid gap-8 sm:grid-cols-3">
           <div>

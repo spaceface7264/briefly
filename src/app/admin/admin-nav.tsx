@@ -199,7 +199,7 @@ export function AdminNav({
       {/* Mobile top bar — only visible below md. Hosts the hamburger,
           a compact org identity, and the claim-submitted unread badge
           so admins don't have to open the drawer to see it. */}
-      <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-surface/90 backdrop-blur-xl border-b border-border">
+      <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-surface/90 backdrop-blur-xl border-b border-border pt-[env(safe-area-inset-top)]">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
