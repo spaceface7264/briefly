@@ -7,6 +7,47 @@ import { createClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup-creator" | "signup-invite";
 
+/**
+ * Map a small set of known Supabase auth signup errors to friendlier
+ * copy. Falls back to the original message verbatim for anything we
+ * don't explicitly handle, so new failure modes are never silently
+ * swallowed. Codes match @supabase/auth-js's ErrorCode union.
+ */
+function friendlySignupError(err: unknown): string {
+  const e = err as { code?: string; message?: string } | null;
+  const code = e?.code;
+  const message = e?.message ?? "";
+  const lower = message.toLowerCase();
+
+  if (
+    code === "over_email_send_rate_limit" ||
+    lower.includes("email rate limit exceeded")
+  ) {
+    return "Too many signup attempts. Try again in an hour.";
+  }
+
+  if (
+    code === "user_already_exists" ||
+    lower.includes("user already registered")
+  ) {
+    return "An account with this email already exists. Try signing in instead.";
+  }
+
+  if (code === "weak_password" || lower.includes("password should be at least")) {
+    return "Password must be at least 6 characters.";
+  }
+
+  if (
+    (code === "validation_failed" && lower.includes("email")) ||
+    lower.includes("invalid email") ||
+    lower.includes("unable to validate email address")
+  ) {
+    return "That doesn't look like a valid email address.";
+  }
+
+  return message || "Signup failed. Please try again.";
+}
+
 interface LoginFormProps {
   /** True when at least one organisation has discoverable=true. When
    *  set, creator self-serve signup is allowed. When false, the only
@@ -133,7 +174,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(friendlySignupError(signUpError));
       setLoading(false);
       return;
     }
