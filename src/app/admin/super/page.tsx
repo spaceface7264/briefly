@@ -55,8 +55,8 @@ export default async function SuperOverviewPage() {
 
       <section>
         <h2 className="text-xl font-semibold mb-4">Plan catalogue</h2>
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
             <thead className="bg-surface-raised">
               <tr className="text-left">
                 <Th>Slug</Th>

@@ -56,8 +56,8 @@ export default async function SuperOrgsPage() {
         </Link>
       </div>
 
-      <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-surface-raised text-left">
             <tr>
               <Th>Name</Th>

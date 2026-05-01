@@ -99,8 +99,8 @@ export default async function CreatorDetailPage({
       {/* Claims History */}
       <h2 className="text-xl font-semibold mb-4">Claims History ({claims?.length || 0})</h2>
       {claims && claims.length > 0 ? (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <table className="w-full">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">Brief</th>
@@ -146,7 +146,7 @@ export default async function CreatorDetailPage({
       {/* Account Info */}
       <div className="mt-8 bg-surface border border-border rounded-xl p-5">
         <h2 className="font-semibold mb-4">Account Info</h2>
-        <dl className="grid grid-cols-2 gap-4 text-sm">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <dt className="text-muted">Joined</dt>
             <dd className="font-mono">{new Date(profile.created_at).toLocaleDateString("en-GB")}</dd>

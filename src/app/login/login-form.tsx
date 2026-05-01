@@ -237,7 +237,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
 
         {/* Sub-toggle: which signup path */}
         {isSignup && allowOpenSignup && (
-          <div className="grid grid-cols-2 gap-2 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
             <PathCard
               label="As a creator"
               description="Browse open briefs from any brand."

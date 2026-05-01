@@ -156,8 +156,8 @@ export function AdminTeam({
         </div>
       )}
 
-      <div className="bg-surface border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
+      <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+        <table className="w-full min-w-[480px]">
           <thead>
             <tr className="border-b border-border bg-surface-raised">
               <th className="text-left text-xs font-medium text-muted px-4 py-3 uppercase tracking-wider">

@@ -118,8 +118,8 @@ export default function SuperPlatformPage() {
             </p>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
+          <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[480px]">
               <tbody>
                 {platformRows.map((row, i) => (
                   <tr
@@ -166,8 +166,8 @@ export default function SuperPlatformPage() {
             </p>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
+          <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[480px]">
               <tbody>
                 {constantRows.map((row, i) => (
                   <tr

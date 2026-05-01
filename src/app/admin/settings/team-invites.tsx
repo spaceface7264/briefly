@@ -161,8 +161,8 @@ export function TeamInvites({ invites, canManage }: Props) {
           </p>
         </div>
       ) : (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <table className="w-full">
+        <div className="bg-surface border border-border rounded-xl overflow-x-auto">
+          <table className="w-full min-w-[560px]">
             <thead className="bg-surface-raised">
               <tr>
                 <Th>Code</Th>
@@ -312,7 +312,7 @@ export function TeamInvites({ invites, canManage }: Props) {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Role</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <RoleOption
                   label="Member"
                   description="Day-to-day access — review submissions, manage briefs."
