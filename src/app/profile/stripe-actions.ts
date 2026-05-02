@@ -74,11 +74,17 @@ export async function refreshStripeStatus() {
 
   const account = await stripe().accounts.retrieve(profile.stripe_account_id);
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("profiles")
     .update({
       stripe_payouts_enabled: account.payouts_enabled ?? false,
       stripe_details_submitted: account.details_submitted ?? false,
     })
     .eq("id", user.id);
+
+  if (updateError) {
+    throw new Error(
+      `Failed to refresh Stripe status: ${updateError.message}`
+    );
+  }
 }

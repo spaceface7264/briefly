@@ -81,6 +81,10 @@ Migrations are in `supabase/migrations/` (currently at 0037). Run via Supabase D
 - Don't reach for `as any` to silence a type error on a DB row; regenerate `src/types/database.ts` instead
 - Don't `await supabase.from(...).update/insert/upsert/delete(...)` without destructuring `{ error }` and handling it; Supabase JS swallows errors silently, which has caused real production drift when triggers or RLS blocked the write
 
+## Don'ts
+
+- Don't `await supabase.from(...).update/insert/upsert/delete(...)` without destructuring `{ error }` and handling it; Supabase JS swallows errors silently, which has caused real production drift when triggers or RLS blocked the write
+
 ## Email Notifications
 
 Edge Functions in `supabase/functions/` send emails via Resend:

@@ -79,11 +79,18 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (payment?.claim_id) {
-        await supabase
+        const { error: claimRevertError } = await supabase
           .from("claims")
           .update({ status: "approved" })
           .eq("id", payment.claim_id)
           .eq("status", "paid");
+        if (claimRevertError) {
+          console.error(
+            "Failed to revert claim to approved after transfer.reversed:",
+            claimRevertError
+          );
+          return NextResponse.json({ error: "db error" }, { status: 500 });
+        }
       }
       break;
     }
