@@ -30,7 +30,7 @@ Types are generated from Supabase:
 npx supabase gen types typescript --project-id PROJECT_ID > src/types/database.ts
 ```
 
-Migrations are in `supabase/migrations/` (currently at 0037). Run via Supabase Dashboard SQL Editor.
+Migrations are in `supabase/migrations/` (currently at 0039). Run via Supabase Dashboard SQL Editor.
 
 ## Project Structure
 
@@ -79,10 +79,6 @@ Migrations are in `supabase/migrations/` (currently at 0037). Run via Supabase D
 - Don't trust client-supplied IDs in server actions; re-fetch the row and verify org/ownership before mutating
 - Don't write `SECURITY DEFINER` functions/triggers without `ALTER ... OWNER TO postgres`; they won't bypass RLS otherwise
 - Don't reach for `as any` to silence a type error on a DB row; regenerate `src/types/database.ts` instead
-- Don't `await supabase.from(...).update/insert/upsert/delete(...)` without destructuring `{ error }` and handling it; Supabase JS swallows errors silently, which has caused real production drift when triggers or RLS blocked the write
-
-## Don'ts
-
 - Don't `await supabase.from(...).update/insert/upsert/delete(...)` without destructuring `{ error }` and handling it; Supabase JS swallows errors silently, which has caused real production drift when triggers or RLS blocked the write
 
 ## Email Notifications
