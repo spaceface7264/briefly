@@ -94,37 +94,24 @@ export async function payClaim(claimId: string): Promise<PayResult> {
     return { ok: false, error: "Brief price missing" };
   }
 
-  // Escrow guard (Phase 1.1d). Briefs published from 1.1c onwards
-  // pre-fund the platform balance for `price_dkk × claim_limit` and
-  // land with funded_status ∈ (funded, partially_released). Each
+  // Escrow gating (Phase 1.1d). Briefs published from 1.1c onwards
+  // pre-fund the platform balance for `price_dkk x claim_limit` and
+  // land with funded_status in (funded, partially_released). Each
   // payClaim call decrements escrow_held_dkk by the slot's gross
   // amount; the brief moves to `released` when held hits zero.
   //
   // Legacy briefs (created before 1.1c) land as `unfunded` because no
   // escrow PaymentIntent ran. We let those through unchanged so the
-  // existing transfer-from-platform-balance flow keeps working — but
-  // skip the escrow accounting since there's nothing to decrement.
+  // existing transfer-from-platform-balance flow keeps working, but
+  // skip the escrow accounting since there is nothing to decrement.
+  //
+  // The actual `held >= slot` and `funded_status` checks now run as
+  // an atomic UPDATE inside release_escrow_slot (migration 0039) so
+  // two concurrent payClaim calls cannot both pass a stale read-time
+  // guard and double-pay the same slot. See 0039 header for details.
   const briefRecord = claim.brief;
   const slotGrossDkk = briefRecord.price_dkk;
   const briefIsEscrowed = briefRecord.funded_status !== "unfunded";
-  if (briefIsEscrowed) {
-    const heldDkk = briefRecord.escrow_held_dkk ?? 0;
-    if (heldDkk < slotGrossDkk) {
-      return {
-        ok: false,
-        error: `Escrow underfunded: brief holds ${heldDkk} DKK but this slot needs ${slotGrossDkk} DKK. Likely a corrupted state — open a ticket.`,
-      };
-    }
-    if (
-      briefRecord.funded_status !== "funded" &&
-      briefRecord.funded_status !== "partially_released"
-    ) {
-      return {
-        ok: false,
-        error: `Brief escrow is ${briefRecord.funded_status}; cannot release more funds.`,
-      };
-    }
-  }
 
   const { data: existing } = await supabase
     .from("payments")
@@ -224,6 +211,29 @@ export async function payClaim(claimId: string): Promise<PayResult> {
     return { ok: false, error: `Failed to create payment record: ${insertError?.message}` };
   }
 
+  // Atomic escrow decrement (Phase 1.1d security fix). We move
+  // escrow_held_dkk + funded_status in a single UPDATE before the
+  // Stripe transfer fires, so concurrent payClaim calls on the same
+  // brief cannot both see the same starting balance and double-pay.
+  // If the RPC raises escrow_release_failed, the brief is already
+  // drained / refunded / never escrowed properly; mark the payment
+  // failed and bail out before touching Stripe.
+  if (briefIsEscrowed) {
+    const { error: releaseError } = await supabase.rpc("release_escrow_slot", {
+      p_brief_id: briefRecord.id,
+      p_slot_dkk: slotGrossDkk,
+    });
+    if (releaseError) {
+      const friendly =
+        "Brief escrow does not have enough held to release this slot. Likely already paid out or partially refunded.";
+      await supabase
+        .from("payments")
+        .update({ status: "failed", error_message: friendly })
+        .eq("id", payment.id);
+      return { ok: false, error: friendly };
+    }
+  }
+
   try {
     const transfer = await stripe().transfers.create(
       {
@@ -252,32 +262,29 @@ export async function payClaim(claimId: string): Promise<PayResult> {
       .update({ status: "paid" })
       .eq("id", claim.id);
 
-    // Escrow accounting (Phase 1.1d). Decrement what the brief still
-    // holds and flip funded_status:
-    //   held - slot == 0  → released (every slot has been paid out)
-    //   held - slot > 0   → partially_released (more slots remain)
-    // Skipped for legacy unfunded briefs — see the briefIsEscrowed
-    // guard above.
-    if (briefIsEscrowed) {
-      const newHeld = (briefRecord.escrow_held_dkk ?? 0) - slotGrossDkk;
-      const newFundedStatus =
-        newHeld === 0 ? "released" : "partially_released";
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from("briefs") as any)
-        .update({
-          escrow_held_dkk: newHeld,
-          funded_status: newFundedStatus,
-        })
-        .eq("id", briefRecord.id);
-    }
-
     revalidatePath("/admin/claims");
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stripe transfer failed";
+    let errorMessage = message;
+
+    // Credit the held amount back since the transfer never landed.
+    // If restore itself fails we still surface the original Stripe
+    // error to the admin, but we append the restore failure to
+    // error_message so support can manually reconcile the brief.
+    if (briefIsEscrowed) {
+      const { error: restoreError } = await supabase.rpc("restore_escrow_slot", {
+        p_brief_id: briefRecord.id,
+        p_slot_dkk: slotGrossDkk,
+      });
+      if (restoreError) {
+        errorMessage = `${message} | escrow restore failed: ${restoreError.message}`;
+      }
+    }
+
     await supabase
       .from("payments")
-      .update({ status: "failed", error_message: message })
+      .update({ status: "failed", error_message: errorMessage })
       .eq("id", payment.id);
     return { ok: false, error: message };
   }

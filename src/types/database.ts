@@ -1237,6 +1237,17 @@ export type Database = {
         Args: { invite_code: string; user_uuid: string }
         Returns: boolean
       }
+      release_escrow_slot: {
+        Args: { p_brief_id: string; p_slot_dkk: number }
+        Returns: {
+          new_held: number
+          new_status: Database["public"]["Enums"]["brief_funded_status"]
+        }[]
+      }
+      restore_escrow_slot: {
+        Args: { p_brief_id: string; p_slot_dkk: number }
+        Returns: undefined
+      }
       user_has_claimed: { Args: { brief_uuid: string }; Returns: boolean }
       user_not_in_reclaim_cooldown: {
         Args: { brief_uuid: string }
