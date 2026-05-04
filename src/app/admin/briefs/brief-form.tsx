@@ -341,7 +341,13 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
         return;
       }
 
-      toast.success("Brief saved");
+      const trimmed = title.trim();
+      const displayTitle =
+        trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
+      toast.success(
+        "Brief saved",
+        displayTitle ? { description: displayTitle } : undefined
+      );
       router.push("/admin/briefs");
       router.refresh();
       return;

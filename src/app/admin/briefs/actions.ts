@@ -344,8 +344,10 @@ export async function createBriefWithEscrow(
   // The ?flash=brief-published param is consumed by the destination's
   // <FlashToast /> on mount; the toast is the success acknowledgement
   // that the form would otherwise fire if the redirect had returned
-  // here instead of throwing NEXT_REDIRECT first.
-  redirect("/admin/briefs?flash=brief-published");
+  // here instead of throwing NEXT_REDIRECT first. The brief title
+  // rides along so the toast can name what just got published.
+  const titleParam = encodeURIComponent(input.title.slice(0, 200));
+  redirect(`/admin/briefs?flash=brief-published&title=${titleParam}`);
 }
 
 function friendlyStripeStatus(status: Stripe.PaymentIntent.Status): string {
