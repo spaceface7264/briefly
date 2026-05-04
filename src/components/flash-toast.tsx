@@ -45,6 +45,14 @@ const FLASH_MESSAGES: Record<
       tone: "success",
     };
   },
+  "brief-archived": (params) => {
+    const title = ellipsize(params.get("title") ?? "");
+    return {
+      title: "Brief archived",
+      description: title || "Held escrow refunded to your saved card.",
+      tone: "success",
+    };
+  },
 };
 
 // Search-param keys consumed by FLASH_MESSAGES factories. Listed

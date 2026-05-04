@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import Link from "next/link";
 import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
@@ -98,7 +99,6 @@ export function BriefDetailClient({
   const orgId = useOrgId();
   const [claiming, setClaiming] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState("");
 
   const claimLimit = brief.claim_limit || 1;
   const slotsAvailable = claimLimit - claimCount;
@@ -127,20 +127,21 @@ export function BriefDetailClient({
 
   async function handleClaim() {
     if (isReclaimBlocked && reclaimBlockedUntil) {
-      setError(
-        `You can reclaim this brief after ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown).`
-      );
+      toast.error("Cooldown active", {
+        description: `You can reclaim this brief after ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown).`,
+      });
       return;
     }
 
     setClaiming(true);
-    setError("");
 
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      setError("You must be logged in to claim a brief");
+      toast.error("Sign in required", {
+        description: "You must be logged in to claim a brief.",
+      });
       setClaiming(false);
       return;
     }
@@ -160,11 +161,21 @@ export function BriefDetailClient({
 
     if (insertError) {
       console.error("Claim error:", insertError);
-      setError("Failed to claim brief. It may be full or you already claimed it.");
+      toast.error("Couldn't claim brief", {
+        description:
+          "It may be full or you already claimed it. Refresh and try again.",
+      });
       setClaiming(false);
       return;
     }
 
+    const trimmed = brief.title?.trim() ?? "";
+    const displayTitle =
+      trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
+    toast.success(
+      "Brief claimed",
+      displayTitle ? { description: displayTitle } : undefined
+    );
     router.push("/my-briefs");
     router.refresh();
   }
@@ -339,10 +350,6 @@ export function BriefDetailClient({
                           Claim to reserve a slot for 7 days.
                         </p>
 
-                        {error && (
-                          <p className="text-error text-xs mb-3">{error}</p>
-                        )}
-
                         {!showConfirm ? (
                           <button
                             onClick={() => setShowConfirm(true)}
@@ -465,10 +472,14 @@ function ClaimedState({
     if (updateError) {
       console.error("Cancel error:", updateError);
       setError("Failed to cancel claim");
+      toast.error("Couldn't release claim", {
+        description: "Please try again.",
+      });
       setCancelling(false);
       return;
     }
 
+    toast.success("Claim released");
     onCancelled();
   }
 
@@ -539,10 +550,14 @@ function ClaimedState({
     );
     if (!result.ok) {
       setError(result.error);
+      toast.error("Submission failed", { description: result.error });
       setSubmitting(false);
       return;
     }
 
+    toast.success("Submission sent", {
+      description: "We'll email you when the org reviews it.",
+    });
     router.refresh();
   }
 

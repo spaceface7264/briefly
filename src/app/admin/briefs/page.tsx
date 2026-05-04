@@ -1,13 +1,12 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { getOrgRole, requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import type { Brief } from "@/types/database";
 import { AdminBriefsClient } from "./admin-briefs-client";
 import { FlashToast } from "@/components/flash-toast";
 
 export default async function AdminBriefsPage({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -15,6 +14,8 @@ export default async function AdminBriefsPage({
   await searchParams;
   const supabase = await createClient();
   const orgId = await requireActiveOrg(supabase);
+  const role = await getOrgRole(supabase);
+  const isAdmin = role === "admin";
 
   const { data: briefs } = await supabase
     .from("briefs")
@@ -24,19 +25,34 @@ export default async function AdminBriefsPage({
 
   const briefIds = ((briefs || []) as Brief[]).map((brief) => brief.id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: activeClaims } = briefIds.length > 0 ? await (supabase.from("claims") as any)
-    .select("brief_id")
-    .in("brief_id", briefIds)
-    .eq("status", "active") : { data: [] };
+  const { data: claimRows } = briefIds.length > 0 ? await (supabase.from("claims") as any)
+    .select("brief_id, status")
+    .in("brief_id", briefIds) : { data: [] };
 
-  const claimCountByBriefId = new Map<string, number>();
-  for (const claim of activeClaims || []) {
-    claimCountByBriefId.set(claim.brief_id, (claimCountByBriefId.get(claim.brief_id) || 0) + 1);
+  // Track active claims for the slot-fill column AND total claims
+  // (any status) so the bulk-delete UI can pre-disable rows that
+  // have any claim history. The action layer re-checks server-side,
+  // but mirroring the rule here avoids a confusing "click delete →
+  // get partial-failure toast" experience.
+  const activeClaimCountByBriefId = new Map<string, number>();
+  const totalClaimCountByBriefId = new Map<string, number>();
+  for (const claim of (claimRows || []) as { brief_id: string; status: string }[]) {
+    totalClaimCountByBriefId.set(
+      claim.brief_id,
+      (totalClaimCountByBriefId.get(claim.brief_id) || 0) + 1
+    );
+    if (claim.status === "active") {
+      activeClaimCountByBriefId.set(
+        claim.brief_id,
+        (activeClaimCountByBriefId.get(claim.brief_id) || 0) + 1
+      );
+    }
   }
 
   const briefsWithCounts = ((briefs || []) as Brief[]).map((brief) => ({
     ...brief,
-    activeClaimCount: claimCountByBriefId.get(brief.id) || 0,
+    activeClaimCount: activeClaimCountByBriefId.get(brief.id) || 0,
+    totalClaimCount: totalClaimCountByBriefId.get(brief.id) || 0,
   }));
 
   return (
@@ -57,7 +73,7 @@ export default async function AdminBriefsPage({
         </Link>
       </div>
 
-      <AdminBriefsClient briefs={briefsWithCounts} />
+      <AdminBriefsClient briefs={briefsWithCounts} canBulkEdit={isAdmin} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { planLimitErrorMessage } from "@/lib/pricing";
 import { BriefForm } from "../brief-form";
@@ -65,24 +66,36 @@ export default function EditBriefPage() {
     if (!confirm(message)) return;
 
     setArchiving(true);
-    // archiveBriefWithRefund redirects to /admin/briefs on success.
-    // If we receive a result back here, it's an error.
+    // archiveBriefWithRefund redirects to /admin/briefs on success
+    // (FlashToast picks up `?flash=brief-archived` there). If we
+    // receive a result back here it's a failure path.
     const result = await archiveBriefWithRefund(briefId);
-    alert(result.error);
+    toast.error("Couldn't archive brief", {
+      description: result.error,
+    });
     setArchiving(false);
   }
 
   async function handleReopen() {
+    if (!brief) return;
     setArchiving(true);
     const result = await reopenBrief(briefId);
 
     if (!result.ok) {
       const limitMessage = planLimitErrorMessage({ message: result.error });
-      alert(limitMessage ?? result.error);
+      toast.error("Couldn't reopen brief", {
+        description: limitMessage ?? result.error,
+      });
       setArchiving(false);
       return;
     }
 
+    const trimmed = brief.title?.trim() ?? "";
+    const displayTitle = trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
+    toast.success(
+      "Brief reopened",
+      displayTitle ? { description: displayTitle } : undefined
+    );
     router.refresh();
     setArchiving(false);
     setBrief((prev) => (prev ? { ...prev, status: "open" } : null));

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { categoryLabel, durationClassLabel, formatPrice } from "@/lib/utils";
 import type { Brief, BriefStatus } from "@/types/database";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
@@ -14,6 +16,14 @@ import {
   fundedStatusLabel,
 } from "@/lib/admin-badge-tones";
 import type { BriefFundedStatus } from "@/types/database";
+import { ConfirmDialog } from "@/components/modal";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  archiveBriefsBulk,
+  deleteBriefsBulk,
+  reopenBriefsBulk,
+  type BulkBriefResult,
+} from "./actions";
 
 type SortField = "created_at" | "title" | "price_dkk";
 type SortOrder = "asc" | "desc";
@@ -31,7 +41,12 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
   "actions",
 ];
 
-type BriefWithCount = Brief & { activeClaimCount: number };
+type BriefWithCount = Brief & {
+  activeClaimCount: number;
+  totalClaimCount: number;
+};
+
+type BulkAction = "archive" | "reopen" | "delete";
 
 function FundedBadge({ status }: { status: BriefFundedStatus | null }) {
   if (!status || status === "unfunded") return null;
@@ -51,7 +66,16 @@ function SortIcon({ activeOrder }: { activeOrder?: SortOrder }) {
   return <ArrowUpDownIcon className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />;
 }
 
-export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
+export function AdminBriefsClient({
+  briefs,
+  canBulkEdit = false,
+}: {
+  briefs: BriefWithCount[];
+  /** Org admins move money (refunds) and can hard-delete; members
+   * can browse but the bulk-edit toolbar is hidden for them. */
+  canBulkEdit?: boolean;
+}) {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [durationFilter, setDurationFilter] = useState<Brief["duration_class"] | "all">("all");
   const [adFilter, setAdFilter] = useState<AdFilter>("all");
@@ -60,6 +84,9 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
   const [sortOrder, setSortOrder] = useState<SortOrder | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(DEFAULT_COLUMNS));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingAction, setPendingAction] = useState<BulkAction | null>(null);
+  const [working, startBulkTransition] = useTransition();
 
   const statusCounts = useMemo(() => ({
     all: briefs.length,
@@ -119,6 +146,118 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
       else next.add(col);
       if (next.size === 0) return new Set(DEFAULT_COLUMNS);
       return next;
+    });
+  }
+
+  const briefsById = useMemo(() => {
+    const map = new Map<string, BriefWithCount>();
+    for (const b of briefs) map.set(b.id, b);
+    return map;
+  }, [briefs]);
+
+  // Derive selection from the live brief list so a server refresh
+  // that removes rows (e.g. bulk delete) drops stale ids from the
+  // active count without needing to write back into selectedIds in
+  // an effect. Anything that survives in selectedIds but not in
+  // briefsById is treated as gone — bulk actions clearSelection() on
+  // completion anyway, so the only path that hits this is a router
+  // refresh racing the user.
+  const selectedBriefs = useMemo(
+    () =>
+      Array.from(selectedIds)
+        .map((id) => briefsById.get(id))
+        .filter((b): b is BriefWithCount => Boolean(b)),
+    [selectedIds, briefsById]
+  );
+  const selectedCount = selectedBriefs.length;
+  const archivableCount = selectedBriefs.filter((b) => b.status !== "archived").length;
+  const reopenableCount = selectedBriefs.filter(
+    (b) => b.status === "archived" && b.funded_status !== "refunded"
+  ).length;
+  const deletableBriefs = selectedBriefs.filter((b) => b.totalClaimCount === 0);
+  const deletableCount = deletableBriefs.length;
+
+  function toggleSelect(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  // After a bulk action: refresh server data and surface a summary
+  // toast. "Mostly succeeded" cases get a sticky toast listing the
+  // first few failures so admins know what didn't go through.
+  function handleBulkResult(
+    action: BulkAction,
+    target: number,
+    result: BulkBriefResult | { ok: false; error: string }
+  ) {
+    if (!result.ok) {
+      toast.error("Couldn't run bulk action", { description: result.error });
+      return;
+    }
+    const verbPast: Record<BulkAction, string> = {
+      archive: "Archived",
+      reopen: "Reopened",
+      delete: "Deleted",
+    };
+    const noun = result.succeeded === 1 ? "brief" : "briefs";
+    if (result.failed.length === 0) {
+      toast.success(`${verbPast[action]} ${result.succeeded} ${noun}`);
+    } else if (result.succeeded === 0) {
+      toast.error(
+        `Couldn't ${action} ${target === 1 ? "the brief" : `any of the ${target} briefs`}`,
+        {
+          description: summarizeFailures(result.failed, briefsById),
+          duration: 8000,
+        }
+      );
+    } else {
+      toast.warning(
+        `${verbPast[action]} ${result.succeeded} of ${target} ${target === 1 ? "brief" : "briefs"}`,
+        {
+          description: summarizeFailures(result.failed, briefsById),
+          duration: 8000,
+        }
+      );
+    }
+    clearSelection();
+    router.refresh();
+  }
+
+  function runBulk(action: BulkAction) {
+    const ids = (() => {
+      if (action === "archive") {
+        return selectedBriefs
+          .filter((b) => b.status !== "archived")
+          .map((b) => b.id);
+      }
+      if (action === "reopen") {
+        return selectedBriefs
+          .filter((b) => b.status === "archived" && b.funded_status !== "refunded")
+          .map((b) => b.id);
+      }
+      return deletableBriefs.map((b) => b.id);
+    })();
+
+    if (ids.length === 0) {
+      setPendingAction(null);
+      return;
+    }
+
+    startBulkTransition(async () => {
+      let result: BulkBriefResult | { ok: false; error: string };
+      if (action === "archive") result = await archiveBriefsBulk(ids);
+      else if (action === "reopen") result = await reopenBriefsBulk(ids);
+      else result = await deleteBriefsBulk(ids);
+      setPendingAction(null);
+      handleBulkResult(action, ids.length, result);
     });
   }
 
@@ -201,11 +340,41 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
         </details>
       </div>
 
+      {canBulkEdit && selectedCount > 0 && (
+        <BulkActionBar
+          selectedCount={selectedCount}
+          archivableCount={archivableCount}
+          reopenableCount={reopenableCount}
+          deletableCount={deletableCount}
+          working={working}
+          onAction={(action) => setPendingAction(action)}
+          onClear={clearSelection}
+        />
+      )}
+
       {paginated.length > 0 ? (
         <div className="bg-surface border border-border rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
+                {canBulkEdit && (
+                  <th className="w-10 px-4 py-3">
+                    <SelectAllCheckbox
+                      pageBriefs={paginated}
+                      selectedIds={selectedIds}
+                      onTogglePage={(checked) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          for (const b of paginated) {
+                            if (checked) next.add(b.id);
+                            else next.delete(b.id);
+                          }
+                          return next;
+                        });
+                      }}
+                    />
+                  </th>
+                )}
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">
                   <button onClick={() => cycleSort("title")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
                     Title
@@ -236,8 +405,26 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
               </tr>
             </thead>
             <tbody key={animationKey} className="animate-stagger-in">
-              {paginated.map((brief) => (
-                <tr key={brief.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
+              {paginated.map((brief) => {
+                const isSelected = selectedIds.has(brief.id);
+                return (
+                <tr
+                  key={brief.id}
+                  className={`border-b border-border last:border-0 hover:bg-surface-hover ${
+                    isSelected ? "bg-accent-muted/40" : ""
+                  }`}
+                >
+                  {canBulkEdit && (
+                    <td className="px-4 py-3 align-middle">
+                      <Checkbox
+                        aria-label={`Select ${brief.title}`}
+                        checked={isSelected}
+                        onCheckedChange={(checked) =>
+                          toggleSelect(brief.id, checked === true)
+                        }
+                      />
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <Link href={`/admin/briefs/${brief.id}`} className="font-medium hover:text-accent">{brief.title}</Link>
                     {brief.location && <p className="mt-0.5 text-muted text-sm">{brief.location}</p>}
@@ -282,7 +469,8 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -313,6 +501,215 @@ export function AdminBriefsClient({ briefs }: { briefs: BriefWithCount[] }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingAction === "archive"}
+        onClose={() => !working && setPendingAction(null)}
+        onConfirm={() => runBulk("archive")}
+        title={
+          archivableCount === 1
+            ? "Archive this brief?"
+            : `Archive ${archivableCount} briefs?`
+        }
+        description={
+          archivableCount === 0
+            ? "None of the selected briefs can be archived."
+            : `Held escrow on funded briefs will be refunded to the org's saved card. ${
+                selectedCount - archivableCount > 0
+                  ? `${selectedCount - archivableCount} already-archived ${
+                      selectedCount - archivableCount === 1 ? "brief" : "briefs"
+                    } in the selection will be skipped.`
+                  : ""
+              }`.trim()
+        }
+        confirmLabel={archivableCount === 0 ? "Close" : "Archive"}
+        tone="danger"
+        loading={working}
+      />
+
+      <ConfirmDialog
+        open={pendingAction === "reopen"}
+        onClose={() => !working && setPendingAction(null)}
+        onConfirm={() => runBulk("reopen")}
+        title={
+          reopenableCount === 1
+            ? "Reopen this brief?"
+            : `Reopen ${reopenableCount} briefs?`
+        }
+        description={
+          reopenableCount === 0
+            ? "None of the selected briefs can be reopened. Refunded briefs need to be republished from scratch."
+            : `${
+                selectedCount - reopenableCount > 0
+                  ? `${selectedCount - reopenableCount} ineligible ${
+                      selectedCount - reopenableCount === 1 ? "brief" : "briefs"
+                    } in the selection will be skipped (already open or refunded).`
+                  : "Selected briefs will be visible to creators again."
+              }`
+        }
+        confirmLabel={reopenableCount === 0 ? "Close" : "Reopen"}
+        tone="brand"
+        loading={working}
+      />
+
+      <ConfirmDialog
+        open={pendingAction === "delete"}
+        onClose={() => !working && setPendingAction(null)}
+        onConfirm={() => runBulk("delete")}
+        title={
+          deletableCount === 1
+            ? "Delete this brief?"
+            : `Delete ${deletableCount} briefs?`
+        }
+        description={
+          deletableCount === 0
+            ? "None of the selected briefs can be deleted. Briefs with any claim history must be archived instead."
+            : `This permanently removes ${
+                deletableCount === 1 ? "the brief" : "the briefs"
+              } and refunds any held escrow. This cannot be undone.${
+                selectedCount - deletableCount > 0
+                  ? ` ${selectedCount - deletableCount} ${
+                      selectedCount - deletableCount === 1 ? "brief" : "briefs"
+                    } with claims in the selection will be skipped.`
+                  : ""
+              }`
+        }
+        confirmLabel={deletableCount === 0 ? "Close" : "Delete permanently"}
+        tone="danger"
+        loading={working}
+      />
     </div>
   );
+}
+
+function BulkActionBar({
+  selectedCount,
+  archivableCount,
+  reopenableCount,
+  deletableCount,
+  working,
+  onAction,
+  onClear,
+}: {
+  selectedCount: number;
+  archivableCount: number;
+  reopenableCount: number;
+  deletableCount: number;
+  working: boolean;
+  onAction: (action: BulkAction) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-muted/40 px-4 py-3">
+      <span className="text-sm font-medium">
+        {selectedCount} selected
+      </span>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onAction("reopen")}
+          disabled={working || reopenableCount === 0}
+          title={
+            reopenableCount === 0
+              ? "Select archived briefs to reopen"
+              : `Reopen ${reopenableCount} of ${selectedCount}`
+          }
+          className="px-3 py-1.5 text-sm font-medium border border-border bg-surface hover:border-accent/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+        >
+          Reopen
+          {reopenableCount > 0 && reopenableCount !== selectedCount && (
+            <span className="ml-1.5 text-xs text-muted">({reopenableCount})</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onAction("archive")}
+          disabled={working || archivableCount === 0}
+          title={
+            archivableCount === 0
+              ? "Selected briefs are already archived"
+              : `Archive ${archivableCount} of ${selectedCount}`
+          }
+          className="px-3 py-1.5 text-sm font-medium border border-border bg-surface hover:border-accent/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+        >
+          Archive
+          {archivableCount > 0 && archivableCount !== selectedCount && (
+            <span className="ml-1.5 text-xs text-muted">({archivableCount})</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onAction("delete")}
+          disabled={working || deletableCount === 0}
+          title={
+            deletableCount === 0
+              ? "Briefs with claim history cannot be deleted — archive instead"
+              : deletableCount < selectedCount
+                ? `Delete ${deletableCount} of ${selectedCount} (others have claims)`
+                : `Delete ${deletableCount}`
+          }
+          className="px-3 py-1.5 text-sm font-medium border border-error/40 text-error bg-surface hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+        >
+          Delete
+          {deletableCount > 0 && deletableCount !== selectedCount && (
+            <span className="ml-1.5 text-xs">({deletableCount})</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={working}
+          className="px-3 py-1.5 text-sm font-medium text-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SelectAllCheckbox({
+  pageBriefs,
+  selectedIds,
+  onTogglePage,
+}: {
+  pageBriefs: BriefWithCount[];
+  selectedIds: Set<string>;
+  onTogglePage: (checked: boolean) => void;
+}) {
+  const selectedOnPage = pageBriefs.filter((b) => selectedIds.has(b.id)).length;
+  const allSelected = pageBriefs.length > 0 && selectedOnPage === pageBriefs.length;
+  const someSelected = selectedOnPage > 0 && !allSelected;
+
+  // Base UI Checkbox handles `indeterminate` natively as a prop, so
+  // the partial-selection visual no longer needs an imperative
+  // ref + effect to set the underlying input's indeterminate
+  // property. Clicking while indeterminate fires onCheckedChange
+  // with `true`, which selects every row on the current page.
+  return (
+    <Checkbox
+      aria-label="Select all on page"
+      checked={allSelected}
+      indeterminate={someSelected}
+      onCheckedChange={(checked) => onTogglePage(checked === true)}
+    />
+  );
+}
+
+// Render a compact failure summary for the partial-success toast.
+// Falls back to the raw error count when too many fail to list
+// individually.
+function summarizeFailures(
+  failed: { briefId: string; error: string }[],
+  briefsById: Map<string, BriefWithCount>
+): string {
+  if (failed.length === 0) return "";
+  const sample = failed.slice(0, 3).map((f) => {
+    const title = briefsById.get(f.briefId)?.title ?? "Brief";
+    return `${title}: ${f.error}`;
+  });
+  const overflow = failed.length - sample.length;
+  return overflow > 0
+    ? `${sample.join(" • ")} • +${overflow} more`
+    : sample.join(" • ");
 }
