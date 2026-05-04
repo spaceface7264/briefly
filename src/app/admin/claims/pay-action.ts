@@ -1,5 +1,6 @@
 "use server";
 
+import type Stripe from "stripe";
 import { revalidatePath } from "next/cache";
 import { stripe } from "@/lib/stripe/server";
 import { calculateVat, formatInvoiceNumber } from "@/lib/invoicing/vat";
@@ -226,16 +227,30 @@ export async function payClaim(claimId: string): Promise<PayResult> {
     if (releaseError) {
       const friendly =
         "Brief escrow does not have enough held to release this slot. Likely already paid out or partially refunded.";
-      await supabase
+      const { error: markFailedError } = await supabase
         .from("payments")
         .update({ status: "failed", error_message: friendly })
         .eq("id", payment.id);
+      if (markFailedError) {
+        // Log loudly so support can manually mark the payment row.
+        // The original release failure still surfaces to the caller.
+        console.error(
+          `[payClaim] Failed to mark payment ${payment.id} as failed after release_escrow_slot error: ${markFailedError.message}`
+        );
+      }
       return { ok: false, error: friendly };
     }
   }
 
+  // The try/catch wraps ONLY the Stripe call. Once the transfer
+  // returns, the money is out of the platform; any failure on the
+  // post-transfer DB writes is silent corruption (drift between
+  // Stripe and our state), not something to "roll back" by restoring
+  // escrow. Surface those errors loudly via throw, with the Stripe
+  // transfer id in the message so ops can reconcile by hand.
+  let transfer: Stripe.Transfer;
   try {
-    const transfer = await stripe().transfers.create(
+    transfer = await stripe().transfers.create(
       {
         amount: vat.totalDkk * 100, // DKK -> øre
         currency: "dkk",
@@ -251,19 +266,6 @@ export async function payClaim(claimId: string): Promise<PayResult> {
       },
       { idempotencyKey: `payment-${payment.id}` }
     );
-
-    await supabase
-      .from("payments")
-      .update({ status: "succeeded", stripe_transfer_id: transfer.id })
-      .eq("id", payment.id);
-
-    await supabase
-      .from("claims")
-      .update({ status: "paid" })
-      .eq("id", claim.id);
-
-    revalidatePath("/admin/claims");
-    return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stripe transfer failed";
     let errorMessage = message;
@@ -282,10 +284,49 @@ export async function payClaim(claimId: string): Promise<PayResult> {
       }
     }
 
-    await supabase
+    const { error: markFailedError } = await supabase
       .from("payments")
       .update({ status: "failed", error_message: errorMessage })
       .eq("id", payment.id);
+    if (markFailedError) {
+      // Log loudly so support can manually mark the payment row.
+      // Don't shadow the original Stripe error in the user-facing
+      // message; that's what the admin needs to act on first.
+      console.error(
+        `[payClaim] Failed to mark payment ${payment.id} as failed after Stripe transfer error: ${markFailedError.message}`
+      );
+    }
     return { ok: false, error: message };
   }
+
+  // Stripe transfer landed. The post-transfer DB writes below MUST
+  // surface their errors. If we silently swallow a trigger / RLS
+  // denial here we end up with money out of the platform but the
+  // payment row stuck in `pending` and the claim stuck in `approved`,
+  // exactly the silent-corruption shape that the escrow trigger in
+  // 0038 was added to surface. Throw so the admin sees the drift
+  // immediately and ops can reconcile from the Stripe transfer id.
+  // No rollback path here on purpose; the money is already out.
+  const { error: payUpdateError } = await supabase
+    .from("payments")
+    .update({ status: "succeeded", stripe_transfer_id: transfer.id })
+    .eq("id", payment.id);
+  if (payUpdateError) {
+    throw new Error(
+      `Stripe transfer ${transfer.id} succeeded but payments row ${payment.id} did not update: ${payUpdateError.message}. Manual reconciliation required.`
+    );
+  }
+
+  const { error: claimUpdateError } = await supabase
+    .from("claims")
+    .update({ status: "paid" })
+    .eq("id", claim.id);
+  if (claimUpdateError) {
+    throw new Error(
+      `Stripe transfer ${transfer.id} succeeded and payment marked succeeded, but claim ${claim.id} did not flip to paid: ${claimUpdateError.message}. Manual reconciliation required.`
+    );
+  }
+
+  revalidatePath("/admin/claims");
+  return { ok: true };
 }

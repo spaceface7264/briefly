@@ -43,18 +43,26 @@ export async function grantOrgOverride(
     return { ok: false, error: error?.message ?? "Failed to grant override" };
   }
 
-  await gate.supabase.from("pricing_audit_log").insert({
-    actor_id: gate.userId,
-    action: "override.granted",
-    scope_org_id: input.orgId,
-    before: null,
-    after: {
-      kind: input.kind,
-      value: input.value,
-      expires_at: input.expiresAt ?? null,
-    } as Json,
-    reason: input.reason.trim(),
-  });
+  const { error: auditErr } = await gate.supabase
+    .from("pricing_audit_log")
+    .insert({
+      actor_id: gate.userId,
+      action: "override.granted",
+      scope_org_id: input.orgId,
+      before: null,
+      after: {
+        kind: input.kind,
+        value: input.value,
+        expires_at: input.expiresAt ?? null,
+      } as Json,
+      reason: input.reason.trim(),
+    });
+  if (auditErr) {
+    return {
+      ok: false,
+      error: `Override granted but audit log insert failed: ${auditErr.message}`,
+    };
+  }
 
   revalidatePath(`/admin/super/orgs/${input.orgId}`);
   revalidatePath(`/admin/super/orgs`);
@@ -92,15 +100,23 @@ export async function revokeOverride(
     return { ok: false, error: updateError.message };
   }
 
-  await gate.supabase.from("pricing_audit_log").insert({
-    actor_id: gate.userId,
-    action: "override.revoked",
-    scope_org_id: existing.scope_org_id,
-    scope_user_id: existing.scope_user_id,
-    before: { kind: existing.kind, value: existing.value } as Json,
-    after: null,
-    reason: reason.trim(),
-  });
+  const { error: auditErr } = await gate.supabase
+    .from("pricing_audit_log")
+    .insert({
+      actor_id: gate.userId,
+      action: "override.revoked",
+      scope_org_id: existing.scope_org_id,
+      scope_user_id: existing.scope_user_id,
+      before: { kind: existing.kind, value: existing.value } as Json,
+      after: null,
+      reason: reason.trim(),
+    });
+  if (auditErr) {
+    return {
+      ok: false,
+      error: `Override revoked but audit log insert failed: ${auditErr.message}`,
+    };
+  }
 
   if (existing.scope_org_id) {
     revalidatePath(`/admin/super/orgs/${existing.scope_org_id}`);

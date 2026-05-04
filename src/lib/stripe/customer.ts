@@ -51,11 +51,17 @@ export async function getOrCreateOrgStripeCustomer(
   if (legacy?.stripe_customer_id) {
     // Backfill the canonical column so future reads skip the legacy
     // lookup. Best-effort; if the write fails we still return a usable
-    // customer id.
-    await adminDb
+    // customer id, but we log loudly so support can spot a stuck
+    // backfill (likely an RLS / trigger denial).
+    const { error: backfillErr } = await adminDb
       .from("organizations")
       .update({ stripe_customer_id: legacy.stripe_customer_id })
       .eq("id", orgId);
+    if (backfillErr) {
+      console.error(
+        `[stripe.customer] Failed to backfill organizations.stripe_customer_id for org ${orgId}: ${backfillErr.message}`
+      );
+    }
     return legacy.stripe_customer_id;
   }
 
@@ -69,7 +75,7 @@ export async function getOrCreateOrgStripeCustomer(
   // reads from org_subscriptions today; once it migrates to this
   // helper (in the same PR as the escrow payment-method work), the
   // org_subscriptions write can drop.
-  await Promise.all([
+  const [orgWrite, subWrite] = await Promise.all([
     adminDb
       .from("organizations")
       .update({ stripe_customer_id: customer.id })
@@ -79,6 +85,16 @@ export async function getOrCreateOrgStripeCustomer(
       .update({ stripe_customer_id: customer.id })
       .eq("org_id", orgId),
   ]);
+  if (orgWrite.error) {
+    throw new Error(
+      `Failed to persist Stripe customer on organizations: ${orgWrite.error.message}`
+    );
+  }
+  if (subWrite.error) {
+    throw new Error(
+      `Failed to persist Stripe customer on org_subscriptions: ${subWrite.error.message}`
+    );
+  }
 
   return customer.id;
 }

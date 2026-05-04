@@ -227,10 +227,17 @@ export async function syncSubscriptionFromStripe(
     }
   }
 
-  await adminDb
+  const { error: subUpdateError } = await adminDb
     .from("org_subscriptions")
     .update(update)
     .eq("org_id", orgId);
+  if (subUpdateError) {
+    // Throw so the webhook handler returns 500 and Stripe retries the
+    // event, rather than silently dropping a subscription state change.
+    throw new Error(
+      `Failed to sync subscription ${subscription.id} for org ${orgId}: ${subUpdateError.message}`
+    );
+  }
 }
 
 /**
@@ -351,10 +358,16 @@ export async function syncPaymentMethodFromSession(
     invoice_settings: { default_payment_method: pmId },
   });
 
-  await adminDb
+  const { error: pmPersistError } = await adminDb
     .from("organizations")
     .update({ default_payment_method_id: pmId })
     .eq("id", gate.orgId);
+  if (pmPersistError) {
+    return {
+      ok: false,
+      error: `Stripe accepted the payment method but the org default did not persist: ${pmPersistError.message}`,
+    };
+  }
 
   // Intentionally no revalidatePath: this action is invoked from the
   // /admin/billing Server Component render itself when Stripe redirects

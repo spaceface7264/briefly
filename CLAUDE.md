@@ -30,7 +30,7 @@ Types are generated from Supabase:
 npx supabase gen types typescript --project-id PROJECT_ID > src/types/database.ts
 ```
 
-Migrations are in `supabase/migrations/` (currently at 0037). Run via Supabase Dashboard SQL Editor.
+Migrations are in `supabase/migrations/` (currently at 0039). Run via Supabase Dashboard SQL Editor.
 
 ## Project Structure
 

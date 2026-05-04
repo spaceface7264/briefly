@@ -95,8 +95,23 @@ export async function createOrg(input: CreateOrgInput): Promise<CreateOrgResult>
       status: "active",
     });
   if (memErr) {
-    // Roll back the org so we don't leave it without any admin.
-    await db.from("organizations").delete().eq("id", org.id);
+    // Roll back the org so we don't leave it without any admin. Log
+    // loudly if the rollback itself fails so support can clean up the
+    // orphan org; the caller still gets the original "failed to attach
+    // admin" error.
+    const { error: rollbackErr } = await db
+      .from("organizations")
+      .delete()
+      .eq("id", org.id);
+    if (rollbackErr) {
+      console.error(
+        `[createOrg] Failed to roll back orphan org ${org.id} after membership insert failed: ${rollbackErr.message}`
+      );
+      return {
+        ok: false,
+        error: `Created org but failed to attach admin: ${memErr.message}. Rollback also failed; contact platform support to clean up org ${org.id}.`,
+      };
+    }
     return {
       ok: false,
       error: `Created org but failed to attach admin: ${memErr.message}. Org rolled back.`,
