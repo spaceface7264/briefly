@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, ConfirmDialog } from "@/components/modal";
 import { payClaim } from "./pay-action";
@@ -57,14 +58,11 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
   const [showSubmission, setShowSubmission] = useState(false);
   const [pending, setPending] = useState<PendingAction>(null);
   const [paying, startPaying] = useTransition();
-  const [payError, setPayError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const creatorLabel = claim.creator?.name || claim.creator?.email || "this creator";
 
   async function updateStatus(newStatus: string) {
     setLoading(true);
-    setActionError(null);
     const supabase = createClient();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,16 +70,22 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
       .update({ status: newStatus })
       .eq("id", claim.id);
 
-    if (error) {
-      console.error("Update error:", error);
-      setActionError("Failed to update claim status");
-      setLoading(false);
-      return;
-    }
-
     setLoading(false);
     setPending(null);
     setShowSubmission(false);
+
+    if (error) {
+      console.error("Update error:", error);
+      toast.error("Couldn't update claim", { description: error.message });
+      return;
+    }
+
+    toast.success(
+      newStatus === "approved" ? "Claim approved" : "Claim rejected",
+      newStatus === "approved"
+        ? { description: `Ready for payout to ${creatorLabel}.` }
+        : undefined
+    );
     router.refresh();
   }
 
@@ -94,16 +98,31 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
   }
 
   function handlePay() {
-    setPayError(null);
     startPaying(async () => {
-      const result = await payClaim(claim.id);
-      if (!result.ok) {
-        setPayError(result.error);
+      try {
+        const result = await payClaim(claim.id);
         setPending(null);
-        return;
+        if (!result.ok) {
+          toast.error("Payout failed", { description: result.error });
+          return;
+        }
+        toast.success(`Paid out to ${creatorLabel}`);
+        router.refresh();
+      } catch (err) {
+        // payClaim throws when post-Stripe DB writes fail. The
+        // money is already out of the platform; the message
+        // includes the Stripe transfer id for manual reconciliation.
+        // Sticky toast (no auto-dismiss) so it can't be missed.
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Payout left in a stuck state. Check Stripe Dashboard.";
+        toast.error("Payout needs reconciliation", {
+          description: message,
+          duration: Infinity,
+        });
+        setPending(null);
       }
-      setPending(null);
-      router.refresh();
     });
   }
 
@@ -166,10 +185,6 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
           tone="danger"
           loading={loading}
         />
-
-        {actionError && (
-          <span className="text-xs text-error">{actionError}</span>
-        )}
       </div>
     );
   }
@@ -216,7 +231,6 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
         {!payoutsEnabled && (
           <span className="text-xs text-muted">No payout account</span>
         )}
-        {payError && <span className="text-xs text-error">{payError}</span>}
 
         <ConfirmDialog
           open={pending === "pay"}
