@@ -12,7 +12,7 @@ import type {
   BriefDurationClass,
 } from "@/types/database";
 import type { Json } from "@/types/database";
-import { MIN_TOTAL_ESCROW_DKK } from "@/lib/pricing";
+import { MIN_TOTAL_ESCROW_DKK, MAX_BRIEF_TITLE_LEN } from "@/lib/pricing";
 
 type SimpleResult = { ok: true } | { ok: false; error: string };
 
@@ -130,6 +130,22 @@ export async function createBriefWithEscrow(
   if (!user) return { ok: false, error: "You must be signed in" };
 
   const orgId = await requireActiveOrg(supabase);
+
+  // Defense-in-depth: trim and length-check the title here so a
+  // crafted request can't bypass the form's `maxLength` and ship a
+  // multi-kilobyte title (which would also break downstream Stripe
+  // description, email subject lines, and the briefs list layout).
+  const trimmedTitle = (input.title ?? "").trim();
+  if (!trimmedTitle) {
+    return { ok: false, error: "Title is required." };
+  }
+  if (trimmedTitle.length > MAX_BRIEF_TITLE_LEN) {
+    return {
+      ok: false,
+      error: `Title must be ${MAX_BRIEF_TITLE_LEN} characters or fewer.`,
+    };
+  }
+  input = { ...input, title: trimmedTitle };
 
   if (input.price_dkk < 0 || input.claim_limit < 1) {
     return { ok: false, error: "Invalid price or slot count" };
