@@ -7,9 +7,8 @@ import { toast } from "sonner";
 import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
-import { planLimitErrorMessage } from "@/lib/pricing";
+import { planLimitErrorMessage, MIN_TOTAL_ESCROW_DKK, formatDkk } from "@/lib/pricing";
 import { createBriefWithEscrow } from "./actions";
-import { formatDkk } from "@/lib/pricing";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory; label: string }[] = [
@@ -271,6 +270,18 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Belt-and-suspenders: the submit button is disabled below the
+    // minimum, but a tampered `disabled` attribute or a keyboard
+    // submit can still get here. Re-check before charging the round
+    // trip cost to the server action and Stripe.
+    if (belowMinimumEscrow) {
+      toastSubmitError(
+        `Total escrow must be at least ${MIN_TOTAL_ESCROW_DKK} DKK. Increase the price or the slot count.`
+      );
+      return;
+    }
+
     setSaving(true);
 
     if (isEditing) {
@@ -366,6 +377,11 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   const escrowTotal = priceNum * slotsNum;
   const isPaidCreate = !isEditing && priceNum > 0;
   const blockedOnPaymentMethod = isPaidCreate && !hasPaymentMethod;
+  // Stripe's DKK minimum is 2.50 kr (250 øre); since DKK is stored
+  // in whole units the practical floor is 3 DKK total. Mirrored on
+  // the server in actions.ts; the form-level guard here keeps the
+  // user from round-tripping Stripe just to learn the floor.
+  const belowMinimumEscrow = isPaidCreate && escrowTotal < MIN_TOTAL_ESCROW_DKK;
 
   // Once a brief has been funded, the escrow PaymentIntent locks in
   // `price_dkk × claim_limit` at publish time. Allowing edits to those
@@ -758,7 +774,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       {isPaidCreate && (
         <div
           className={`border rounded-lg p-4 ${
-            blockedOnPaymentMethod
+            blockedOnPaymentMethod || belowMinimumEscrow
               ? "bg-error/5 border-error/30"
               : "bg-accent/5 border-accent/30"
           }`}
@@ -773,7 +789,11 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
                 <span className="text-muted font-normal">×</span>{" "}
                 {slotsNum} {slotsNum === 1 ? "slot" : "slots"}{" "}
                 <span className="text-muted font-normal">=</span>{" "}
-                <span className="text-accent">{formatDkk(escrowTotal)}</span>
+                <span
+                  className={belowMinimumEscrow ? "text-error" : "text-accent"}
+                >
+                  {formatDkk(escrowTotal)}
+                </span>
               </p>
               <p className="text-xs text-muted mt-1">
                 Charged to your saved card when you publish. Held in
@@ -782,6 +802,15 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
               </p>
             </div>
           </div>
+          {belowMinimumEscrow && (
+            <div className="mt-3 pt-3 border-t border-error/20">
+              <p className="text-sm text-error">
+                Total must be at least {formatDkk(MIN_TOTAL_ESCROW_DKK)} —
+                Stripe rejects smaller charges in DKK. Bump the price or
+                add more slots.
+              </p>
+            </div>
+          )}
           {blockedOnPaymentMethod && (
             <div className="mt-3 pt-3 border-t border-error/20">
               <p className="text-sm text-error">
@@ -802,7 +831,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       <div className="flex items-center gap-4 pt-4">
         <button
           type="submit"
-          disabled={saving || blockedOnPaymentMethod}
+          disabled={saving || blockedOnPaymentMethod || belowMinimumEscrow}
           className="px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
         >
           {saving
