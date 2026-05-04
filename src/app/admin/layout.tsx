@@ -1,8 +1,14 @@
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { requireActiveOrg } from "@/lib/org";
 import { getAccountType } from "@/lib/account";
 import { AdminNav } from "./admin-nav";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export default async function AdminLayout({
   children,
@@ -45,7 +51,7 @@ export default async function AdminLayout({
         .single(),
       supabase
         .from("profiles")
-        .select("is_platform_admin")
+        .select("name, is_platform_admin")
         .eq("id", user.id)
         .maybeSingle(),
       supabase
@@ -72,10 +78,20 @@ export default async function AdminLayout({
   const isOrgAdmin = membership.role === "admin";
   const isPlatformAdmin = profile?.is_platform_admin === true;
 
+  // Read the persisted sidebar state from the cookie set by
+  // SidebarProvider (`sidebar_state`) so the SSR pass renders with
+  // the same expanded/collapsed mode the user last picked. Avoids a
+  // one-frame flash where the sidebar pops in collapsed and then
+  // re-expands once the client mounts.
+  const cookieStore = await cookies();
+  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+
   return (
-    <div className="flex min-h-screen">
+    <SidebarProvider defaultOpen={sidebarOpen}>
       <AdminNav
         userId={user.id}
+        userEmail={user.email ?? ""}
+        userName={profile?.name ?? null}
         isOrgAdmin={isOrgAdmin}
         isPlatformAdmin={isPlatformAdmin}
         org={{
@@ -84,9 +100,15 @@ export default async function AdminLayout({
           accentColor: org.accent_color,
         }}
       />
-      <main className="flex-1 ml-64">
-        <div className="p-8">{children}</div>
-      </main>
-    </div>
+      <SidebarInset>
+        {/* Compact page-shell header that hosts the sidebar toggle.
+            On desktop it lets the user collapse the nav to icons; on
+            mobile it's the only way to open the off-canvas drawer. */}
+        <header className="flex h-12 items-center gap-2 px-4 md:px-6 border-b border-border/60 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+          <SidebarTrigger />
+        </header>
+        <div className="p-6 md:p-8">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

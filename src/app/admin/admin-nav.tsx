@@ -2,14 +2,48 @@
 
 import Link from "next/link";
 import { PlatformLogo } from "@/components/platform-logo";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ChevronsUpDownIcon,
+  LockIcon,
+  LogOutIcon,
+  SparklesIcon,
+  UserIcon,
+} from "lucide-react";
 
 interface AdminNavProps {
   /** The signed-in user's id; used to subscribe to claim-notification realtime updates. */
   userId: string;
+  /** Email shown under the user's avatar in the sidebar footer menu. */
+  userEmail: string;
+  /** Display name shown above the email. Falls back to email when null. */
+  userName: string | null;
   /** Whether the viewer is an admin of the active org. Drives the lock state on Invites + Billing. */
   isOrgAdmin: boolean;
   /** Whether the viewer is a platform admin. Drives the "Platform admin" link in the footer. */
@@ -35,7 +69,7 @@ const navItems: NavItem[] = [
     href: "/admin",
     label: "Dashboard",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
       </svg>
     ),
@@ -44,7 +78,7 @@ const navItems: NavItem[] = [
     href: "/admin/briefs",
     label: "Briefs",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
@@ -53,7 +87,7 @@ const navItems: NavItem[] = [
     href: "/admin/claims",
     label: "Claims",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
@@ -62,7 +96,7 @@ const navItems: NavItem[] = [
     href: "/admin/creators",
     label: "Creators",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       </svg>
     ),
@@ -71,7 +105,7 @@ const navItems: NavItem[] = [
     href: "/admin/applications",
     label: "Applications",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
       </svg>
     ),
@@ -81,7 +115,7 @@ const navItems: NavItem[] = [
     label: "Invites",
     adminOnly: true,
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
     ),
@@ -91,7 +125,7 @@ const navItems: NavItem[] = [
     label: "Billing",
     adminOnly: true,
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
       </svg>
     ),
@@ -103,7 +137,7 @@ const navItems: NavItem[] = [
     // OrgDetailsForm/View split inside the page handles the
     // editable-vs-readonly choice based on role.
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
       </svg>
     ),
@@ -112,7 +146,7 @@ const navItems: NavItem[] = [
     href: "/admin/settings",
     label: "Settings",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
@@ -122,15 +156,18 @@ const navItems: NavItem[] = [
 
 export function AdminNav({
   userId,
+  userEmail,
+  userName,
   isOrgAdmin,
   isPlatformAdmin,
   org,
 }: AdminNavProps) {
-  const pathname = usePathname();
-  // Only the claim-unread badge needs client state. The role/admin
-  // flags arrive from the parent server layout, so the very first
-  // render already has the correct lock state — no flash.
+  // Only the claim-unread badge needs client state. Role/admin flags
+  // arrive from the server layout, so the very first render already
+  // has the correct lock state — no flash.
   const [claimUnread, setClaimUnread] = useState(0);
+  const pathname = usePathname();
+  const platformAdminActive = pathname.startsWith("/admin/super");
 
   useEffect(() => {
     const supabase = createClient();
@@ -172,156 +209,295 @@ export function AdminNav({
     };
   }, [userId]);
 
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-2">
+        <OrgIdentity org={org} isOrgAdmin={isOrgAdmin} />
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <NavRow
+                  key={item.href}
+                  item={item}
+                  isOrgAdmin={isOrgAdmin}
+                  claimUnread={claimUnread}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        {isPlatformAdmin && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Platform admin"
+                isActive={platformAdminActive}
+                className="text-accent/90 data-active:bg-accent/10 data-active:text-accent"
+                render={<Link href="/admin/super" />}
+              >
+                <SparklesIcon />
+                <span>Platform admin</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+
+        <SidebarSeparator />
+
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <UserMenu email={userEmail} name={userName} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        <PoweredBy />
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+/**
+ * Org identity block in the sidebar header. Logo (or accent-colored
+ * initial) + name + role chip. Collapses to just the logo when the
+ * sidebar is in icon mode.
+ */
+function OrgIdentity({
+  org,
+  isOrgAdmin,
+}: {
+  org: AdminNavProps["org"];
+  isOrgAdmin: boolean;
+}) {
   const orgInitial = org.name.charAt(0).toUpperCase();
   const orgAccent = org.accentColor ?? "#C8FF00";
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-surface border-r border-border flex flex-col">
-      <div className="p-4 border-b border-border">
-        <Link
-          href="/admin"
-          className="flex items-center gap-3 rounded-lg p-2 -m-2 hover:bg-surface-hover transition-colors"
+    <Link
+      href="/admin"
+      className="flex items-center gap-3 rounded-md p-1.5 hover:bg-sidebar-accent transition-colors"
+      aria-label={`${org.name} dashboard`}
+    >
+      {org.logoUrl ? (
+        // Org logos come from user uploads — Next/Image would need
+        // every host configured in next.config.ts, so use a plain
+        // <img> here as we do on /discover.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={org.logoUrl}
+          alt={org.name}
+          className="size-8 rounded-md object-cover shrink-0 border border-sidebar-border bg-background"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="size-8 rounded-md flex items-center justify-center text-background font-bold text-sm shrink-0"
+          style={{ backgroundColor: orgAccent }}
         >
-          {org.logoUrl ? (
-            // Org logos come from user uploads — Next/Image would need
-            // every host configured in next.config.ts, so use a plain
-            // <img> here as we do on /discover.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={org.logoUrl}
-              alt={org.name}
-              className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border bg-background"
-            />
-          ) : (
-            <div
-              aria-hidden="true"
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-background font-bold text-lg shrink-0"
-              style={{ backgroundColor: orgAccent }}
-            >
-              {orgInitial}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold truncate" title={org.name}>
-              {org.name}
-            </div>
-            {/* Reflects the viewer's role in this org, not the surface
-                name — a member browsing /admin/* should see "Member",
-                not "Admin". Admin gets the accent color to signal
-                elevated access; member is muted. */}
-            <div
-              className={`text-[10px] font-medium uppercase tracking-wider ${
-                isOrgAdmin ? "text-accent" : "text-muted"
-              }`}
-            >
-              {isOrgAdmin ? "Admin" : "Member"}
-            </div>
+          {orgInitial}
+        </div>
+      )}
+      {!isCollapsed && (
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold truncate" title={org.name}>
+            {org.name}
           </div>
-        </Link>
-      </div>
-
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/admin"
-              ? pathname === "/admin"
-              : pathname.startsWith(item.href);
-
-          const locked = item.adminOnly === true && !isOrgAdmin;
-
-          if (locked) {
-            return (
-              <span
-                key={item.href}
-                role="button"
-                aria-disabled="true"
-                title="Admins only — ask an admin in your org"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted/50 cursor-not-allowed select-none"
-              >
-                {item.icon}
-                {item.label}
-                <svg
-                  className="ml-auto w-3.5 h-3.5 text-muted/60"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              </span>
-            );
-          }
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-accent text-background"
-                  : "text-muted hover:text-foreground hover:bg-surface-hover"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-              {item.href === "/admin/claims" && claimUnread > 0 && (
-                <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-background/15 px-1.5 text-[11px] font-semibold">
-                  {claimUnread > 99 ? "99+" : claimUnread}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="p-4 border-t border-border space-y-1">
-        {isPlatformAdmin && (
-          <Link
-            href="/admin/super"
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              pathname.startsWith("/admin/super")
-                ? "bg-accent/10 text-accent"
-                : "text-accent/80 hover:text-accent hover:bg-accent/5"
+          {/* Reflects the viewer's role in this org, not the surface
+              name — a member browsing /admin/* should see "Member",
+              not "Admin". Admin gets the accent color to signal
+              elevated access; member is muted. */}
+          <div
+            className={`text-[10px] font-medium uppercase tracking-wider ${
+              isOrgAdmin ? "text-accent" : "text-muted"
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            Platform admin
-          </Link>
-        )}
-        <Link
-          href="/discover"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted hover:text-foreground hover:bg-surface-hover transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          Browse brands
-        </Link>
-      </div>
+            {isOrgAdmin ? "Admin" : "Member"}
+          </div>
+        </div>
+      )}
+    </Link>
+  );
+}
 
-      {/* Platform attribution. The org owns the top of the sidebar; the
-          platform is a quiet "powered by" mark at the bottom. */}
-      <Link
-        href="/"
-        className="px-4 py-3 flex items-center gap-1.5 text-muted/50 hover:text-muted/80 transition-colors border-t border-border"
+/**
+ * User identity block at the bottom of the sidebar. Avatar (initials
+ * fallback until profile.avatar_url ships) + name + email serves as
+ * the trigger for a dropdown that hosts account/sign-out actions.
+ *
+ * The dropdown opens to the right of the trigger on desktop; Base
+ * UI's positioner flips it automatically on mobile if there's no
+ * room. The collapsed (icon-only) sidebar still shows the avatar
+ * tile, so signing out is one click away even when the rail is
+ * shrunk.
+ */
+function UserMenu({ email, name }: { email: string; name: string | null }) {
+  const router = useRouter();
+  const display = name?.trim() || email;
+  const initial = display.charAt(0).toUpperCase() || "?";
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <SidebarMenuButton
+            size="lg"
+            tooltip={display}
+            className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+          >
+            <div
+              aria-hidden="true"
+              className="size-8 rounded-md bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-semibold shrink-0"
+            >
+              {initial}
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+              {name?.trim() ? (
+                <>
+                  <span className="truncate font-medium">{name}</span>
+                  <span className="truncate text-xs text-muted">{email}</span>
+                </>
+              ) : (
+                <span className="truncate font-medium">{email}</span>
+              )}
+            </div>
+            <ChevronsUpDownIcon className="ml-auto size-4 opacity-60" />
+          </SidebarMenuButton>
+        }
+      />
+      <DropdownMenuContent
+        side="right"
+        align="end"
+        sideOffset={8}
+        className="min-w-56"
       >
-        <span className="text-[10px] uppercase tracking-wider">
-          Powered by
-        </span>
-        <PlatformLogo
-          className="h-3 w-auto opacity-70"
-          width={50}
-          height={12}
-          textClassName="text-[10px] font-bold tracking-tight"
-        />
-      </Link>
-    </aside>
+        {/* Base UI requires GroupLabel inside a Group; the wrapper
+            also gives us a logical grouping for the identity row vs.
+            the actions below. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <div className="grid gap-0.5 text-left text-sm leading-tight">
+              {name?.trim() ? (
+                <>
+                  <span className="truncate font-medium">{name}</span>
+                  <span className="truncate text-xs text-muted">{email}</span>
+                </>
+              ) : (
+                <span className="truncate font-medium">{email}</span>
+              )}
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/admin/settings" />}>
+          <UserIcon />
+          Account
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSignOut}>
+          <LogOutIcon />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * One row in the main nav. Renders a locked button-with-tooltip when
+ * the route is admin-only and the viewer isn't an admin, otherwise a
+ * Link. Also paints the claim-unread badge on the Claims row.
+ */
+function NavRow({
+  item,
+  isOrgAdmin,
+  claimUnread,
+}: {
+  item: NavItem;
+  isOrgAdmin: boolean;
+  claimUnread: number;
+}) {
+  const isActive = useIsActiveRoute(item.href);
+  const locked = item.adminOnly === true && !isOrgAdmin;
+
+  if (locked) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          tooltip="Admins only — ask an admin in your org"
+          aria-disabled="true"
+          className="cursor-not-allowed opacity-50"
+        >
+          {item.icon}
+          <span>{item.label}</span>
+          <LockIcon className="ml-auto size-3.5 opacity-70" aria-hidden="true" />
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip={item.label}
+        isActive={isActive}
+        render={<Link href={item.href} />}
+      >
+        {item.icon}
+        <span>{item.label}</span>
+      </SidebarMenuButton>
+      {item.href === "/admin/claims" && claimUnread > 0 && (
+        <SidebarMenuBadge className="bg-accent/15 text-accent">
+          {claimUnread > 99 ? "99+" : claimUnread}
+        </SidebarMenuBadge>
+      )}
+    </SidebarMenuItem>
+  );
+}
+
+/** Active when the current pathname matches the item's href exactly,
+ *  or starts with it (so /admin/briefs/[id] still highlights Briefs).
+ *  Special-cased for the dashboard so /admin/briefs doesn't activate
+ *  /admin. */
+function useIsActiveRoute(href: string) {
+  const pathname = usePathname();
+  if (href === "/admin") return pathname === "/admin";
+  return pathname.startsWith(href);
+}
+
+/**
+ * Quiet "Powered by <platform>" mark. Hidden in icon-collapsed mode
+ * since it's pure branding with no affordance.
+ */
+function PoweredBy() {
+  return (
+    <Link
+      href="/"
+      className="flex items-center gap-1.5 px-3 py-2 text-muted/50 hover:text-muted/80 transition-colors group-data-[collapsible=icon]:hidden"
+    >
+      <span className="text-[10px] uppercase tracking-wider">
+        Powered by
+      </span>
+      <PlatformLogo
+        className="h-3 w-auto opacity-70"
+        width={50}
+        height={12}
+        textClassName="text-[10px] font-bold tracking-tight"
+      />
+    </Link>
   );
 }
