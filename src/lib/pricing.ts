@@ -4,6 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Matches the Free plan's seeded default_fee_bp.
 const PLATFORM_DEFAULT_FEE_BP = 500;
 
+// Stripe rejects DKK charges below 2.50 kr (250 øre). Since DKK is
+// stored in whole units across the app, the practical minimum total
+// escrow on a publish-time PaymentIntent is 3 DKK. Enforced both
+// server-side in createBriefWithEscrow and in the brief form so the
+// user doesn't round-trip Stripe just to learn the floor.
+export const MIN_TOTAL_ESCROW_DKK = 3;
+
 export interface PlanLimits {
   max_active_briefs?: number | null;
   max_creators?: number | null;

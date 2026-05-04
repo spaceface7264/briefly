@@ -12,6 +12,7 @@ import type {
   BriefDurationClass,
 } from "@/types/database";
 import type { Json } from "@/types/database";
+import { MIN_TOTAL_ESCROW_DKK } from "@/lib/pricing";
 
 type SimpleResult = { ok: true } | { ok: false; error: string };
 
@@ -19,6 +20,55 @@ type SimpleResult = { ok: true } | { ok: false; error: string };
 // ever observes is the failure case, so the return type narrows to
 // the error variant. Same shape as createBriefWithEscrow's return.
 type RedirectingResult = { ok: false; error: string };
+
+/**
+ * Stable, parameter-derived fingerprint for the publish-time
+ * PaymentIntent's idempotency key.
+ *
+ * Why we need this: Stripe rejects retries that reuse an
+ * idempotency key with mismatched parameters
+ * (`Keys for idempotent requests can only be used with the same
+ * parameters they were first used with`). The original key
+ * (`brief-publish-{orgId}-{client_attempt_id}`) was scoped to the
+ * form mount, so editing any field between submits triggered the
+ * collision. Hashing the call params here means:
+ *   - Network-blip retry with identical form state → same hash →
+ *     same key → Stripe dedupes (preserves the original intent).
+ *   - Edit-then-submit on the same mount → different hash →
+ *     different key → fresh PaymentIntent.
+ *   - Deliberate republish on a fresh mount → fresh
+ *     `client_attempt_id` → different key (added entropy is the
+ *     belt-and-suspenders for the rare same-content republish
+ *     within Stripe's 24h idempotency window).
+ *
+ * Uses Web Crypto so the helper runs unchanged on Cloudflare
+ * Workers (OpenNext deploy target) as well as Node.
+ */
+async function fingerprintBriefPublishParams(
+  parts: {
+    orgId: string;
+    escrowDkk: number;
+    priceDkk: number;
+    claimLimit: number;
+    title: string;
+  }
+): Promise<string> {
+  const payload = [
+    parts.orgId,
+    String(parts.escrowDkk),
+    String(parts.priceDkk),
+    String(parts.claimLimit),
+    parts.title.slice(0, 80),
+  ].join("|");
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(payload)
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 16);
+}
 
 interface NewBriefInput {
   title: string;
@@ -104,6 +154,17 @@ export async function createBriefWithEscrow(
   const isPaid = input.price_dkk > 0;
   const escrowDkk = input.price_dkk * input.claim_limit;
 
+  // Defense-in-depth: keep the client form from submitting a total
+  // escrow below Stripe's DKK floor. The form has its own guard, but
+  // a crafted request could bypass that, so block it server-side too
+  // before we pay the round-trip cost to Stripe.
+  if (isPaid && escrowDkk < MIN_TOTAL_ESCROW_DKK) {
+    return {
+      ok: false,
+      error: `Total escrow must be at least ${MIN_TOTAL_ESCROW_DKK} DKK. Increase the price or the slot count.`,
+    };
+  }
+
   let stripePaymentIntentId: string | null = null;
   let fundedStatus: "unfunded" | "funded" = "unfunded";
   let escrowAmountDkk: number | null = null;
@@ -139,6 +200,17 @@ export async function createBriefWithEscrow(
       email: null,
     });
 
+    // Hash the params we're about to send so the idempotency key
+    // varies when the user edits the form between submits. See the
+    // helper docs for the full rationale.
+    const paramsFingerprint = await fingerprintBriefPublishParams({
+      orgId,
+      escrowDkk,
+      priceDkk: input.price_dkk,
+      claimLimit: input.claim_limit,
+      title: input.title,
+    });
+
     try {
       const paymentIntent = await stripe().paymentIntents.create(
         {
@@ -164,12 +236,15 @@ export async function createBriefWithEscrow(
           },
         },
         {
-          // Scope the key to org + the form-mount attempt id. A retry
-          // of the same submit (network blip, Workers timeout) reuses
-          // the key and Stripe returns the original PaymentIntent
-          // instead of charging again. A deliberate republish gets a
-          // fresh attempt id at form mount and so a fresh key.
-          idempotencyKey: `brief-publish-${orgId}-${input.client_attempt_id}`,
+          // Composite key: orgId scopes by tenant, client_attempt_id
+          // adds form-mount entropy (so a deliberate same-content
+          // republish on a new mount gets a fresh charge), and
+          // paramsFingerprint pins the key to the actual call
+          // arguments — editing any of {amount, price, slots, title}
+          // between submits produces a fresh key, which prevents the
+          // "Keys for idempotent requests can only be used with the
+          // same parameters" rejection on legitimate edit-and-retry.
+          idempotencyKey: `brief-publish-${orgId}-${input.client_attempt_id}-${paramsFingerprint}`,
         }
       );
 
