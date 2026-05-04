@@ -58,7 +58,7 @@ export default async function RootLayout({
           {children}
         </OrgProvider>
         <Footer />
-        <Toaster position="bottom-center" richColors closeButton />
+        <Toaster position="bottom-right" richColors />
       </body>
     </html>
   );
