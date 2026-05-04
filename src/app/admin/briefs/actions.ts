@@ -341,7 +341,11 @@ export async function createBriefWithEscrow(
   // the client ever sees a "result." The destination's loading.tsx
   // shows immediately, so the form doesn't sit there with stale
   // "Charging…" while /admin/briefs server-renders.
-  redirect("/admin/briefs");
+  // The ?flash=brief-published param is consumed by the destination's
+  // <FlashToast /> on mount; the toast is the success acknowledgement
+  // that the form would otherwise fire if the redirect had returned
+  // here instead of throwing NEXT_REDIRECT first.
+  redirect("/admin/briefs?flash=brief-published");
 }
 
 function friendlyStripeStatus(status: Stripe.PaymentIntent.Status): string {

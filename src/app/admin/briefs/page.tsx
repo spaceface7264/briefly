@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import type { Brief } from "@/types/database";
 import { AdminBriefsClient } from "./admin-briefs-client";
+import { FlashToast } from "@/components/flash-toast";
 
 export default async function AdminBriefsPage({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -39,6 +41,9 @@ export default async function AdminBriefsPage({
 
   return (
     <div>
+      <Suspense fallback={null}>
+        <FlashToast />
+      </Suspense>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Briefs</h1>
