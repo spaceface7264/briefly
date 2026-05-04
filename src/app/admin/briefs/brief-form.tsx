@@ -7,7 +7,12 @@ import { toast } from "sonner";
 import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
-import { planLimitErrorMessage, MIN_TOTAL_ESCROW_DKK, formatDkk } from "@/lib/pricing";
+import {
+  planLimitErrorMessage,
+  MIN_TOTAL_ESCROW_DKK,
+  MAX_BRIEF_TITLE_LEN,
+  formatDkk,
+} from "@/lib/pricing";
 import { createBriefWithEscrow } from "./actions";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
 
@@ -271,6 +276,21 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    // Trim once at submit time so leading/trailing whitespace can't
+    // sneak into the row (and break list sorting / matching) while
+    // still letting the user type spaces inside the title.
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      toastSubmitError("Title is required.");
+      return;
+    }
+    if (trimmedTitle.length > MAX_BRIEF_TITLE_LEN) {
+      toastSubmitError(
+        `Title must be ${MAX_BRIEF_TITLE_LEN} characters or fewer.`
+      );
+      return;
+    }
+
     // Belt-and-suspenders: the submit button is disabled below the
     // minimum, but a tampered `disabled` attribute or a keyboard
     // submit can still get here. Re-check before charging the round
@@ -301,7 +321,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       // briefs even if the disabled inputs were tampered with — the
       // disabled attribute is a UX hint, not a security boundary.
       const updatePayload: Record<string, unknown> = {
-        title,
+        title: trimmedTitle,
         description,
         category,
         duration_class: durationClass,
@@ -341,12 +361,9 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
         return;
       }
 
-      const trimmed = title.trim();
-      const displayTitle =
-        trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
       toast.success(
         "Brief saved",
-        displayTitle ? { description: displayTitle } : undefined
+        trimmedTitle ? { description: trimmedTitle } : undefined
       );
       router.push("/admin/briefs");
       router.refresh();
@@ -358,7 +375,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
     // redirect throws inside the action, so any value we receive
     // back here is by definition a failure result.
     const result = await createBriefWithEscrow({
-      title,
+      title: trimmedTitle,
       description,
       category,
       duration_class: durationClass,
@@ -413,9 +430,23 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
+          maxLength={MAX_BRIEF_TITLE_LEN}
           className={inputClass}
           placeholder="Summer Send Session Reel"
+          aria-describedby="title-counter"
         />
+        <p
+          id="title-counter"
+          className={`mt-1.5 text-xs text-right ${
+            title.length >= MAX_BRIEF_TITLE_LEN
+              ? "text-warning"
+              : title.length >= MAX_BRIEF_TITLE_LEN - 10
+                ? "text-muted"
+                : "text-muted/60"
+          }`}
+        >
+          {title.length}/{MAX_BRIEF_TITLE_LEN}
+        </p>
       </div>
 
       {/* Description */}

@@ -11,6 +11,14 @@ const PLATFORM_DEFAULT_FEE_BP = 500;
 // user doesn't round-trip Stripe just to learn the floor.
 export const MIN_TOTAL_ESCROW_DKK = 3;
 
+// Hard cap on brief titles. Matches the existing 80-char truncations
+// scattered through the app (Stripe PaymentIntent description, toast
+// description ellipsize, notification snippets) so the UI never has
+// to guess at how much to clip. Enforced both client-side via the
+// input's maxLength and server-side in createBriefWithEscrow so a
+// crafted request can't sneak past the form.
+export const MAX_BRIEF_TITLE_LEN = 80;
+
 export interface PlanLimits {
   max_active_briefs?: number | null;
   max_creators?: number | null;
