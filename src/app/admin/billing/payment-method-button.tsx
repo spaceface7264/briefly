@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { createPaymentMethodSetupSession } from "./actions";
 
 interface Props {
@@ -16,14 +17,12 @@ interface Props {
  */
 export function PaymentMethodButton({ hasExisting }: Props) {
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   function handleClick() {
-    setError(null);
     startTransition(async () => {
       const result = await createPaymentMethodSetupSession();
       if (!result.ok) {
-        setError(result.error);
+        toast.error("Couldn't open Stripe", { description: result.error });
         return;
       }
       window.location.href = result.url;
@@ -33,16 +32,13 @@ export function PaymentMethodButton({ hasExisting }: Props) {
   const label = hasExisting ? "Replace payment method" : "Add payment method";
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="self-start px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors"
-      >
-        {pending ? "Opening Stripe…" : label}
-      </button>
-      {error && <p className="text-xs text-error">{error}</p>}
-    </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={pending}
+      className="self-start px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors"
+    >
+      {pending ? "Opening Stripe…" : label}
+    </button>
   );
 }

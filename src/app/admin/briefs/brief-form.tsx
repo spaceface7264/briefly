@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
@@ -139,7 +140,22 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   const clientAttemptId = useMemo(() => crypto.randomUUID(), []);
 
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+
+  // Toast a brief-publishing error. Plan-limit errors get an
+  // "Upgrade" action that jumps to /admin/billing; everything else
+  // is a plain error toast.
+  function toastSubmitError(message: string) {
+    const isPlanLimit = message.toLowerCase().includes("plan allows");
+    toast.error(isEditing ? "Couldn't save brief" : "Couldn't publish brief", {
+      description: message,
+      ...(isPlanLimit && {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push("/admin/billing"),
+        },
+      }),
+    });
+  }
 
   function toggleMarkdown(type: "bold" | "italic") {
     const textarea = descriptionRef.current;
@@ -256,7 +272,6 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError("");
 
     if (isEditing) {
       // Edit path stays a direct client-side update — no escrow
@@ -266,7 +281,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        setError("You must be logged in");
+        toastSubmitError("You must be logged in");
         setSaving(false);
         return;
       }
@@ -310,11 +325,12 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
         const escrowError = isEscrowLockError
           ? "Price, slot count, and escrow fields are locked once a brief is funded. Archive and republish to change them."
           : null;
-        setError(limitError ?? escrowError ?? "Failed to save brief");
+        toastSubmitError(limitError ?? escrowError ?? "Failed to save brief");
         setSaving(false);
         return;
       }
 
+      toast.success("Brief saved");
       router.push("/admin/briefs");
       router.refresh();
       return;
@@ -341,7 +357,7 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
     });
 
     const limitError = planLimitErrorMessage({ message: result.error });
-    setError(limitError ?? result.error);
+    toastSubmitError(limitError ?? result.error);
     setSaving(false);
   }
 
@@ -735,20 +751,6 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
           </p>
         </div>
       </div>
-
-      {error && (
-        <p className="text-error text-sm">
-          {error}
-          {error.toLowerCase().includes("plan allows") && (
-            <>
-              {" "}
-              <Link href="/admin/billing" className="underline hover:no-underline">
-                Upgrade your plan →
-              </Link>
-            </>
-          )}
-        </p>
-      )}
 
       {/* Upfront cost panel — only on the create flow with a paid
           brief. Editing keeps the original escrow contract; free

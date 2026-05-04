@@ -6,6 +6,7 @@ import { ScrollToTopOnRouteChange } from "@/components/scroll-to-top-on-route-ch
 import { OrgProvider } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrg } from "@/lib/org";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ export default async function RootLayout({
           {children}
         </OrgProvider>
         <Footer />
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );
