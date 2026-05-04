@@ -392,8 +392,7 @@ function friendlyStripeError(err: unknown): string {
 }
 
 /**
- * Archive a brief and refund any unreleased escrow back to the org's
- * payment method. Phase 1.1e of the post-genericization roadmap.
+ * Archive a single brief and refund any unreleased escrow.
  *
  * Refund logic per `funded_status` at archive time:
  *   - `funded`             → refund full escrow_held_dkk (no slots
@@ -405,38 +404,28 @@ function friendlyStripeError(err: unknown): string {
  *   - `unfunded`           → nothing to refund (legacy / free brief)
  *
  * After a successful refund, funded_status flips to `refunded` and
- * escrow_held_dkk is zeroed.
- *
- * Stripe `refunds.create({ payment_intent, amount })` issues a
- * partial refund against the original PaymentIntent, going back to
- * the original payment method.
- *
- * Admin-only — refunds move real money. Members can publish briefs
- * (which pulls from the org's saved card) but only admins can move
- * money back out.
- *
- * Redirects to /admin/briefs on success so the browser navigates
- * immediately without the form / detail page rendering stale state.
+ * escrow_held_dkk is zeroed. Internal helper shared by the
+ * redirecting single-brief action and the bulk variant; returns a
+ * per-brief result so the bulk caller can build a summary without
+ * short-circuiting on the first failure.
  */
-export async function archiveBriefWithRefund(
-  briefId: string
-): Promise<RedirectingResult> {
-  const gate = await requireOrgAdmin();
-  if (!gate.ok) return { ok: false, error: gate.error };
-
+async function archiveOneBriefWithRefund(
+  briefId: string,
+  orgId: string
+): Promise<{ ok: true; title: string } | { ok: false; error: string }> {
   const adminDb = createAdminClient();
 
   const { data: brief, error: briefErr } = await adminDb
     .from("briefs")
     .select(
-      "id, org_id, status, funded_status, escrow_held_dkk, stripe_payment_intent_id"
+      "id, org_id, title, status, funded_status, escrow_held_dkk, stripe_payment_intent_id"
     )
     .eq("id", briefId)
     .single();
   if (briefErr || !brief) {
     return { ok: false, error: "Brief not found" };
   }
-  if (brief.org_id !== gate.orgId) {
+  if (brief.org_id !== orgId) {
     return { ok: false, error: "Brief does not belong to your org" };
   }
   if (brief.status === "archived") {
@@ -464,7 +453,7 @@ export async function archiveBriefWithRefund(
           amount: heldDkk * 100, // DKK → øre
           reason: "requested_by_customer",
           metadata: {
-            org_id: gate.orgId,
+            org_id: orgId,
             brief_id: brief.id,
             refund_kind: "escrow_archive",
           },
@@ -498,22 +487,51 @@ export async function archiveBriefWithRefund(
     };
   }
 
-  redirect("/admin/briefs");
+  return { ok: true, title: brief.title ?? "" };
 }
 
 /**
- * Reopen an archived brief.
+ * Archive a brief and refund any unreleased escrow back to the org's
+ * payment method. Phase 1.1e of the post-genericization roadmap.
  *
- * Refunded briefs are blocked here — the escrow is gone, so there's
- * nothing to back creator payouts. The admin must publish a new
- * brief (which charges the org's card) instead. Unfunded / free
- * briefs reopen freely. Briefs that were archived without ever being
- * funded (legacy data) also pass through.
+ * Stripe `refunds.create({ payment_intent, amount })` issues a
+ * partial refund against the original PaymentIntent, going back to
+ * the original payment method.
+ *
+ * Admin-only — refunds move real money. Members can publish briefs
+ * (which pulls from the org's saved card) but only admins can move
+ * money back out.
+ *
+ * Redirects to /admin/briefs on success so the browser navigates
+ * immediately without the form / detail page rendering stale state.
  */
-export async function reopenBrief(briefId: string): Promise<SimpleResult> {
+export async function archiveBriefWithRefund(
+  briefId: string
+): Promise<RedirectingResult> {
   const gate = await requireOrgAdmin();
   if (!gate.ok) return { ok: false, error: gate.error };
 
+  const result = await archiveOneBriefWithRefund(briefId, gate.orgId);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const titleParam = encodeURIComponent(result.title);
+  redirect(`/admin/briefs?flash=brief-archived&title=${titleParam}`);
+}
+
+/**
+ * Reopen a single brief. Internal helper shared by the single-action
+ * and bulk variants.
+ *
+ * Refunded briefs are blocked — the escrow is gone, so there's
+ * nothing to back creator payouts. The admin must publish a new
+ * brief (which charges the org's card) instead. Unfunded / free
+ * briefs reopen freely. Briefs archived without ever being funded
+ * (legacy data) also pass through.
+ */
+async function reopenOneBrief(
+  briefId: string,
+  orgId: string
+): Promise<SimpleResult> {
   const adminDb = createAdminClient();
 
   const { data: brief, error: briefErr } = await adminDb
@@ -524,7 +542,7 @@ export async function reopenBrief(briefId: string): Promise<SimpleResult> {
   if (briefErr || !brief) {
     return { ok: false, error: "Brief not found" };
   }
-  if (brief.org_id !== gate.orgId) {
+  if (brief.org_id !== orgId) {
     return { ok: false, error: "Brief does not belong to your org" };
   }
   if (brief.status !== "archived") {
@@ -549,4 +567,205 @@ export async function reopenBrief(briefId: string): Promise<SimpleResult> {
   }
 
   return { ok: true };
+}
+
+/**
+ * Reopen an archived brief. See `reopenOneBrief` for the underlying
+ * rules.
+ */
+export async function reopenBrief(briefId: string): Promise<SimpleResult> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  return reopenOneBrief(briefId, gate.orgId);
+}
+
+/**
+ * Hard-delete a single brief. Only allowed when the brief has zero
+ * claims of any status — once a creator has interacted with the
+ * brief there's a payment / submission audit trail to preserve, so
+ * those briefs must be archived instead.
+ *
+ * Funded escrow is refunded before the row is removed, with state
+ * persisted between the refund and the delete so a partial failure
+ * leaves the brief in `archived + refunded` rather than orphaning a
+ * Stripe PaymentIntent. A retry then skips the refund branch
+ * entirely (idempotent).
+ *
+ * Admin-only — refunds move real money and the operation is
+ * irreversible.
+ */
+async function deleteOneBrief(
+  briefId: string,
+  orgId: string
+): Promise<SimpleResult> {
+  const adminDb = createAdminClient();
+
+  const { data: brief, error: briefErr } = await adminDb
+    .from("briefs")
+    .select(
+      "id, org_id, status, funded_status, escrow_held_dkk, stripe_payment_intent_id"
+    )
+    .eq("id", briefId)
+    .single();
+  if (briefErr || !brief) {
+    return { ok: false, error: "Brief not found" };
+  }
+  if (brief.org_id !== orgId) {
+    return { ok: false, error: "Brief does not belong to your org" };
+  }
+
+  // Block delete when any claim row exists for this brief — even
+  // cancelled claims keep an audit trail (reclaim cooldowns, payouts,
+  // notifications) we don't want to silently drop. `head: true`
+  // returns just the count without hauling rows back.
+  const { count: claimCount, error: countErr } = await adminDb
+    .from("claims")
+    .select("id", { count: "exact", head: true })
+    .eq("brief_id", brief.id);
+  if (countErr) {
+    return { ok: false, error: `Couldn't check claims: ${countErr.message}` };
+  }
+  if ((claimCount ?? 0) > 0) {
+    return {
+      ok: false,
+      error:
+        "Brief has been claimed and can't be deleted. Archive it instead.",
+    };
+  }
+
+  const heldDkk = brief.escrow_held_dkk ?? 0;
+  const needsRefund =
+    (brief.funded_status === "funded" ||
+      brief.funded_status === "partially_released") &&
+    heldDkk > 0;
+
+  if (needsRefund) {
+    if (!brief.stripe_payment_intent_id) {
+      return {
+        ok: false,
+        error:
+          "Brief has held escrow but no PaymentIntent on file — cannot refund. Contact platform support.",
+      };
+    }
+    try {
+      await stripe().refunds.create(
+        {
+          payment_intent: brief.stripe_payment_intent_id,
+          amount: heldDkk * 100, // DKK → øre
+          reason: "requested_by_customer",
+          metadata: {
+            org_id: orgId,
+            brief_id: brief.id,
+            refund_kind: "escrow_delete",
+          },
+        },
+        { idempotencyKey: `delete-refund-${brief.id}` }
+      );
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Refund failed: ${
+          err instanceof Error ? err.message : "unknown error"
+        }`,
+      };
+    }
+
+    // Persist the refund before attempting the row delete. If the
+    // delete then fails the brief is left as archived + refunded
+    // rather than `funded` with a stale PaymentIntent — and a retry
+    // will skip the refund branch entirely.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updErr } = await (adminDb.from("briefs") as any)
+      .update({
+        status: "archived",
+        funded_status: "refunded",
+        escrow_held_dkk: 0,
+      })
+      .eq("id", brief.id);
+    if (updErr) {
+      return {
+        ok: false,
+        error: `Refund succeeded but bookkeeping failed: ${updErr.message}. Contact support.`,
+      };
+    }
+  }
+
+  const { error: delErr } = await adminDb
+    .from("briefs")
+    .delete()
+    .eq("id", brief.id);
+  if (delErr) {
+    return { ok: false, error: `Couldn't delete brief: ${delErr.message}` };
+  }
+
+  return { ok: true };
+}
+
+export type BulkBriefResult = {
+  ok: true;
+  succeeded: number;
+  failed: { briefId: string; error: string }[];
+};
+
+function emptyBulkResult(): BulkBriefResult {
+  return { ok: true, succeeded: 0, failed: [] };
+}
+
+/**
+ * Bulk variant of `archiveBriefWithRefund`. Per-brief errors are
+ * collected so the caller can show a summary toast. The action does
+ * not redirect — the client refreshes the route after consuming the
+ * result.
+ */
+export async function archiveBriefsBulk(
+  briefIds: string[]
+): Promise<BulkBriefResult | { ok: false; error: string }> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const result = emptyBulkResult();
+  for (const id of briefIds) {
+    const outcome = await archiveOneBriefWithRefund(id, gate.orgId);
+    if (outcome.ok) result.succeeded += 1;
+    else result.failed.push({ briefId: id, error: outcome.error });
+  }
+  return result;
+}
+
+/**
+ * Bulk variant of `reopenBrief`.
+ */
+export async function reopenBriefsBulk(
+  briefIds: string[]
+): Promise<BulkBriefResult | { ok: false; error: string }> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const result = emptyBulkResult();
+  for (const id of briefIds) {
+    const outcome = await reopenOneBrief(id, gate.orgId);
+    if (outcome.ok) result.succeeded += 1;
+    else result.failed.push({ briefId: id, error: outcome.error });
+  }
+  return result;
+}
+
+/**
+ * Bulk hard-delete. Refuses any brief that has claim history;
+ * refunds funded escrow before removing the row. See `deleteOneBrief`
+ * for full per-brief semantics.
+ */
+export async function deleteBriefsBulk(
+  briefIds: string[]
+): Promise<BulkBriefResult | { ok: false; error: string }> {
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const result = emptyBulkResult();
+  for (const id of briefIds) {
+    const outcome = await deleteOneBrief(id, gate.orgId);
+    if (outcome.ok) result.succeeded += 1;
+    else result.failed.push({ briefId: id, error: outcome.error });
+  }
+  return result;
 }
