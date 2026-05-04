@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   initialName: string;
@@ -12,6 +21,8 @@ interface Props {
   /** Org name shown next to the role chip for context. */
   orgName: string;
 }
+
+const PASSWORD_MIN_LEN = 6;
 
 export function PersonalAccountForm({
   initialName,
@@ -24,25 +35,18 @@ export function PersonalAccountForm({
 
   const [name, setName] = useState(initialName);
   const [savingName, setSavingName] = useState(false);
-  const [nameSaved, setNameSaved] = useState(false);
-  const [nameError, setNameError] = useState("");
 
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [savingPassword, setSavingPassword] = useState(false);
-  const [passwordSaved, setPasswordSaved] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
+  const [pwOpen, setPwOpen] = useState(false);
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
-    setNameSaved(false);
-    setNameError("");
 
     const trimmed = name.trim();
     if (!trimmed) {
-      setNameError("Name can't be empty");
+      toast.error("Name can't be empty");
       return;
     }
+    if (trimmed === initialName.trim()) return;
 
     setSavingName(true);
     const {
@@ -50,7 +54,7 @@ export function PersonalAccountForm({
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setNameError("Not signed in");
+      toast.error("Not signed in");
       setSavingName(false);
       return;
     }
@@ -63,42 +67,12 @@ export function PersonalAccountForm({
     setSavingName(false);
 
     if (error) {
-      setNameError(`Couldn't save: ${error.message}`);
+      toast.error("Couldn't save name", { description: error.message });
       return;
     }
 
-    setNameSaved(true);
+    toast.success("Name saved");
     router.refresh();
-    setTimeout(() => setNameSaved(false), 3000);
-  }
-
-  async function handleChangePassword(e: React.FormEvent) {
-    e.preventDefault();
-    setPasswordSaved(false);
-    setPasswordError("");
-
-    if (newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords don't match");
-      return;
-    }
-
-    setSavingPassword(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setSavingPassword(false);
-
-    if (error) {
-      setPasswordError(`Couldn't update password: ${error.message}`);
-      return;
-    }
-
-    setNewPassword("");
-    setConfirmPassword("");
-    setPasswordSaved(true);
-    setTimeout(() => setPasswordSaved(false), 4000);
   }
 
   return (
@@ -110,7 +84,10 @@ export function PersonalAccountForm({
         </p>
       </div>
 
-      <div className="bg-surface border border-border rounded-xl p-6 space-y-8">
+      <div className="bg-surface border border-border rounded-xl p-6 space-y-6">
+        {/* Name — the only editable field on this card. Static rows
+            (email, role, password) live below as label/value pairs so
+            the form input is the focal point. */}
         <form onSubmit={handleSaveName} className="space-y-4">
           <div>
             <label
@@ -130,35 +107,6 @@ export function PersonalAccountForm({
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="personal-email"
-              className="block text-sm font-medium mb-2"
-            >
-              Email
-            </label>
-            <input
-              id="personal-email"
-              type="email"
-              value={email}
-              disabled
-              className="w-full px-4 py-3 bg-background border border-border rounded-lg text-muted cursor-not-allowed"
-            />
-            <p className="text-muted text-xs mt-1">
-              Sign-in email. Contact support to change it.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Role</label>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-raised border border-border text-sm">
-              <span className="font-medium">{roleLabel}</span>
-              <span className="text-muted">at {orgName}</span>
-            </div>
-          </div>
-
-          {nameError && <p className="text-error text-sm">{nameError}</p>}
-
           <div className="flex items-center gap-4">
             <button
               type="submit"
@@ -167,82 +115,201 @@ export function PersonalAccountForm({
             >
               {savingName ? "Saving…" : "Save name"}
             </button>
-            {nameSaved && (
-              <span className="text-success text-sm">Saved</span>
-            )}
           </div>
         </form>
 
-        <div className="border-t border-border pt-6">
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold mb-1">Change password</h3>
-              <p className="text-muted text-xs">
-                Choose a new sign-in password. You&apos;ll stay signed in on
-                this device.
-              </p>
-            </div>
+        <div className="border-t border-border pt-6 space-y-4">
+          <StaticRow
+            label="Email"
+            value={email}
+            hint="Sign-in email. Contact support to change it."
+          />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="new-password"
-                  className="block text-sm font-medium mb-2"
-                >
-                  New password
-                </label>
-                <input
-                  id="new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(ev) => setNewPassword(ev.target.value)}
-                  minLength={6}
-                  autoComplete="new-password"
-                  placeholder="Min 6 characters"
-                  className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="confirm-password"
-                  className="block text-sm font-medium mb-2"
-                >
-                  Confirm password
-                </label>
-                <input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(ev) => setConfirmPassword(ev.target.value)}
-                  minLength={6}
-                  autoComplete="new-password"
-                  placeholder="Repeat new password"
-                  className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-                />
-              </div>
-            </div>
+          <StaticRow
+            label="Role"
+            value={
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-raised border border-border text-sm">
+                <span className="font-medium">{roleLabel}</span>
+                <span className="text-muted">at {orgName}</span>
+              </span>
+            }
+          />
 
-            {passwordError && (
-              <p className="text-error text-sm">{passwordError}</p>
-            )}
-
-            <div className="flex items-center gap-4">
+          <StaticRow
+            label="Password"
+            value="••••••••"
+            action={
               <button
-                type="submit"
-                disabled={
-                  savingPassword || !newPassword || !confirmPassword
-                }
-                className="px-4 py-2 bg-surface-raised hover:bg-surface-raised/80 disabled:opacity-50 disabled:cursor-not-allowed border border-border text-foreground font-medium rounded-lg transition-colors text-sm"
+                type="button"
+                onClick={() => setPwOpen(true)}
+                className="px-3 py-1.5 text-sm font-medium border border-border-strong hover:bg-surface-hover rounded-lg transition-colors"
               >
-                {savingPassword ? "Updating…" : "Update password"}
+                Change password
               </button>
-              {passwordSaved && (
-                <span className="text-success text-sm">Password updated</span>
-              )}
-            </div>
-          </form>
+            }
+          />
         </div>
       </div>
+
+      <ChangePasswordDialog
+        open={pwOpen}
+        onOpenChange={setPwOpen}
+        supabase={supabase}
+      />
     </section>
+  );
+}
+
+function StaticRow({
+  label,
+  value,
+  hint,
+  action,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-medium mb-1">{label}</p>
+        <div className="text-sm text-muted break-words">{value}</div>
+        {hint && <p className="text-muted text-xs mt-1">{hint}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+function ChangePasswordDialog({
+  open,
+  onOpenChange,
+  supabase,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  supabase: ReturnType<typeof createClient>;
+}) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function reset() {
+    setNewPassword("");
+    setConfirmPassword("");
+    setSaving(false);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (newPassword.length < PASSWORD_MIN_LEN) {
+      toast.error(`Password must be at least ${PASSWORD_MIN_LEN} characters`);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords don't match");
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+
+    if (error) {
+      toast.error("Couldn't update password", { description: error.message });
+      return;
+    }
+
+    toast.success("Password updated");
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Block closing while the request is in flight so the success
+        // toast lines up with a clean reset on the next open.
+        if (saving) return;
+        if (!next) reset();
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change password</DialogTitle>
+          <DialogDescription>
+            Choose a new sign-in password. You&apos;ll stay signed in on this
+            device.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="new-password"
+              className="block text-sm font-medium mb-2"
+            >
+              New password
+            </label>
+            <input
+              id="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(ev) => setNewPassword(ev.target.value)}
+              minLength={PASSWORD_MIN_LEN}
+              autoComplete="new-password"
+              placeholder={`Min ${PASSWORD_MIN_LEN} characters`}
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirm-password"
+              className="block text-sm font-medium mb-2"
+            >
+              Confirm password
+            </label>
+            <input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(ev) => setConfirmPassword(ev.target.value)}
+              minLength={PASSWORD_MIN_LEN}
+              autoComplete="new-password"
+              placeholder="Repeat new password"
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+            />
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={saving}
+              className="px-4 py-2 border border-border-strong hover:bg-surface-hover disabled:opacity-50 text-sm font-medium rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !newPassword || !confirmPassword}
+              className="px-4 py-2 bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors text-sm"
+            >
+              {saving ? "Updating…" : "Update password"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
