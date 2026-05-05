@@ -39,6 +39,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_kits: {
+        Row: {
+          colors: Json
+          created_at: string
+          guidelines_url: string | null
+          logo_dark_url: string | null
+          logo_light_url: string | null
+          logo_mark_url: string | null
+          notes: string | null
+          org_id: string
+          typography: Json
+          updated_at: string
+        }
+        Insert: {
+          colors?: Json
+          created_at?: string
+          guidelines_url?: string | null
+          logo_dark_url?: string | null
+          logo_light_url?: string | null
+          logo_mark_url?: string | null
+          notes?: string | null
+          org_id: string
+          typography?: Json
+          updated_at?: string
+        }
+        Update: {
+          colors?: Json
+          created_at?: string
+          guidelines_url?: string | null
+          logo_dark_url?: string | null
+          logo_light_url?: string | null
+          logo_mark_url?: string | null
+          notes?: string | null
+          org_id?: string
+          typography?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kits_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       briefs: {
         Row: {
           category: Database["public"]["Enums"]["brief_category"]
@@ -1462,6 +1509,7 @@ export const Constants = {
 // ============================================================
 
 export type Profile = Tables<"profiles">;
+export type BrandKit = Tables<"brand_kits">;
 export type Brief = Tables<"briefs">;
 export type Claim = Tables<"claims">;
 export type ClaimAttachment = Tables<"claim_attachments">;

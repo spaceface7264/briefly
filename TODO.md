@@ -11,7 +11,50 @@ preconditions. Work top to bottom within a section.
 - ➕ NEW — added in this audit (was missing from the original list)
 
 ---
- 
+
+## Brand Assets MVP (active)
+
+In-flight feature: structured brand kit per org (logos, colors, typography,
+guidelines, voice/tone notes). Org admins manage it from a new sidebar
+entry; creators with an active claim on one of the org's briefs see a
+"Brand kit" panel inside the brief detail page. Plan lives at
+`/Users/rami/.cursor/plans/brand-assets-mvp_bff3eca3.plan.md`.
+
+This is the MVP slice of the broader **§9 Phase 3 / 3.1 Brand asset
+library** roadmap entry below — same intent, leaner schema (one
+`brand_kits` row per org instead of polymorphic `org_brand_assets` +
+`organizations.tone_of_voice` columns), and a dedicated `/admin/brand`
+surface rather than a tab inside `/admin/organization`. The roadmap
+entry stays as the maximalist target; this MVP gets us 80% of the user
+value in three small PRs.
+
+- [ ] Apply 0040_brand_kits.sql via Supabase Dashboard SQL Editor (then re-run npx supabase gen types and confirm zero diff with the hand-added types in src/types/database.ts)
+
+### Phase 1, schema and storage
+- [ ] Migration 0040_brand_kits.sql (table, RLS, brand-assets bucket)
+- [ ] Regenerate src/types/database.ts
+
+### Phase 2, admin UI at /admin/brand
+- [ ] Sidebar nav entry "Brand"
+- [ ] Page + form scaffolding
+- [ ] Logo variant uploads (mark, dark, light)
+- [ ] Color palette editor (add/remove, name + hex, cap 12)
+- [ ] Typography editor (role/family/url, cap 6)
+- [ ] Guidelines (PDF upload OR URL)
+- [ ] Notes textarea (1000 char cap)
+
+### Phase 3, creator surface
+- [ ] Claim gate + signed-URL minting
+- [ ] Brand kit panel on /briefs/[id]
+- [ ] Empty state
+
+### Later
+- [ ] Per-brief overrides
+- [ ] Public preview on /discover modal
+- [ ] Bulk download as ZIP
+
+---
+
 ## 1. Apply database migrations
 
 Apply any unapplied migration in `supabase/migrations/` via the Supabase
