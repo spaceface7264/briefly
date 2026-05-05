@@ -15,6 +15,7 @@ import {
   confirmSubmission,
   getClaimAttachmentSignedUrls,
 } from "./actions";
+import { BrandKitPanel, type BrandKitPanelData } from "./brand-kit-panel";
 import type { Brief, Claim } from "@/types/database";
 
 type SubmissionAttachment = {
@@ -63,6 +64,9 @@ interface Props {
   userClaim: Claim | null;
   reclaimBlockedUntil: string | null;
   reclaimCooldownDays: number;
+  /** Present only when the viewer has an active claim on this brief.
+   *  The server-side gate in page.tsx decides; we just render. */
+  brandKit: BrandKitPanelData | null;
 }
 
 const categoryDot: Record<string, string> = {
@@ -94,6 +98,7 @@ export function BriefDetailClient({
   userClaim,
   reclaimBlockedUntil,
   reclaimCooldownDays,
+  brandKit,
 }: Props) {
   const router = useRouter();
   const orgId = useOrgId();
@@ -270,6 +275,11 @@ export function BriefDetailClient({
                   </ReactMarkdown>
                 </div>
               </section>
+
+              {/* Brand kit (claimed creators only). Server-side gate
+                  in page.tsx decides whether to fetch + sign URLs;
+                  brandKit is null when the viewer has no live claim. */}
+              {brandKit && <BrandKitPanel brandKit={brandKit} />}
 
               {/* Deliverable Specs */}
               {specs && Object.keys(specs).length > 0 && (

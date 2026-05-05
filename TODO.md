@@ -29,6 +29,7 @@ entry stays as the maximalist target; this MVP gets us 80% of the user
 value in three small PRs.
 
 - [ ] Apply 0040_brand_kits.sql via Supabase Dashboard SQL Editor (then re-run npx supabase gen types and confirm zero diff with the hand-added types in src/types/database.ts)
+- [ ] Apply 0041_brand_kits_active_claim_fix.sql (replaces a stale 'pending' status literal that never matched the codebase's actual claims status enum: ('active','submitted','approved','paid','cancelled'). Without this, creators with `active` claims see "Brand kit not set up yet" even when one exists.)
 
 ### Phase 1, schema and storage
 - [ ] Migration 0040_brand_kits.sql (table, RLS, brand-assets bucket)
