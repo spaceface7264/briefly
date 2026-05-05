@@ -5,6 +5,7 @@ tracked by feature area, not by branch — each section has its own
 preconditions. Work top to bottom within a section.
 
 **Status legend** (audit pass 2026-04-29):
+
 - ✅ DONE — verified complete in code / repo
 - 🟡 LIKELY DONE — dependent features ship in code, presumed applied; worth a manual confirm
 - ❌ TODO — not started
@@ -12,7 +13,7 @@ preconditions. Work top to bottom within a section.
 
 ---
 
-## Brand Assets MVP (shipped, pending DB migration apply)
+## Brand Assets MVP ✅
 
 Structured brand kit per org (logos, colors, typography, guidelines,
 voice/tone notes). Org admins manage it from a new sidebar entry;
@@ -28,36 +29,40 @@ surface rather than a tab inside `/admin/organization`. The roadmap
 entry stays as the maximalist target; this MVP gets us 80% of the user
 value in three small PRs.
 
-All three feature PRs landed on main. Outstanding work is purely
-operational (apply the migrations to live Supabase before the UI is
-useful):
+All three feature PRs landed on main and both migrations are live.
+Type generator output verified zero diff against the hand-added rows
+on 2026-05-05.
 
-- [ ] Apply `0040_brand_kits.sql` via Supabase Dashboard SQL Editor (then re-run `npx supabase gen types typescript --linked` and confirm zero diff with the hand-added types in `src/types/database.ts`)
-- [ ] Apply `0041_brand_kits_active_claim_fix.sql` (replaces a stale `'pending'` claim status literal in 0040 that never matched the codebase's actual `claims.status` enum, `('active','submitted','approved','paid','cancelled')`. Without this, creators with `active` claims see "Brand kit not set up yet" even when one exists)
+- ✅ Applied `0040_brand_kits.sql` via Supabase Dashboard SQL Editor (2026-05-05). `npx supabase gen types typescript --linked` confirms zero diff against the hand-added rows in `src/types/database.ts`.
+- ✅ Applied `0041_brand_kits_active_claim_fix.sql` (2026-05-05). The SELECT policy for claimed creators now uses the codebase's real `claims.status` enum (`('active','submitted','approved','paid')`).
 
 ### Phase 1, schema and storage (#33)
-- [x] Migration `0040_brand_kits.sql` (table, RLS, brand-assets bucket) #33
-- [x] Hand-add `brand_kits` to `src/types/database.ts` matching generator format #33
+
+- ✅ Migration `0040_brand_kits.sql` (table, RLS, brand-assets bucket) #33
+- ✅ Hand-add `brand_kits` to `src/types/database.ts` matching generator format #33
 
 ### Phase 2, admin UI at /admin/brand (#34)
-- [x] Sidebar nav entry "Brand" #34
-- [x] Page + form scaffolding (`src/app/admin/brand/`) #34
-- [x] Logo variant uploads (mark, dark, light) #34
-- [x] Color palette editor (add/remove, name + hex, cap 12) #34
-- [x] Typography editor (role/family/url, cap 6) #34
-- [x] Guidelines (PDF upload OR URL) #34
-- [x] Notes textarea (1000 char cap) #34
+
+- ✅ Sidebar nav entry "Brand" #34
+- ✅ Page + form scaffolding (`src/app/admin/brand/`) #34
+- ✅ Logo variant uploads (mark, dark, light) #34
+- ✅ Color palette editor (add/remove, name + hex, cap 12) #34
+- ✅ Typography editor (role/family/url, cap 6) #34
+- ✅ Guidelines (PDF upload OR URL) #34
+- ✅ Notes textarea (1000 char cap) #34
 
 ### Phase 3, creator surface (#35)
-- [x] Claim gate + signed-URL minting (`src/app/briefs/[id]/page.tsx`) #35
-- [x] Brand kit panel on `/briefs/[id]` (`brand-kit-panel.tsx`) #35
-- [x] Empty state (renders when every kit field is null/empty) #35
-- [x] RLS fix migration `0041_brand_kits_active_claim_fix.sql` (claim status enum mismatch caught in Phase 3) #35
+
+- ✅ Claim gate + signed-URL minting (`src/app/briefs/[id]/page.tsx`) #35
+- ✅ Brand kit panel on `/briefs/[id]` (`brand-kit-panel.tsx`) #35
+- ✅ Empty state (renders when every kit field is null/empty) #35
+- ✅ RLS fix migration `0041_brand_kits_active_claim_fix.sql` (claim status enum mismatch caught in Phase 3) #35
 
 ### Later
-- [ ] Per-brief overrides
-- [ ] Public preview on /discover modal
-- [ ] Bulk download as ZIP
+
+- ❌ Per-brief overrides
+- ❌ Public preview on /discover modal
+- ❌ Bulk download as ZIP
 
 ---
 
@@ -77,65 +82,61 @@ a fresh project (use `combined_fresh_install.sql` for that) or
 onboarding a new dev environment.
 
 - ✅ `0022_creator_discovery.sql` — adds `organizations.discoverable`,
-  the `org_applications` table + RLS, and the `approve_application` RPC
+the `org_applications` table + RLS, and the `approve_application` RPC
 - ✅ `0023_no_default_org_on_signup.sql` — replaces `handle_new_user()`
-  so new auth users no longer auto-join the default org. Users now join
-  via invite code (`use_invite_code` from 0020) or approved discovery
-  application (`approve_application` from 0022)
+so new auth users no longer auto-join the default org. Users now join
+via invite code (`use_invite_code` from 0020) or approved discovery
+application (`approve_application` from 0022)
 - ✅ `0024_application_notifications.sql` — extends the
-  `notification_event_type` enum (`application_received`,
-  `application_approved`, `application_rejected`), adds
-  `profiles.notify_applications` (default TRUE), and installs an
-  AFTER INSERT/UPDATE trigger on `org_applications` that fans out via
-  `notify_admins` and `create_notification_for_user`
+`notification_event_type` enum (`application_received`,
+`application_approved`, `application_rejected`), adds
+`profiles.notify_applications` (default TRUE), and installs an
+AFTER INSERT/UPDATE trigger on `org_applications` that fans out via
+`notify_admins` and `create_notification_for_user`
 - ✅ `0025_remove_legacy_default_org.sql` — drops the legacy
-  `00000000-…-0001` "Briefly" org seeded in 0015 and everything still
-  attached to it (briefs, claims, payments, invite_codes,
-  notifications, notification_outbox, invoice_counters; clears
-  profiles.active_org_id; cascades memberships and org_applications).
-  Confirmed safe by the project owner — the data was test data, no
-  real customer rows are attached.
+`00000000-…-0001` "Briefly" org seeded in 0015 and everything still
+attached to it (briefs, claims, payments, invite_codes,
+notifications, notification_outbox, invoice_counters; clears
+profiles.active_org_id; cascades memberships and org_applications).
+Confirmed safe by the project owner — the data was test data, no
+real customer rows are attached.
 - ✅ `0026_pricing_phase1.sql` — Phase 1 of platform monetisation.
-  Adds the `pricing_plans` catalogue (seeded with Free + Pro at 5%
-  take rate), `profiles.is_platform_admin` (the gate for Phase 2/3
-  super-admin surfaces), an `is_platform_admin()` SQL helper, and
-  three frozen-at-payout columns on `payments`
-  (`gross_dkk`, `platform_fee_bp`, `platform_fee_dkk`). Backfills
-  historical payments with `gross_dkk = COALESCE(subtotal_dkk,
-  amount_dkk)` and `platform_fee_dkk = 0` so existing invoices keep
-  rendering identically. Pro plan pricing is seeded at 0 DKK — set
-  the actual numbers via `UPDATE pricing_plans SET monthly_price_dkk
-  = …, annual_price_dkk = … WHERE slug = 'pro'` before charging
-  anyone.
-
+Adds the `pricing_plans` catalogue (seeded with Free + Pro at 5%
+take rate), `profiles.is_platform_admin` (the gate for Phase 2/3
+super-admin surfaces), an `is_platform_admin()` SQL helper, and
+three frozen-at-payout columns on `payments`
+(`gross_dkk`, `platform_fee_bp`, `platform_fee_dkk`). Backfills
+historical payments with `gross_dkk = COALESCE(subtotal_dkk, amount_dkk)` and `platform_fee_dkk = 0` so existing invoices keep
+rendering identically. Pro plan pricing is seeded at 0 DKK — set
+the actual numbers via `UPDATE pricing_plans SET monthly_price_dkk = …, annual_price_dkk = … WHERE slug = 'pro'` before charging
+anyone.
   After applying, grant yourself platform admin via
   `UPDATE profiles SET is_platform_admin = TRUE WHERE email = '…'`.
 - ✅ `0027_pricing_overrides.sql` — Phase 2 of monetisation. Adds
-  `pricing_overrides` (per-org or per-user fee/plan/feature/limit
-  adjustments) and `pricing_audit_log` (append-only record of every
-  grant and revoke). RLS gates both to platform admins. The resolver
-  in `src/lib/pricing.ts` consults overrides on every pricing
-  decision; nothing else should read these tables directly. The
-  `/admin/super` surface (visible only to platform admins) lists
-  every org with its effective pricing and lets you grant overrides
-  with a required reason — see `docs/monetisation.md` for the full
-  flow.
+`pricing_overrides` (per-org or per-user fee/plan/feature/limit
+adjustments) and `pricing_audit_log` (append-only record of every
+grant and revoke). RLS gates both to platform admins. The resolver
+in `src/lib/pricing.ts` consults overrides on every pricing
+decision; nothing else should read these tables directly. The
+`/admin/super` surface (visible only to platform admins) lists
+every org with its effective pricing and lets you grant overrides
+with a required reason — see `docs/monetisation.md` for the full
+flow.
 - ✅ `0028_org_subscriptions.sql` — Phase 3 of monetisation. Adds
-  `org_subscriptions`, the live link to a Stripe Billing
-  subscription. Auto-creates a Free row for every existing and new
-  org (trigger `create_default_subscription` fires on insert). The
-  resolver now reads this table before falling through to Free, so
-  an org with `status IN ('trialing','active','past_due')` reads as
-  their actual plan automatically.
-
+`org_subscriptions`, the live link to a Stripe Billing
+subscription. Auto-creates a Free row for every existing and new
+org (trigger `create_default_subscription` fires on insert). The
+resolver now reads this table before falling through to Free, so
+an org with `status IN ('trialing','active','past_due')` reads as
+their actual plan automatically.
   Operational follow-up after applying:
   1. Create Stripe Products + Prices for the Pro plan in the Stripe
-     Dashboard. One Product, two Prices (monthly + annual).
+    Dashboard. One Product, two Prices (monthly + annual).
   2. `UPDATE pricing_plans SET monthly_price_dkk = …,
-     annual_price_dkk = …, stripe_monthly_price_id = 'price_…',
+    annual_price_dkk = …, stripe_monthly_price_id = 'price_…',
      stripe_annual_price_id = 'price_…' WHERE slug = 'pro';`
   3. Configure the Stripe webhook endpoint at
-     `https://<your-domain>/api/stripe/webhook` to deliver these
+    `https://<your-domain>/api/stripe/webhook` to deliver these
      events: `customer.subscription.created`,
      `customer.subscription.updated`,
      `customer.subscription.deleted`,
@@ -146,50 +147,48 @@ onboarding a new dev environment.
      `account.updated` and `transfer.reversed` events stay enabled
      for the Stripe Connect side.)
   4. Open the Stripe Customer Portal configuration once and enable
-     the features you want creators to self-serve (cancel, change
+    the features you want creators to self-serve (cancel, change
      plan, update payment method, view invoices).
-
   *(SQL migration ✅ confirmed applied. The four operational follow-ups
   above are external-system work — confirm individually:)*
   - ❓ Stripe Pro Product + monthly/annual Prices created
   - ❓ `pricing_plans` row updated with `monthly_price_dkk`,
-    `annual_price_dkk`, and the two `stripe_*_price_id` values
+  `annual_price_dkk`, and the two `stripe_*_price_id` values
   - ❓ Stripe webhook endpoint registered with all 8 subscription/
-    invoice events plus the existing Connect events
+  invoice events plus the existing Connect events
   - ❓ Stripe Customer Portal features enabled
 - ✅ `0029_pricing_limits.sql` — Phase 3b. Enforces `max_active_briefs`
-  and `max_creators` at the database level via two BEFORE INSERT/
-  UPDATE triggers. The triggers raise `PLAN_LIMIT_EXCEEDED:` errors
-  with human-readable messages; UI handlers (brief form, brief
-  reopen, application approve, invite redemption) detect the prefix
-  and surface an upgrade prompt linking to `/admin/billing`. Includes
-  the `effective_org_limit()` SQL function that mirrors the resolver
-  precedence (overrides → subscription plan → Free) so trigger checks
-  always see the same limits the TS resolver returns.
+and `max_creators` at the database level via two BEFORE INSERT/
+UPDATE triggers. The triggers raise `PLAN_LIMIT_EXCEEDED:` errors
+with human-readable messages; UI handlers (brief form, brief
+reopen, application approve, invite redemption) detect the prefix
+and surface an upgrade prompt linking to `/admin/billing`. Includes
+the `effective_org_limit()` SQL function that mirrors the resolver
+precedence (overrides → subscription plan → Free) so trigger checks
+always see the same limits the TS resolver returns.
 
 The following migrations were missing from this list — added in the
 2026-04-29 audit and confirmed applied in the same pass.
 
 - ➕ ✅ `0030_fix_recursive_membership_policies.sql` — fixes infinite-
-  recursion in memberships/organizations RLS that blew up the moment
-  the first real membership row landed. Bug fix; no schema change.
+recursion in memberships/organizations RLS that blew up the moment
+the first real membership row landed. Bug fix; no schema change.
 - ➕ ✅ `0031_org_logos_bucket.sql` — creates the public `org-logos`
-  Storage bucket (2 MB cap), writes go through the
-  service-role-backed `uploadOrgLogo` server action.
-- ➕ ✅ `0032_add_member_role.sql` — `ALTER TYPE user_role ADD VALUE
-  'member'`. Lives alone because Postgres can't reference a newly-
-  added enum value in the same transaction. 0033 is the first
-  consumer.
+Storage bucket (2 MB cap), writes go through the
+service-role-backed `uploadOrgLogo` server action.
+- ➕ ✅ `0032_add_member_role.sql` — `ALTER TYPE user_role ADD VALUE 'member'`. Lives alone because Postgres can't reference a newly-
+added enum value in the same transaction. 0033 is the first
+consumer.
 - ➕ ✅ `0033_account_types.sql` — the dual-account-type fork. Adds
-  `profiles.account_type` (`creator` | `org`), a memberships trigger
-  enforcing creator users only hold creator memberships and org users
-  hold one admin/member membership in exactly one org, plus
-  `invite_codes` columns to carry three intents (creator-roster,
-  org-admin, org-member) on one table.
+`profiles.account_type` (`creator` | `org`), a memberships trigger
+enforcing creator users only hold creator memberships and org users
+hold one admin/member membership in exactly one org, plus
+`invite_codes` columns to carry three intents (creator-roster,
+org-admin, org-member) on one table.
 - ➕ ✅ `0034_member_writes.sql` — broadens write policies on briefs +
-  claims + read on profiles/org_applications from `is_org_admin()` to
-  `is_org_member()` so members can do day-to-day brief/claim work
-  (admins keep team/billing/discoverability gating).
+claims + read on profiles/org_applications from `is_org_admin()` to
+`is_org_member()` so members can do day-to-day brief/claim work
+(admins keep team/billing/discoverability gating).
 
 These three landed in the 2026-04-30 session alongside the Phase 0
 / 1.1 product work that needed them. Same convention — additive,
@@ -197,26 +196,26 @@ backwards-compatible — but worth highlighting because they touch
 new tables and storage.
 
 - ➕ ✅ `0035_submissions_storage_bucket.sql` — creates the private
-  `submissions` Storage bucket (250 MB cap, video/image/pdf MIME
-  allowlist). No user-facing RLS on `storage.objects` — the upload
-  flow uses signed URLs minted server-side from the prepare action
-  in `src/app/briefs/[id]/actions.ts`. Backs creator submission
-  attachments (Phase 0.2).
+`submissions` Storage bucket (250 MB cap, video/image/pdf MIME
+allowlist). No user-facing RLS on `storage.objects` — the upload
+flow uses signed URLs minted server-side from the prepare action
+in `src/app/briefs/[id]/actions.ts`. Backs creator submission
+attachments (Phase 0.2).
 - ➕ ✅ `0036_claim_attachments.sql` — `claim_attachments` table
-  (`id`, `claim_id` FK CASCADE, `storage_path` UNIQUE, `filename`,
-  `mime_type`, `file_size`, `created_at`). RLS allows SELECT for
-  the claim's creator and any active org member of the claim's
-  org; writes via service-role only. Backs the multi-file
-  submission flow that replaced the URL-only inline write (Phase
-  0.2a).
+(`id`, `claim_id` FK CASCADE, `storage_path` UNIQUE, `filename`,
+`mime_type`, `file_size`, `created_at`). RLS allows SELECT for
+the claim's creator and any active org member of the claim's
+org; writes via service-role only. Backs the multi-file
+submission flow that replaced the URL-only inline write (Phase
+0.2a).
 - ➕ ✅ `0037_brief_escrow_schema.sql` — `brief_funded_status` enum
-  (`unfunded` | `funded` | `partially_released` | `released` |
-  `refunded`), plus `briefs.funded_status` (default `unfunded`),
-  `stripe_payment_intent_id`, `escrow_amount_dkk`, `escrow_held_dkk`
-  with CHECK constraints + a partial index on active states. Adds
-  `organizations.stripe_customer_id` (UNIQUE) and
-  `default_payment_method_id`. Foundation for the escrow flow
-  shipped in Phase 1.1.
+(`unfunded` | `funded` | `partially_released` | `released` |
+`refunded`), plus `briefs.funded_status` (default `unfunded`),
+`stripe_payment_intent_id`, `escrow_amount_dkk`, `escrow_held_dkk`
+with CHECK constraints + a partial index on active states. Adds
+`organizations.stripe_customer_id` (UNIQUE) and
+`default_payment_method_id`. Foundation for the escrow flow
+shipped in Phase 1.1.
 
 After applying, sanity-check:
 
@@ -249,12 +248,12 @@ npx supabase gen types typescript --linked > /tmp/database.fresh.ts
 ```
 
 - ✅ Types in sync with live schema (verified 2026-04-29 by diffing
-  fresh generator output against `src/types/database.ts` — the only
-  diff is an additive `graphql_public` schema block plus the
-  hand-maintained helper aliases at the bottom of the current file)
+fresh generator output against `src/types/database.ts` — the only
+diff is an additive `graphql_public` schema block plus the
+hand-maintained helper aliases at the bottom of the current file)
 - ✅ `npm run build` clean (verified 2026-04-29 — TypeScript pass in
-  4.7s, all 38 routes generated, only warning is the Next 15
-  `middleware → proxy` filename deprecation noted in §7 Backlog)
+4.7s, all 38 routes generated, only warning is the Next 15
+`middleware → proxy` filename deprecation noted in §7 Backlog)
 
 ⚠️ **Regen gotcha**: the bottom of `database.ts` carries a
 hand-maintained helper-alias block (clearly marked with
@@ -270,7 +269,7 @@ re-append them after every `gen types` invocation, or write a small
 post-process script if it becomes annoying.
 
 The original 2026-04-26 hand-patches (`org_applications` table,
-`discoverable` column, `notify_applications` column, `application_*`
+`discoverable` column, `notify_applications` column, `application_`*
 enum values) are no longer needed — they ship in the canonical
 generator output now.
 
@@ -285,55 +284,51 @@ the only remaining steps are the 5 in the checklist below.
 ### What's already done (2026-04-29 audit pass)
 
 - ✅ All 3 functions deployed and ACTIVE on the Briefly project:
-  `notify-submission`, `notify-new-brief`,
-  `process-notification-outbox` (all v2, deployed 2026-04-30 ~09:10 UTC)
+`notify-submission`, `notify-new-brief`,
+`process-notification-outbox` (all v2, deployed 2026-04-30 ~09:10 UTC)
 - ✅ `PLATFORM_SENDER_NAME=Briefly` secret set
 - ✅ `PLATFORM_SENDER_EMAIL` secret set *(placeholder value
-  `notifications@example.com` — needs replacing once domain lands)*
+`notifications@example.com` — needs replacing once domain lands)*
 - ✅ README project-ref bug fixed (was pointing at the old
-  `hfepjqlbwcwhppbxxpkr` "boulders creators" project)
+`hfepjqlbwcwhppbxxpkr` "boulders creators" project)
 
 ### What you need to do to finalize §3
 
 Do these **in order** after §8 (domain) is done. Each step is
 copy-pasteable.
 
-- [ ] **1. Set the real sender email** (Supabase secret + `.env.local`):
+- **1. Set the real sender email** (Supabase secret + `.env.local`):
   ```bash
   npx supabase secrets set --project-ref bncuqifjcsrjkohxkwez \
     PLATFORM_SENDER_EMAIL=notifications@<your-domain>
   ```
   Also update `PLATFORM_SENDER_EMAIL` in `.env.local` (Section 4) and
   in your production deploy target's env vars to the same value.
-
-- [ ] **2. Set the Resend API key** (Supabase secret only — not needed
-  in `.env.local`, the Next side doesn't send mail directly):
+- **2. Set the Resend API key** (Supabase secret only — not needed
+in `.env.local`, the Next side doesn't send mail directly):
   ```bash
   npx supabase secrets set --project-ref bncuqifjcsrjkohxkwez \
     RESEND_API_KEY=re_xxxxx
   ```
   Get the key at https://resend.com/api-keys.
-
-- [ ] **3. Create database webhook for submissions.** Dashboard →
-  Database → Webhooks → Create new:
+- **3. Create database webhook for submissions.** Dashboard →
+Database → Webhooks → Create new:
   - **Name**: `notify-submission`
   - **Table**: `claims`
   - **Events**: `UPDATE`
   - **Method**: `POST`
   - **URL**: `https://bncuqifjcsrjkohxkwez.supabase.co/functions/v1/notify-submission`
   - **Header**: `Authorization: Bearer <NEXT_PUBLIC_SUPABASE_ANON_KEY>`
-
-- [ ] **4. Create database webhook for new briefs.** Same Dashboard
-  surface:
+- **4. Create database webhook for new briefs.** Same Dashboard
+surface:
   - **Name**: `notify-new-brief`
   - **Table**: `briefs`
   - **Events**: `INSERT`
   - **Method**: `POST`
   - **URL**: `https://bncuqifjcsrjkohxkwez.supabase.co/functions/v1/notify-new-brief`
   - **Header**: `Authorization: Bearer <NEXT_PUBLIC_SUPABASE_ANON_KEY>`
-
-- [ ] **5. Schedule the outbox processor (every minute).** Dashboard →
-  Integrations → Cron (the easy path):
+- **5. Schedule the outbox processor (every minute).** Dashboard →
+Integrations → Cron (the easy path):
   - **Schedule**: `* * * * *` (every minute)
   - **Method**: `POST`
   - **URL**: `https://bncuqifjcsrjkohxkwez.supabase.co/functions/v1/process-notification-outbox`
@@ -346,10 +341,11 @@ copy-pasteable.
 
 After step 5, send a test from the Resend dashboard, then trigger a
 real flow (publish a brief, submit a claim) and confirm:
+
 - The two database webhooks show successful `2xx` responses in
-  Dashboard → Database → Webhooks → (each) → Logs
+Dashboard → Database → Webhooks → (each) → Logs
 - `notification_outbox` rows are created and then deleted within ~1
-  minute (the worker drains them)
+minute (the worker drains them)
 - The recipient email inbox actually receives the messages
 
 ### Why this is blocked on §8 today
@@ -364,11 +360,12 @@ up. The deployed functions sit idle, costing nothing.
 ## 4. Configure environment variables
 
 Two surfaces share most variable names, set independently:
-- **`.env.local`** — local dev (Next + server actions reading them on
-  your machine)
+
+- `**.env.local`** — local dev (Next + server actions reading them on
+your machine)
 - **Production deploy target** (Cloudflare Workers / Vercel / etc) —
-  the running app. **I cannot verify these from the repo** — you have
-  to look in the host's dashboard.
+the running app. **I cannot verify these from the repo** — you have
+to look in the host's dashboard.
 
 `/admin/settings` shows a yellow "Default" badge next to any platform
 variable that is unset in the running environment, so you can spot
@@ -380,19 +377,19 @@ Branding (public — exposed to the browser):
 
 - ✅ `NEXT_PUBLIC_PLATFORM_NAME=Briefly` — real value
 - ❌ `NEXT_PUBLIC_LOGO_URL` — **not set**. Falls back to whatever
-  `<PlatformLogo>` defaults to. Set when logo asset is hosted.
+`<PlatformLogo>` defaults to. Set when logo asset is hosted.
 - ⚠️ `NEXT_PUBLIC_CONTACT_EMAIL=hello@example.com` — placeholder
-  default (footer + legal pages will display this address). **Blocked
-  on §8** — wait for real domain.
+default (footer + legal pages will display this address). **Blocked
+on §8** — wait for real domain.
 
 Legal entity (server-only — used on self-billed invoices and
 `/admin/settings`):
 
 - ❌ `PLATFORM_ADDRESS` — set but empty
 - ❌ `PLATFORM_CVR` — set but empty (Danish business registration
-  number — required for self-billing invoices)
+number — required for self-billing invoices)
 - ❌ `PLATFORM_VAT_NUMBER` — set but empty (platform VAT number —
-  required for OSS reporting and reverse-charge invoice text)
+required for OSS reporting and reverse-charge invoice text)
 
 ⚠️ With these three empty, the self-billing invoice template will
 render with blank legal-entity fields. Functional but not legally
@@ -404,13 +401,13 @@ Email sender (also Supabase secrets — see §3):
 
 - ✅ `PLATFORM_SENDER_NAME=Briefly`
 - ⚠️ `PLATFORM_SENDER_EMAIL=notifications@example.com` — placeholder,
-  blocked on §8
+blocked on §8
 
 App URL:
 
 - ✅ `NEXT_PUBLIC_APP_URL=http://localhost:3001` — correct for local
-  dev (note: port 3001, not the Next default 3000). Production needs
-  the real domain — blocked on §8.
+dev (note: port 3001, not the Next default 3000). Production needs
+the real domain — blocked on §8.
 
 ### Production deploy target — UNAUDITED
 
@@ -418,19 +415,19 @@ I have no visibility into what's set in your Cloudflare/Vercel/etc
 environment. Verify each variable is also set there with the
 production-appropriate value:
 
-- [ ] `NEXT_PUBLIC_PLATFORM_NAME` — fine to mirror local (`Briefly`)
-- [ ] `NEXT_PUBLIC_LOGO_URL` — needs hosted logo URL
-- [ ] `NEXT_PUBLIC_CONTACT_EMAIL` — needs real address (blocked on §8)
-- [ ] `NEXT_PUBLIC_APP_URL` — your production domain (blocked on §8)
-- [ ] `PLATFORM_ADDRESS` — needs real legal-entity address
-- [ ] `PLATFORM_CVR` — needs real CVR
-- [ ] `PLATFORM_VAT_NUMBER` — needs real VAT number
-- [ ] `PLATFORM_SENDER_NAME`
-- [ ] `PLATFORM_SENDER_EMAIL` — needs real address (blocked on §8)
-- [ ] `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` +
-  `SUPABASE_SERVICE_ROLE_KEY` — Supabase project credentials
-- [ ] `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` — Stripe creds
-  (the live ones, not test keys)
+- `NEXT_PUBLIC_PLATFORM_NAME` — fine to mirror local (`Briefly`)
+- `NEXT_PUBLIC_LOGO_URL` — needs hosted logo URL
+- `NEXT_PUBLIC_CONTACT_EMAIL` — needs real address (blocked on §8)
+- `NEXT_PUBLIC_APP_URL` — your production domain (blocked on §8)
+- `PLATFORM_ADDRESS` — needs real legal-entity address
+- `PLATFORM_CVR` — needs real CVR
+- `PLATFORM_VAT_NUMBER` — needs real VAT number
+- `PLATFORM_SENDER_NAME`
+- `PLATFORM_SENDER_EMAIL` — needs real address (blocked on §8)
+- `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` +
+`SUPABASE_SERVICE_ROLE_KEY` — Supabase project credentials
+- `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` — Stripe creds
+(the live ones, not test keys)
 
 Quickest way to verify the running app: load `/admin/settings` in
 production once it's deployed and look for yellow "Default" badges.
@@ -444,23 +441,23 @@ State verified 2026-04-29 — matches the original TODO description.
 Code state:
 
 - ✅ `/legal/self-billing` — `draft={false}`, banner hidden, content
-  is the canonical `selfBillingAgreementText()` creators accept
+is the canonical `selfBillingAgreementText()` creators accept
 - ❌ `/legal/terms` — relies on `LegalPage` default `draft={true}`,
-  banner showing, top-of-file `// NOTE:` lists clauses to verify
+banner showing, top-of-file `// NOTE:` lists clauses to verify
 - ❌ `/legal/privacy` — same state, top-of-file `// NOTE:` lists items
-  to verify
+to verify
 - ❌ `/legal/cookies` — same state, top-of-file `// NOTE:` lists
-  Supabase + Stripe cookie names to confirm
+Supabase + Stripe cookie names to confirm
 
 Steps to finalize:
 
-- [ ] Have a lawyer review `/legal/terms` (clauses flagged in
-  `src/app/legal/terms/page.tsx` top comment)
-- [ ] Have a lawyer review `/legal/privacy` (same pattern)
-- [ ] Have a lawyer review `/legal/cookies` (confirm exact Supabase
-  and Stripe cookie names listed)
-- [ ] After each review, pass `draft={false}` to the `<LegalPage>`
-  call in that page
+- Have a lawyer review `/legal/terms` (clauses flagged in
+`src/app/legal/terms/page.tsx` top comment)
+- Have a lawyer review `/legal/privacy` (same pattern)
+- Have a lawyer review `/legal/cookies` (confirm exact Supabase
+and Stripe cookie names listed)
+- After each review, pass `draft={false}` to the `<LegalPage>`
+call in that page
 
 ⚠️ **Cross-dependency on §4 and §8**: legal pages render platform
 name and contact email from env vars
@@ -477,28 +474,28 @@ Automated checks (`npm run build`, ESLint) cover compile-time issues but
 don't exercise the UI. Click through these flows on a staging or
 production-mirror environment before the next launch:
 
-- [ ] **Creator (invite path)**: land → sign up with invite code → log
-  in → browse briefs → filter → claim → submit → release
-- [ ] **Creator (discovery path)**: sign up *without* an invite code →
-  confirm middleware lands you on `/discover` after login → apply to a
-  discoverable org → confirm pending state → admin approves → confirm
-  membership and `active_org_id` are now set
-- [ ] **Admin**: dashboard → applications inbox (approve and reject one
-  each) → claims → submission modal → approve → pay → invoice download
-- [ ] **Admin settings**: toggle org discoverability and confirm the org
-  appears/disappears on `/discover`. Promote and demote an admin and
-  confirm the self-demote and last-admin guards. Toggle each
-  notification type and verify the right DB column flips.
-- [ ] **Email**: in a staging Resend project, trigger a submission,
-  publish a brief, and (eventually — see §7) submit a discovery
-  application. Verify recipients match `notify_*` preferences.
-- [ ] **Modals**: open the invite generator, submission review, claim
-  approve/reject, and payout confirm modals. Verify Esc closes them,
-  backdrop click closes them, focus returns to the trigger, and Tab
-  stays trapped. The native `<dialog>`-based modals use `showModal()`
-  which is well-supported but worth confirming on Safari/Firefox/Chrome.
-- [ ] **Footer**: renders on every route (landing, login, admin, legal)
-  and the platform name/contact email reflect the env vars from §4.
+- **Creator (invite path)**: land → sign up with invite code → log
+in → browse briefs → filter → claim → submit → release
+- **Creator (discovery path)**: sign up *without* an invite code →
+confirm middleware lands you on `/discover` after login → apply to a
+discoverable org → confirm pending state → admin approves → confirm
+membership and `active_org_id` are now set
+- **Admin**: dashboard → applications inbox (approve and reject one
+each) → claims → submission modal → approve → pay → invoice download
+- **Admin settings**: toggle org discoverability and confirm the org
+appears/disappears on `/discover`. Promote and demote an admin and
+confirm the self-demote and last-admin guards. Toggle each
+notification type and verify the right DB column flips.
+- **Email**: in a staging Resend project, trigger a submission,
+publish a brief, and (eventually — see §7) submit a discovery
+application. Verify recipients match `notify_*` preferences.
+- **Modals**: open the invite generator, submission review, claim
+approve/reject, and payout confirm modals. Verify Esc closes them,
+backdrop click closes them, focus returns to the trigger, and Tab
+stays trapped. The native `<dialog>`-based modals use `showModal()`
+which is well-supported but worth confirming on Safari/Firefox/Chrome.
+- **Footer**: renders on every route (landing, login, admin, legal)
+and the platform name/contact email reflect the env vars from §4.
 
 ---
 
@@ -515,78 +512,73 @@ newly added in this audit; `🟡` = partial progress noted).
 ### Decided
 
 - **Default notification opt-in stays `TRUE`** (resolved 2026-04-26).
-  Every `notify_*` column except `notify_new_briefs` covers
-  transactional email — actions the user took or things needing their
-  attention. Defaulting those off would suppress legitimate platform
-  engagement and make creators wonder why they aren't being told their
-  work was approved. No code change. If a GDPR-style consent concern
-  surfaces later, the right answer is a "you'll get email about your
-  activity" line on the signup form, not flipping defaults.
-
-- **`/admin/settings` split into Personal vs Org IA** (resolved
-  2026-04-29). Originally logged as a Backlog item proposing tabs at
-  `/admin/settings` (General + Team) plus pulling personal to a new
-  `/admin/account`. Final landing went the other way: `/admin/settings`
-  is now the personal-scoped surface (tabs: `Personal` / `Team` /
-  `Notifications`, search-param state `?tab=…`), and a new
-  `/admin/organization` route holds org identity, branding
-  (`logo_url`, `accent_color`, `industry`), legal entity
-  (`address`, `cvr`, `vat_number`), and the discoverability toggle.
-  Members get a read-only `OrgDetailsView` on `/admin/organization`;
-  admins get the editable `OrgDetailsForm`. Same separation as the
-  original plan, opposite naming convention.
-
-- **`/login` stays a single page** (resolved 2026-04-29). After the
-  PR-C2 signup fork, the question came up whether to split `/login`
-  into `/login/creator` and `/login/org`. We decided against it:
-  sign-in is functionally identical for both audiences (same Supabase
-  call), splitting the URL doubles the maintenance surface, and a
-  shared `/login` removes the wrong-funnel risk of misshared links.
-  The shells (`/briefs` + `/discover` vs `/admin/*`) carry the
-  account-type identity post-login, which is where it belongs. See
-  the Backlog entry below for the visual polish that came out of the
-  same discussion.
+Every `notify_*` column except `notify_new_briefs` covers
+transactional email — actions the user took or things needing their
+attention. Defaulting those off would suppress legitimate platform
+engagement and make creators wonder why they aren't being told their
+work was approved. No code change. If a GDPR-style consent concern
+surfaces later, the right answer is a "you'll get email about your
+activity" line on the signup form, not flipping defaults.
+- `**/admin/settings` split into Personal vs Org IA** (resolved
+2026-04-29). Originally logged as a Backlog item proposing tabs at
+`/admin/settings` (General + Team) plus pulling personal to a new
+`/admin/account`. Final landing went the other way: `/admin/settings`
+is now the personal-scoped surface (tabs: `Personal` / `Team` /
+`Notifications`, search-param state `?tab=…`), and a new
+`/admin/organization` route holds org identity, branding
+(`logo_url`, `accent_color`, `industry`), legal entity
+(`address`, `cvr`, `vat_number`), and the discoverability toggle.
+Members get a read-only `OrgDetailsView` on `/admin/organization`;
+admins get the editable `OrgDetailsForm`. Same separation as the
+original plan, opposite naming convention.
+- `**/login` stays a single page** (resolved 2026-04-29). After the
+PR-C2 signup fork, the question came up whether to split `/login`
+into `/login/creator` and `/login/org`. We decided against it:
+sign-in is functionally identical for both audiences (same Supabase
+call), splitting the URL doubles the maintenance surface, and a
+shared `/login` removes the wrong-funnel risk of misshared links.
+The shells (`/briefs` + `/discover` vs `/admin/*`) carry the
+account-type identity post-login, which is where it belongs. See
+the Backlog entry below for the visual polish that came out of the
+same discussion.
 
 ### Backlog
 
 - ✅ **Split `/admin/settings` into Personal vs Org IA** — moved to
-  Decided above 2026-04-29 (shipped with opposite naming convention
-  from the original plan: `/admin/settings` became personal,
-  `/admin/organization` became org). After PR-C1 + PR-C2 the page mixes individual-scope
-  concerns (your name, your password, your email notifications) with
-  org-scope concerns (org name, branding, legal entity, team, invites,
-  discoverability). Every comparable B2B SaaS — Slack, Linear, Notion,
-  Figma, Stripe, GitHub, Canva — separates these into two surfaces:
-  personal is reached via the avatar dropdown, org admin is reached
-  via a workspace/settings nav item. Within the org surface they all
-  further split with tabs (`General · Team · Billing · …`); the team
-  tab is always its own thing.
-
+Decided above 2026-04-29 (shipped with opposite naming convention
+from the original plan: `/admin/settings` became personal,
+`/admin/organization` became org). After PR-C1 + PR-C2 the page mixes individual-scope
+concerns (your name, your password, your email notifications) with
+org-scope concerns (org name, branding, legal entity, team, invites,
+discoverability). Every comparable B2B SaaS — Slack, Linear, Notion,
+Figma, Stripe, GitHub, Canva — separates these into two surfaces:
+personal is reached via the avatar dropdown, org admin is reached
+via a workspace/settings nav item. Within the org surface they all
+further split with tabs (`General · Team · Billing · …`); the team
+tab is always its own thing.
   Plan for PR-D1 (~½ day):
   1. Tabs at `/admin/settings`: default `General`, second `Team`.
-     One URL, search-param state (`?tab=team`) so links survive.
-     - **General** keeps `OrgDetailsForm` + `DiscoverabilityToggle`.
-     - **Team** holds `AdminTeam` + `TeamInvites`.
-     - **Billing** stays at `/admin/billing` for now (or absorb later).
+    One URL, search-param state (`?tab=team`) so links survive.
+    - **General** keeps `OrgDetailsForm` + `DiscoverabilityToggle`.
+    - **Team** holds `AdminTeam` + `TeamInvites`.
+    - **Billing** stays at `/admin/billing` for now (or absorb later).
   2. Pull `PersonalAccountForm` + `NotificationsPanel` (audience=org)
-     out of `/admin/settings` into a new `/admin/account` route.
+    out of `/admin/settings` into a new `/admin/account` route.
      Notifications belong with personal — they're per-user prefs even
      though the audience is org-side.
   3. Restore an avatar dropdown for org users in the header (PR-B
-     stripped this for cleanliness — bring back a minimal version
+    stripped this for cleanliness — bring back a minimal version
      with just `Personal account` + `Sign out`, no creator-flavoured
      links).
   4. Grep for `/admin/settings` links in the codebase and update any
-     that point to sections now living elsewhere.
-
+    that point to sections now living elsewhere.
   What we're explicitly NOT doing: splitting org admin into two
   top-level routes (`/admin/org-settings` vs `/admin/team`). The
   unified one-URL-with-tabs pattern is what the comparables converge
   on; splitting routes adds nav noise without clarity gain.
-
 - ❌ **Middleware leaves stale Supabase cookies un-scrubbed on public
-  pages** (logged 2026-04-29; audit confirms `protectedPaths` array
-  + short-circuit still in `src/lib/supabase/middleware.ts:5`). `src/lib/supabase/middleware.ts`
+pages** (logged 2026-04-29; audit confirms `protectedPaths` array
+  - short-circuit still in `src/lib/supabase/middleware.ts:5`). `src/lib/supabase/middleware.ts`
   short-circuits on any path that isn't in `protectedPaths` or
   `/login`, so it never calls `supabase.auth.getUser()` on `/`,
   `/discover`, `/how-it-works`, `/legal/*`, `/guide`. The `@supabase/ssr`
@@ -598,14 +590,12 @@ newly added in this audit; `🟡` = partial progress noted).
   `Invalid Refresh Token: Refresh Token Not Found`. Both call sites
   catch the error so the page still renders, but Next dev mode
   surfaces the throw in the console overlay and prod logs are noisy.
-
   Two clean fixes — pick one in a small PR:
   1. Always run `auth.getUser()` in middleware regardless of path.
-     One extra auth roundtrip per anonymous page load; probably fine.
+    One extra auth roundtrip per anonymous page load; probably fine.
   2. Skip the middleware only when there's no `sb-*` cookie on the
-     request. Best of both: free for true anonymous visitors,
+    request. Best of both: free for true anonymous visitors,
      scrubs bad cookies for everyone else.
-
   Repro: clear the auth backend (or rotate tokens) without clearing
   the browser, navigate to `/`. The errors come from
   `src/app/layout.tsx` (`getActiveOrg → auth.getUser`) and
@@ -614,78 +604,69 @@ newly added in this audit; `🟡` = partial progress noted).
   Workaround for users today: visit `/login` (which is in the
   middleware allow-list and scrubs the cookie) or clear `sb-*`
   cookies manually.
-
 - 🟡 **Audit remaining admin-only surfaces for member UI gating**
-  (logged 2026-04-29; partial progress — `/admin/applications/page.tsx`
-  now surfaces the copy `"Approval is admin only"`, but the underlying
-  member-vs-admin RLS pass and the `/admin/creators` action gating
-  haven't landed). The integration test pass on `cursor/pr-c-test-integration`
-  caught a class of bugs where pages render full editable UI to org
-  members, then fail server-side on submit. Fixed in this branch for
-  `/admin/settings` (org details, admin team, discoverability,
-  teammate invites) and locked the nav for `/admin/billing` and
-  `/admin/invites`. Two surfaces deliberately left open for now:
-
+(logged 2026-04-29; partial progress — `/admin/applications/page.tsx`
+now surfaces the copy `"Approval is admin only"`, but the underlying
+member-vs-admin RLS pass and the `/admin/creators` action gating
+haven't landed). The integration test pass on `cursor/pr-c-test-integration`
+caught a class of bugs where pages render full editable UI to org
+members, then fail server-side on submit. Fixed in this branch for
+`/admin/settings` (org details, admin team, discoverability,
+teammate invites) and locked the nav for `/admin/billing` and
+`/admin/invites`. Two surfaces deliberately left open for now:
   - `/admin/applications` — approving/rejecting creator applications
-    is admin-only behavior. Likely needs the same treatment: lock from
-    nav for members, server-redirect on direct URL, or render the inbox
-    read-only for members. Confirm RLS gates the approve/reject RPC
-    before deciding if read-only is acceptable.
+  is admin-only behavior. Likely needs the same treatment: lock from
+  nav for members, server-redirect on direct URL, or render the inbox
+  read-only for members. Confirm RLS gates the approve/reject RPC
+  before deciding if read-only is acceptable.
   - `/admin/creators` — viewing the roster is fine for members; the
-    promote/demote and "remove from org" actions inside are admin-only.
-    Sub-action gating (hide buttons for members) is probably the right
-    move rather than locking the whole page.
-
+  promote/demote and "remove from org" actions inside are admin-only.
+  Sub-action gating (hide buttons for members) is probably the right
+  move rather than locking the whole page.
   When picking this up, also do the broader **RLS pass for member
   permissions** that's been deferred since PR-A: most write policies
   in `0017_org_scoped_rls.sql` and onward gate on `is_org_admin()`,
   meaning members can open admin pages but most mutations error out.
   The intended split (Admin = full; Member = day-to-day brief/claim
   ops, no team/billing/discoverability) needs RLS reflecting it.
-
 - ➕ ❌ **Rename `src/middleware.ts` → `src/proxy.ts` for Next 15**
-  (logged 2026-04-29 in this audit; `src/middleware.ts` still exists,
-  no `src/proxy.ts`). The build emits
-  `⚠ The "middleware" file convention is deprecated. Please use
-  "proxy" instead.` Functionality is unchanged in Next 15 but the
-  rename is required before whatever Next major drops the alias.
-  Trivial PR — rename file, no API changes. Documented at
-  https://nextjs.org/docs/messages/middleware-to-proxy.
-
+(logged 2026-04-29 in this audit; `src/middleware.ts` still exists,
+no `src/proxy.ts`). The build emits
+`⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` Functionality is unchanged in Next 15 but the
+rename is required before whatever Next major drops the alias.
+Trivial PR — rename file, no API changes. Documented at
+[https://nextjs.org/docs/messages/middleware-to-proxy](https://nextjs.org/docs/messages/middleware-to-proxy).
 - ❌ **Friendlier signup error for Supabase rate limits** (logged
-  2026-04-29; audit confirms no error-mapping logic in
-  `src/app/login/login-form.tsx`). The signup form surfaces raw Supabase strings like
-  `email rate limit exceeded`. Map known error codes to human copy
-  in `LoginForm` (e.g. *"Too many signup attempts. Try again in an
-  hour."*). Easy ~10-min PR.
-
+2026-04-29; audit confirms no error-mapping logic in
+`src/app/login/login-form.tsx`). The signup form surfaces raw Supabase strings like
+`email rate limit exceeded`. Map known error codes to human copy
+in `LoginForm` (e.g. *"Too many signup attempts. Try again in an
+hour."*). Easy ~10-min PR.
 - ❌ **Show redeemed teammate invites in `/admin/settings`** (logged
-  2026-04-29; audit confirms `.is("used_by", null)` filter still in
-  `src/app/admin/settings/page.tsx:113` — redeemed invites still
-  hidden). The active-invites table only renders rows where
-  `used_by IS NULL`. Once redeemed, the row disappears entirely.
-  That's intentional (active = actionable) but admins lose visibility
-  into "who joined via which code". Add a collapsible "Redeemed"
-  section underneath the active list, or push it into a small audit
-  log surface. Quick win.
-
+2026-04-29; audit confirms `.is("used_by", null)` filter still in
+`src/app/admin/settings/page.tsx:113` — redeemed invites still
+hidden). The active-invites table only renders rows where
+`used_by IS NULL`. Once redeemed, the row disappears entirely.
+That's intentional (active = actionable) but admins lose visibility
+into "who joined via which code". Add a collapsible "Redeemed"
+section underneath the active list, or push it into a small audit
+log surface. Quick win.
 - 🟡 **Signup tile visual polish + deep-link entry** (logged
-  2026-04-29; deep links *are* wired — `signup-creator` and
-  `signup-invite` modes recognised in `LoginForm`. Visual polish and
-  `?code=…` pre-fill still pending.) The `As a creator` / `With
-  invite code` tiles in `LoginForm` are functional but visually thin. Worth doing as a small PR-D ticket:
+2026-04-29; deep links *are* wired — `signup-creator` and
+`signup-invite` modes recognised in `LoginForm`. Visual polish and
+`?code=…` pre-fill still pending.) The `As a creator` / `With
+invite code` tiles in `LoginForm` are functional but visually thin. Worth doing as a small PR-D ticket:
   - Stronger tile treatment with a small illustration or icon per
-    path, a one-line value prop, and a path-specific accent (creator
-    = lime, invite = a cooler/org-flavoured tone).
+  path, a one-line value prop, and a path-specific accent (creator
+  = lime, invite = a cooler/org-flavoured tone).
   - Hero title + subtitle change to match the selected path
-    ("Find paid briefs you love" vs "Join your team's workspace").
+  ("Find paid briefs you love" vs "Join your team's workspace").
   - Marketing-friendly deep links: `/login?mode=signup-creator` and
-    `/login?mode=signup-invite` already work via search params; make
-    sure email templates and any future landing pages use them.
+  `/login?mode=signup-invite` already work via search params; make
+  sure email templates and any future landing pages use them.
   - Auto-select the invite path and pre-fill the code field when the
-    URL carries `?code=ABCD-EFGH` so an invite email is one click
-    from a filled form.
-
+  URL carries `?code=ABCD-EFGH` so an invite email is one click
+  from a filled form.
   If a paid-org sales motion later wants its own landing page with
   trust signals and a "Book a demo" alt-CTA, that's a separate
   marketing surface (e.g. `/business`) that deep-links into
@@ -700,45 +681,47 @@ public-facing branding.** Logged in the 2026-04-29 audit when the
 project owner confirmed no domain has been registered yet.
 
 Without a domain:
+
 - Resend can only send via `onboarding@resend.dev` to the Resend
-  account owner's email — useless for real user notifications
+account owner's email — useless for real user notifications
 - Production app lives at a default platform URL
-  (`*.vercel.app` / `*.workers.dev`) which is fine for staging
-  but not for trust signals, OG images, marketing
+(`*.vercel.app` / `*.workers.dev`) which is fine for staging
+but not for trust signals, OG images, marketing
 - Stripe receipts/emails reference whatever sender you've set —
-  `notifications@example.com` is currently the placeholder
+`notifications@example.com` is currently the placeholder
 - Email links back to the app reference `NEXT_PUBLIC_APP_URL` —
-  currently a default
+currently a default
 
 Steps in order:
 
-- [ ] **Pick + register domain.** Dual-purpose suggestion: short
-  brand domain (e.g. `briefly.app`, `briefly.io`, `getbriefly.com`)
-  works for both web + email. Cheap registrars: Namecheap, Porkbun,
-  Cloudflare Registrar (sells at cost).
-- [ ] **Add domain in Resend** at
-  https://resend.com/domains. Resend prints the DNS records you
-  need (SPF TXT, DKIM CNAMEs, optionally DMARC). Add them at the
-  registrar; Resend verifies in minutes-to-hours.
-- [ ] **Pick a sender address** on the verified domain
-  (`notifications@`, `hello@`, `team@` — convention varies; pick
-  one and stick with it).
-- [ ] **Update `.env.local`** with the new
-  `PLATFORM_SENDER_EMAIL` and `NEXT_PUBLIC_APP_URL`.
-- [ ] **Update Supabase secrets** (see §3 commands above).
-- [ ] **Update production env vars** in the deploy target
-  (Cloudflare/Vercel) for the same two vars.
-- [ ] **Point the domain at the deploy target.** Apex `A`/`AAAA` or
-  `CNAME` per the host's docs. Cloudflare Workers and Vercel both
-  give you a one-click custom-domain attach + auto-SSL.
-- [ ] **Then unblock §3**: set `RESEND_API_KEY`, configure the two
-  webhooks, schedule the outbox cron.
-- [ ] **Update `/legal/*` pages** if the platform name or contact
-  details change as part of this work (Section 5).
+- **Pick + register domain.** Dual-purpose suggestion: short
+brand domain (e.g. `briefly.app`, `briefly.io`, `getbriefly.com`)
+works for both web + email. Cheap registrars: Namecheap, Porkbun,
+Cloudflare Registrar (sells at cost).
+- **Add domain in Resend** at
+[https://resend.com/domains](https://resend.com/domains). Resend prints the DNS records you
+need (SPF TXT, DKIM CNAMEs, optionally DMARC). Add them at the
+registrar; Resend verifies in minutes-to-hours.
+- **Pick a sender address** on the verified domain
+(`notifications@`, `hello@`, `team@` — convention varies; pick
+one and stick with it).
+- **Update `.env.local`** with the new
+`PLATFORM_SENDER_EMAIL` and `NEXT_PUBLIC_APP_URL`.
+- **Update Supabase secrets** (see §3 commands above).
+- **Update production env vars** in the deploy target
+(Cloudflare/Vercel) for the same two vars.
+- **Point the domain at the deploy target.** Apex `A`/`AAAA` or
+`CNAME` per the host's docs. Cloudflare Workers and Vercel both
+give you a one-click custom-domain attach + auto-SSL.
+- **Then unblock §3**: set `RESEND_API_KEY`, configure the two
+webhooks, schedule the outbox cron.
+- **Update `/legal/*` pages** if the platform name or contact
+details change as part of this work (Section 5).
 
 Optional but good-practice once domain lands:
+
 - DMARC record (`_dmarc.<domain>`) starting at `p=none` for
-  visibility, tightening to `p=quarantine` later
+visibility, tightening to `p=quarantine` later
 - BIMI record (logo in inbox) — needs a VMC, mostly nice-to-have
 
 ---
@@ -756,21 +739,23 @@ without Storage, etc.). Items within a phase can be parallelised.
 
 ### Status snapshot (2026-04-30)
 
-| Phase | Status | Notes |
-|---|---|---|
-| 0.1 Storage | ✅ | submissions bucket live |
-| 0.2 Submission UI | ✅ | direct browser → Storage upload, signed URLs |
-| 0.3 Review/approve | 🟡 | Approve+Reject shipped; Request-revision deferred to 4.1 |
-| 0.4 Pay action | 🟡 | shipped pre-session; end-to-end Stripe transfer untested this session |
-| 0.5 Application decisions | ✅ | already shipped before audit |
-| 0.6 Multi-org creator UI | ✅ | org switcher + scoped queries + notification org name |
-| 1.1 Escrow & money flow | ✅ | all six sub-phases (a–f) verified |
-| 1.2 EU VAT & self-billing | ❌ | **next big piece** — multi-session, regulatory must-have |
-| 1.3 Creator earnings dashboard | ✅ | /profile/earnings + CSV export live |
-| 2.x Self-serve & open marketplace | ❌ | gated on 1.2 per sequencing |
-| 3.x Org leverage (brand kit, campaigns, audit log) | ❌ | parallel-safe once 1.x done |
-| 4.x Quality of work (revisions, messaging, ratings, profiles) | ❌ | |
-| 5.x Scale polish (mobile, notification granularity, search) | ❌ | |
+
+| Phase                                                         | Status | Notes                                                                 |
+| ------------------------------------------------------------- | ------ | --------------------------------------------------------------------- |
+| 0.1 Storage                                                   | ✅      | submissions bucket live                                               |
+| 0.2 Submission UI                                             | ✅      | direct browser → Storage upload, signed URLs                          |
+| 0.3 Review/approve                                            | 🟡     | Approve+Reject shipped; Request-revision deferred to 4.1              |
+| 0.4 Pay action                                                | 🟡     | shipped pre-session; end-to-end Stripe transfer untested this session |
+| 0.5 Application decisions                                     | ✅      | already shipped before audit                                          |
+| 0.6 Multi-org creator UI                                      | ✅      | org switcher + scoped queries + notification org name                 |
+| 1.1 Escrow & money flow                                       | ✅      | all six sub-phases (a–f) verified                                     |
+| 1.2 EU VAT & self-billing                                     | ❌      | **next big piece** — multi-session, regulatory must-have              |
+| 1.3 Creator earnings dashboard                                | ✅      | /profile/earnings + CSV export live                                   |
+| 2.x Self-serve & open marketplace                             | ❌      | gated on 1.2 per sequencing                                           |
+| 3.x Org leverage (brand kit, campaigns, audit log)            | ❌      | parallel-safe once 1.x done                                           |
+| 4.x Quality of work (revisions, messaging, ratings, profiles) | ❌      |                                                                       |
+| 5.x Scale polish (mobile, notification granularity, search)   | ❌      |                                                                       |
+
 
 ### Phase 0 — Close the loop & multi-org
 
@@ -788,16 +773,16 @@ Has to land first because 0.2 depends on it.
 
 - ✅ Created `submissions` bucket (private — `public=false`)
 - ✅ Access model: NO user-facing RLS policies on `storage.objects`
-  for this bucket. Server actions (Phase 0.2) hold the service-role
-  client and enforce permission before each read/write. Mirrors the
-  org-logos pattern from migration 0031. Path convention enforced in
-  the server action: `submissions/{user_id}/{claim_id}/{filename}`.
+for this bucket. Server actions (Phase 0.2) hold the service-role
+client and enforce permission before each read/write. Mirrors the
+org-logos pattern from migration 0031. Path convention enforced in
+the server action: `submissions/{user_id}/{claim_id}/{filename}`.
 - ✅ File size cap: 250 MB
 - ✅ Allowed MIME types: `video/mp4`, `video/quicktime`,
-  `video/webm`, `image/png`, `image/jpeg`, `image/webp`,
-  `image/heic`, `image/heif`, `application/pdf`
+`video/webm`, `image/png`, `image/jpeg`, `image/webp`,
+`image/heic`, `image/heif`, `application/pdf`
 - ⏭️ Signed URLs for download (short TTL ~15 min) — wired in 0.2
-  server action, not in this migration
+server action, not in this migration
 
 Open question (still deferred): CDN/transcode layer (Mux, Cloudflare
 Stream) for video previews vs. raw originals. Mux is the right answer
@@ -822,25 +807,25 @@ replaced with a two-step flow that uploads directly browser →
 Storage. See "Why two steps" below.
 
 - ✅ Migration `0036_claim_attachments.sql`: new `claim_attachments`
-  table (`id`, `claim_id` FK CASCADE, `storage_path` UNIQUE,
-  `filename`, `mime_type`, `file_size`, `created_at`). RLS allows
-  SELECT for the claim's creator and any active org member of the
-  claim's org. No INSERT/UPDATE/DELETE policies — those go through
-  the server action with the service-role client, mirroring the
-  org-logos pattern.
+table (`id`, `claim_id` FK CASCADE, `storage_path` UNIQUE,
+`filename`, `mime_type`, `file_size`, `created_at`). RLS allows
+SELECT for the claim's creator and any active org member of the
+claim's org. No INSERT/UPDATE/DELETE policies — those go through
+the server action with the service-role client, mirroring the
+org-logos pattern.
 - ✅ Server actions at `src/app/briefs/[id]/actions.ts`:
   - `prepareSubmissionUploads(claimId, files[])` — validates
-    ownership + active state + per-file MIME/size; returns one
-    signed upload URL per file (Supabase
-    `createSignedUploadUrl`). All paths namespaced
-    `{user_id}/{claim_id}/…`.
+  ownership + active state + per-file MIME/size; returns one
+  signed upload URL per file (Supabase
+  `createSignedUploadUrl`). All paths namespaced
+  `{user_id}/{claim_id}/…`.
   - `confirmSubmission(claimId, url, notes, attachments[])` — re-
-    validates state + each attachment's path prefix, inserts
-    attachment rows, flips claim to `submitted`. Existing Postgres
-    trigger (migration 0018) fires `claim_submitted` notification
-    automatically.
+  validates state + each attachment's path prefix, inserts
+  attachment rows, flips claim to `submitted`. Existing Postgres
+  trigger (migration 0018) fires `claim_submitted` notification
+  automatically.
 - ✅ Types regenerated, helper aliases re-appended, build clean
-  (`ClaimAttachment` added to the helper-alias block).
+(`ClaimAttachment` added to the helper-alias block).
 
 **Why two steps:** the original single-action flow took files inside
 FormData and uploaded them server-side. Hit the Next 15 default 1 MB
@@ -875,40 +860,40 @@ the admin review UI in Phase 0.3 (both need the same signed-URL
 infrastructure).
 
 - ✅ Refactored `ClaimedState` in
-  `src/app/briefs/[id]/brief-detail-client.tsx` — `handleSubmit` now
-  runs the two-step flow:
+`src/app/briefs/[id]/brief-detail-client.tsx` — `handleSubmit` now
+runs the two-step flow:
   1. Calls `prepareSubmissionUploads()` with file metadata
   2. Uploads each file in parallel via
-     `supabase.storage.uploadToSignedUrl()` directly from the browser
+    `supabase.storage.uploadToSignedUrl()` directly from the browser
   3. Calls `confirmSubmission()` with the URL, notes, and attachment
-     records to finalize
+    records to finalize
   Cancel flow untouched.
 - ✅ Inline form now has a multi-file picker (drag-and-drop via
-  `<input type="file" multiple>`, MIME-restricted via the same
-  allowlist as the server action), client-side size + count
-  validation for fast feedback, removable file chips with byte sizes.
-  URL field is no longer `required` — `confirmSubmission` enforces
-  "URL OR files".
+`<input type="file" multiple>`, MIME-restricted via the same
+allowlist as the server action), client-side size + count
+validation for fast feedback, removable file chips with byte sizes.
+URL field is no longer `required` — `confirmSubmission` enforces
+"URL OR files".
 - ⏭️ /my-briefs already routes claim cards to `/briefs/[id]` — no
-  separate "Submit work" CTA needed. The brief detail page is the
-  canonical surface.
+separate "Submit work" CTA needed. The brief detail page is the
+canonical surface.
 - ✅ Showing submitted assets back to the creator (shipped 2026-04-30
-  alongside Phase 0.6 wrap-up). The "Under review / Approved /
-  Completed" sidebar on `/briefs/[id]` now has a "View your
-  submission" button that opens a `MySubmissionModal`. The modal
-  fetches signed URLs via `getClaimAttachmentSignedUrls` (the same
-  action used by the admin review modal in 0.3), and renders
-  attachments with the same image / video / download pattern.
-  Reachable from `/my-briefs` via the existing card → brief detail
-  click-through.
+alongside Phase 0.6 wrap-up). The "Under review / Approved /
+Completed" sidebar on `/briefs/[id]` now has a "View your
+submission" button that opens a `MySubmissionModal`. The modal
+fetches signed URLs via `getClaimAttachmentSignedUrls` (the same
+action used by the admin review modal in 0.3), and renders
+attachments with the same image / video / download pattern.
+Reachable from `/my-briefs` via the existing card → brief detail
+click-through.
 - ⏭️ Per-file upload progress indicator → not implemented (the
-  browser shows the request progress at the network layer; explicit
-  in-UI progress bars per file would need wrapping
-  `uploadToSignedUrl` with XHR. Defer until creators report bad
-  feel on big uploads).
+browser shows the request progress at the network layer; explicit
+in-UI progress bars per file would need wrapping
+`uploadToSignedUrl` with XHR. Defer until creators report bad
+feel on big uploads).
 - ⏭️ Cleanup job for orphaned Storage objects (browser closed
-  between prepare and confirm) — see 0.2a "Tradeoff captured."
-  Defer.
+between prepare and confirm) — see 0.2a "Tradeoff captured."
+Defer.
 
 #### 0.3 Review/approve UI 🟡
 
@@ -916,25 +901,25 @@ Most of the original spec shipped 2026-04-30; a couple of items
 deferred (noted below).
 
 - ✅ "Review" button on every `/admin/claims` row with status
-  `submitted` (no longer URL-gated). Opens `SubmissionModal` in
-  `src/app/admin/claims/claim-actions.tsx`.
+`submitted` (no longer URL-gated). Opens `SubmissionModal` in
+`src/app/admin/claims/claim-actions.tsx`.
 - ✅ Modal shows creator info, submission URL (if any), notes, and
-  Files section with per-attachment cards. Inline preview: `<img>`
-  for image/*, `<video controls>` for video/*, mime-type fallback
-  with Download link for everything else.
+Files section with per-attachment cards. Inline preview: `<img>`
+for image/*, `<video controls>` for video/*, mime-type fallback
+with Download link for everything else.
 - ✅ Approve / Reject actions inline with confirm dialogs;
-  approve fires `claim_approved` notification via the existing
-  Postgres trigger (migration 0018).
+approve fires `claim_approved` notification via the existing
+Postgres trigger (migration 0018).
 - ⚠️ "Request revision" deferred to Phase 4.1 — needs the proper
-  revision history schema (`claim_revisions` table) rather than a
-  bolted-on feedback field.
+revision history schema (`claim_revisions` table) rather than a
+bolted-on feedback field.
 - ⚠️ Required-reason on reject — not enforced. Easy follow-up if
-  it surfaces as a real ops gap. Pair with the same on application
-  reject in 0.5.
+it surfaces as a real ops gap. Pair with the same on application
+reject in 0.5.
 - ⚠️ "Same surface accessible from `/admin/briefs/[id]` Pending
-  Review sidebar" — NOT done. Today admins reach the review modal
-  from `/admin/claims` only. Brief-detail-side review would
-  duplicate the modal mount; defer until someone asks.
+Review sidebar" — NOT done. Today admins reach the review modal
+from `/admin/claims` only. Brief-detail-side review would
+duplicate the modal mount; defer until someone asks.
 
 #### 0.4 Pay action 🟡
 
@@ -944,22 +929,22 @@ on transfer completion). Phase 1.1d extended it to decrement brief
 escrow on each successful payout.
 
 - ✅ "Pay" button on approved claim rows with the
-  no-payouts-account / no-billing-details / no-self-billing-consent
-  guards.
+no-payouts-account / no-billing-details / no-self-billing-consent
+guards.
 - ✅ Confirm dialog shows amount + creator email + warning copy.
 - ✅ Server action: payments row, Stripe transfer, invoice
-  generation, claim → `paid`, brief escrow decrement (1.1d), all in
-  one shot.
+generation, claim → `paid`, brief escrow decrement (1.1d), all in
+one shot.
 - ✅ Webhook handler updates payments status on transfer events.
 - ⏭️ "Bulk action: Pay all approved" — not built. Defer until
-  there's volume to justify it.
+there's volume to justify it.
 - ⏭️ "Approve + Pay collapse for prefunded briefs" — single-click
-  approve-and-pay was an open question. Worth revisiting after a
-  few cycles in production. For now the two-click approve → pay
-  preserves the natural review beat.
+approve-and-pay was an open question. Worth revisiting after a
+few cycles in production. For now the two-click approve → pay
+preserves the natural review beat.
 - 🟡 End-to-end pay (with a real Stripe transfer) untested this
-  session — gated on the sandbox `Incoming → Available`
-  settlement timer. Code path verified via 1.1d.
+session — gated on the sandbox `Incoming → Available`
+settlement timer. Code path verified via 1.1d.
 
 #### 0.5 Application decision UI ✅
 
@@ -967,29 +952,30 @@ Verified 2026-04-30 — already shipped. The TODO description above
 was based on a stale audit snapshot.
 
 - ✅ Approve / Reject buttons in
-  `src/app/admin/applications/application-list.tsx` (`ApplicationRow`,
-  lines 142–156)
+`src/app/admin/applications/application-list.tsx` (`ApplicationRow`,
+lines 142–156)
 - ✅ `reviewApplication(id, decision)` server action in
-  `src/app/admin/applications/actions.ts`. Approve calls the
-  `approve_application` RPC from migration 0022 (creates the
-  membership + fires the notification via the 0024 trigger). Reject
-  writes `status=rejected` + `reviewed_by` + `reviewed_at` (the
-  trigger fires `application_rejected` automatically).
+`src/app/admin/applications/actions.ts`. Approve calls the
+`approve_application` RPC from migration 0022 (creates the
+membership + fires the notification via the 0024 trigger). Reject
+writes `status=rejected` + `reviewed_by` + `reviewed_at` (the
+trigger fires `application_rejected` automatically).
 - ✅ Pending / Reviewed split (sections, not tabs — fine for the
-  current volume).
+current volume).
 - ✅ Empty state with a hint to enable org discoverability.
 - ✅ Member-vs-admin gating: members see a "Pending review" badge
-  instead of the action buttons. `requireOrgAdmin()` enforces it
-  server-side too.
+instead of the action buttons. `requireOrgAdmin()` enforces it
+server-side too.
 - ✅ Plan-limit errors surface with an upgrade prompt linking to
-  `/admin/billing` (uses the `PLAN_LIMIT_EXCEEDED:` prefix from the
-  triggers in migration 0029).
+`/admin/billing` (uses the `PLAN_LIMIT_EXCEEDED:` prefix from the
+triggers in migration 0029).
 
 Optional follow-ups (not blockers):
+
 - ⏭️ Required reason on rejection (would need a small reason modal —
-  pair with the same on claim rejection in 0.3).
+pair with the same on claim rejection in 0.3).
 - ⏭️ Tabs at the top with counts (Pending | Approved | Rejected),
-  matching the `/admin/claims` filter style.
+matching the `/admin/claims` filter style.
 
 #### 0.6 Multi-org creator UI ✅
 
@@ -997,36 +983,36 @@ Verified 2026-04-30 — most of this was already in place; only the
 notification org context needed adding.
 
 - ✅ Org switcher in creator nav: `<OrgSwitcher>` already renders for
-  any non-org logged-in user (`src/components/nav.tsx:148`). The
-  component itself hides when there's ≤1 active membership.
-  `switchOrg` server action is generic and used for both audiences.
+any non-org logged-in user (`src/components/nav.tsx:148`). The
+component itself hides when there's ≤1 active membership.
+`switchOrg` server action is generic and used for both audiences.
 - ✅ `/briefs` and `/my-briefs` queries scoped by `active_org_id` via
-  `requireActiveOrg(supabase)` — same mechanism the admin shell uses.
+`requireActiveOrg(supabase)` — same mechanism the admin shell uses.
 - ✅ `/profile/applications` is the canonical "manage my org
-  relationships" surface (already multi-org aware).
+relationships" surface (already multi-org aware).
 - ✅ Sign-in redirect prefers last-active implicitly: `switchOrg`
-  writes `profiles.active_org_id`, which is sticky across sessions.
-  New creators with no `active_org_id` fall through to first
-  membership — acceptable, rare edge case.
+writes `profiles.active_org_id`, which is sticky across sessions.
+New creators with no `active_org_id` fall through to first
+membership — acceptable, rare edge case.
 - ✅ Notification cards now show org name (added 2026-04-30): the
-  notifications query in `nav.tsx` joins `organizations(name,
-  logo_url)`, and the meta line in `NotificationCenter` renders the
-  org name after the timestamp ("just now · Acme Corp"). Costs
-  almost nothing visually for single-org creators / org admins;
-  unblocks multi-org creators who'd otherwise see ambiguous
-  notifications.
+notifications query in `nav.tsx` joins `organizations(name, logo_url)`, and the meta line in `NotificationCenter` renders the
+org name after the timestamp ("just now · Acme Corp"). Costs
+almost nothing visually for single-org creators / org admins;
+unblocks multi-org creators who'd otherwise see ambiguous
+notifications.
 
 What we're explicitly NOT doing: separate inboxes per org. One
 unified `/my-briefs`, filterable by org via the switcher. Fewer
 surfaces.
 
 Optional follow-ups (not blockers):
+
 - ⏭️ Org logo in notification cards (data is fetched, just not
-  rendered yet — small avatar would be nice once we settle on a UI
-  for it).
+rendered yet — small avatar would be nice once we settle on a UI
+for it).
 - ⏭️ /my-briefs claim card org badge — only useful if we ever add an
-  "all orgs" view to /my-briefs, which contradicts the switcher
-  model. Defer indefinitely.
+"all orgs" view to /my-briefs, which contradicts the switcher
+model. Defer indefinitely.
 
 ---
 
@@ -1053,16 +1039,16 @@ Existing briefs land as `unfunded` with NULL escrow columns; current
 pay flow keeps working unchanged.
 
 - ✅ Enum `brief_funded_status` (`unfunded` | `funded` |
-  `partially_released` | `released` | `refunded`).
+`partially_released` | `released` | `refunded`).
 - ✅ `briefs.funded_status` (default `unfunded`),
-  `briefs.stripe_payment_intent_id`, `briefs.escrow_amount_dkk`
-  (gross commitment at publish), `briefs.escrow_held_dkk` (running
-  balance).
+`briefs.stripe_payment_intent_id`, `briefs.escrow_amount_dkk`
+(gross commitment at publish), `briefs.escrow_held_dkk` (running
+balance).
 - ✅ CHECK constraints: amount > 0, held in [0, amount], both NULL
-  or both non-NULL.
+or both non-NULL.
 - ✅ Partial index on `funded_status` for active states only.
 - ✅ `organizations.stripe_customer_id` (UNIQUE) +
-  `organizations.default_payment_method_id`.
+`organizations.default_payment_method_id`.
 - ✅ Types regenerated with `BriefFundedStatus` helper alias.
 
 ##### 1.1b — Org payment-method capture ✅
@@ -1077,31 +1063,31 @@ pattern. No new client-side Stripe deps; same redirect flow as the
 existing upgrade button.
 
 - ✅ `src/lib/stripe/customer.ts` — new
-  `getOrCreateOrgStripeCustomer(adminDb, orgId, ctx)` helper.
-  Single source of truth: reads `organizations.stripe_customer_id`
-  first, falls back to legacy `org_subscriptions.stripe_customer_id`
-  (auto-backfilled to `organizations` on legacy hit), creates a new
-  Stripe Customer if neither exists.
+`getOrCreateOrgStripeCustomer(adminDb, orgId, ctx)` helper.
+Single source of truth: reads `organizations.stripe_customer_id`
+first, falls back to legacy `org_subscriptions.stripe_customer_id`
+(auto-backfilled to `organizations` on legacy hit), creates a new
+Stripe Customer if neither exists.
 - ✅ Refactored `createCheckoutSession` (existing subscription flow)
-  to use the new helper. Removes the inline customer-create block.
+to use the new helper. Removes the inline customer-create block.
 - ✅ New server action `createPaymentMethodSetupSession` — opens a
-  Stripe Checkout session in setup mode, returns the URL.
+Stripe Checkout session in setup mode, returns the URL.
 - ✅ New server action `syncPaymentMethodFromSession(sessionId)` —
-  called from page on setup return, validates the session belongs to
-  the caller's org, sets the card as the customer's
-  `invoice_settings.default_payment_method`, persists the `pm_…` to
-  `organizations.default_payment_method_id`. Idempotent.
+called from page on setup return, validates the session belongs to
+the caller's org, sets the card as the customer's
+`invoice_settings.default_payment_method`, persists the `pm_…` to
+`organizations.default_payment_method_id`. Idempotent.
 - ✅ New server action `getOrgPaymentMethodSummary` — returns brand /
-  last4 / expiry from Stripe for the org's default payment method
-  (or null if none / detached).
+last4 / expiry from Stripe for the org's default payment method
+(or null if none / detached).
 - ✅ `/admin/billing/page.tsx` — new "Payment method for brief
-  escrow" section between Current Plan and Available Plans. Banners
-  for `?setup=success` / `?setup=cancelled`. Auto-syncs on
-  `?setup=success&session_id=…`.
+escrow" section between Current Plan and Available Plans. Banners
+for `?setup=success` / `?setup=cancelled`. Auto-syncs on
+`?setup=success&session_id=…`.
 - ✅ `payment-method-button.tsx` — small client component that calls
-  `createPaymentMethodSetupSession` and navigates to Stripe.
+`createPaymentMethodSetupSession` and navigates to Stripe.
 - ⚠️ Browser-test pending. Build clean; Stripe test card flow not
-  yet exercised by the engineer.
+yet exercised by the engineer.
 
 ##### 1.1c — Charge on brief publish ✅
 
@@ -1111,50 +1097,51 @@ worked, brief landed with funded_status=funded and matching
 escrow_amount_dkk).
 
 - ✅ New server action `createBriefWithEscrow` at
-  `src/app/admin/briefs/actions.ts`. Charge-then-insert ordering:
-  if Stripe fails, brief is never created. If insert fails after a
-  successful charge, the action issues a best-effort refund to
-  avoid orphan PaymentIntents.
+`src/app/admin/briefs/actions.ts`. Charge-then-insert ordering:
+if Stripe fails, brief is never created. If insert fails after a
+successful charge, the action issues a best-effort refund to
+avoid orphan PaymentIntents.
 - ✅ PaymentIntent uses `off_session=true confirm=true` against the
-  org's saved `default_payment_method_id`. Blocks browser redirects
-  via `automatic_payment_methods.allow_redirects: "never"` — SCA
-  failures surface as a clean error rather than redirecting away
-  from the brief form.
+org's saved `default_payment_method_id`. Blocks browser redirects
+via `automatic_payment_methods.allow_redirects: "never"` — SCA
+failures surface as a clean error rather than redirecting away
+from the brief form.
 - ✅ Friendly Stripe error mapping: insufficient_funds, card_declined,
-  expired_card, authentication_required → human copy with
-  `/admin/billing` pointer.
+expired_card, authentication_required → human copy with
+`/admin/billing` pointer.
 - ✅ Free briefs (`price_dkk === 0`) skip the charge entirely and
-  land as `unfunded`. Useful for community / non-monetary briefs.
+land as `unfunded`. Useful for community / non-monetary briefs.
 - ✅ BriefForm:
   - Upfront escrow panel before the action row, only on paid
-    create flow. Format: `500 DKK × 2 slots = 1.000 DKK`.
+  create flow. Format: `500 DKK × 2 slots = 1.000 DKK`.
   - Submit button copy changes to `Publish & charge 1.000 DKK` for
-    paid create; stays `Create Brief` for free briefs and
-    `Save Changes` on edit.
+  paid create; stays `Create Brief` for free briefs and
+  `Save Changes` on edit.
   - "No payment method on file" warning + disabled submit when org
-    is missing `default_payment_method_id`.
+  is missing `default_payment_method_id`.
 - ✅ /admin/briefs/new fetches org's `default_payment_method_id`
-  server-side and passes `hasPaymentMethod` prop down.
+server-side and passes `hasPaymentMethod` prop down.
 - 🟡 Edit flow intentionally untouched — no escrow re-charge on
-  edits. Refunds-on-price-change is out of scope; if a brief needs a
-  different escrow, archive and republish.
+edits. Refunds-on-price-change is out of scope; if a brief needs a
+different escrow, archive and republish.
 - ✅ Edit lock for escrow-affecting fields (added 2026-04-30 after
-  testing surfaced the gap): `price_dkk` and `claim_limit` inputs
-  are disabled in the form when editing a brief whose
-  `funded_status` is anything other than `unfunded`. The edit
-  payload also strips those keys client-side as a defensive backstop
-  — disabled attr is a UX hint, not a security boundary. Without
-  this, an admin could bump price after publish and `payClaim` would
-  transfer more than escrow holds.
+testing surfaced the gap): `price_dkk` and `claim_limit` inputs
+are disabled in the form when editing a brief whose
+`funded_status` is anything other than `unfunded`. The edit
+payload also strips those keys client-side as a defensive backstop
+— disabled attr is a UX hint, not a security boundary. Without
+this, an admin could bump price after publish and `payClaim` would
+transfer more than escrow holds.
 
 Known dev-only quirk:
+
 - The submit handler has no extra spinner / "redirecting…" state
-  between the action returning success and `router.push("/admin/briefs")`
-  completing the navigation. In dev, Turbopack compiles the briefs
-  list cold on first navigate and the button stays "Charging…" for a
-  few seconds. Reload after the hang shows the brief was created
-  correctly. Likely a non-issue in prod (compiled bundle); revisit
-  if it surfaces there.
+between the action returning success and `router.push("/admin/briefs")`
+completing the navigation. In dev, Turbopack compiles the briefs
+list cold on first navigate and the button stays "Charging…" for a
+few seconds. Reload after the hang shows the brief was created
+correctly. Likely a non-issue in prod (compiled bundle); revisit
+if it surfaces there.
 
 ##### 1.1d — Refactor `payClaim` to draw from escrow ✅
 
@@ -1163,33 +1150,35 @@ end is gated on the sandbox `Incoming → Available` settlement timing
 (separate Stripe-side wait, not a code concern).
 
 - ✅ pay-action.ts loads `funded_status`, `escrow_amount_dkk`,
-  `escrow_held_dkk` along with the existing brief join.
+`escrow_held_dkk` along with the existing brief join.
 - ✅ Pre-transfer guards: if brief is escrowed (funded_status !=
-  unfunded) and held < slot's gross, returns a "corrupted state"
-  error rather than silently transferring more than escrow holds.
-  If status is anything other than funded / partially_released
-  (e.g. already released or refunded), blocks with a clear message.
+unfunded) and held < slot's gross, returns a "corrupted state"
+error rather than silently transferring more than escrow holds.
+If status is anything other than funded / partially_released
+(e.g. already released or refunded), blocks with a clear message.
 - ✅ Post-transfer accounting: decrements `escrow_held_dkk` by
-  `slot_gross_dkk` (the brief's price_dkk, before fee + VAT split)
-  and flips `funded_status` to `released` (held becomes 0) or
-  `partially_released` (some slots remain).
+`slot_gross_dkk` (the brief's price_dkk, before fee + VAT split)
+and flips `funded_status` to `released` (held becomes 0) or
+`partially_released` (some slots remain).
 - ✅ Legacy briefs (`funded_status = unfunded`, no escrow rows): the
-  guard short-circuits and the existing transfer-from-platform-
-  balance flow runs unchanged. Backwards compatible with any briefs
-  created before 1.1c.
+guard short-circuits and the existing transfer-from-platform-
+balance flow runs unchanged. Backwards compatible with any briefs
+created before 1.1c.
 - 🟡 Atomicity: the brief escrow update + claim status update +
-  payment status update are sequential, not transactional. A
-  Postgres-side failure between the steps would leave inconsistent
-  state. Accepted risk for v1; the ops impact is bounded since
-  transfer already completed and a manual fix is straightforward
-  via SQL. A future RPC could collapse the three writes into one
-  transaction.
+payment status update are sequential, not transactional. A
+Postgres-side failure between the steps would leave inconsistent
+state. Accepted risk for v1; the ops impact is bounded since
+transfer already completed and a manual fix is straightforward
+via SQL. A future RPC could collapse the three writes into one
+transaction.
 
 Verify after a full pay:
+
 ```sql
 SELECT funded_status, escrow_amount_dkk, escrow_held_dkk
 FROM briefs ORDER BY created_at DESC LIMIT 1;
 ```
+
 Single-slot brief after pay → `released`, held = 0. Multi-slot
 brief with one slot paid → `partially_released`, held = amount -
 gross.
@@ -1201,33 +1190,33 @@ Shipped + verified in dev 2026-04-30. Same Stripe-side caveat as
 the code path and confirm-dialog UX are both confirmed.
 
 - ✅ `archiveBriefWithRefund(briefId)` in
-  `src/app/admin/briefs/actions.ts`. Admin-only via
-  `requireOrgAdmin()` — refunds move money so members can't trigger
-  them. Per-state behaviour:
+`src/app/admin/briefs/actions.ts`. Admin-only via
+`requireOrgAdmin()` — refunds move money so members can't trigger
+them. Per-state behaviour:
   - `funded` / `partially_released` (held > 0): partial refund of
-    `escrow_held_dkk × 100` øre against the brief's
-    `stripe_payment_intent_id`, then status → `archived` +
-    `funded_status` → `refunded` + `escrow_held_dkk` → 0.
+  `escrow_held_dkk × 100` øre against the brief's
+  `stripe_payment_intent_id`, then status → `archived` +
+  `funded_status` → `refunded` + `escrow_held_dkk` → 0.
   - `released` / `refunded` / `unfunded`: just archive, no refund
-    call.
+  call.
   - Idempotency key on the refund (`archive-refund-{brief.id}`)
-    so a retry after a partial failure doesn't double-refund.
+  so a retry after a partial failure doesn't double-refund.
   - Insert ordering: refund first, DB update second. If the DB
-    update fails after a successful refund, returns a "Refund
-    succeeded but archive failed" error pointing the admin at
-    support — funds are out of the platform balance regardless.
+  update fails after a successful refund, returns a "Refund
+  succeeded but archive failed" error pointing the admin at
+  support — funds are out of the platform balance regardless.
   - Redirects to `/admin/briefs` on success (mirrors 1.1c
-    `createBriefWithEscrow` pattern; no client-side router race).
+  `createBriefWithEscrow` pattern; no client-side router race).
 - ✅ `reopenBrief(briefId)` — same file, blocks reopen of refunded
-  briefs with a clear "publish a new brief instead" message.
-  Unfunded briefs and never-funded archived briefs reopen normally.
-  Plan-limit errors (from migration 0029 triggers) surface
-  unwrapped so the existing client-side `planLimitErrorMessage`
-  helper can map them.
+briefs with a clear "publish a new brief instead" message.
+Unfunded briefs and never-funded archived briefs reopen normally.
+Plan-limit errors (from migration 0029 triggers) surface
+unwrapped so the existing client-side `planLimitErrorMessage`
+helper can map them.
 - ✅ `/admin/briefs/[id]` archive/reopen handlers refactored to
-  call the actions instead of inline supabase writes. Confirm
-  dialog now reads "The held escrow of X DKK will be refunded…"
-  when the brief actually has held funds.
+call the actions instead of inline supabase writes. Confirm
+dialog now reads "The held escrow of X DKK will be refunded…"
+when the brief actually has held funds.
 
 Per-claim refunds (cancel/reject/expire) intentionally do nothing —
 the slot stays held for the next creator. Only brief archive
@@ -1240,38 +1229,39 @@ Shipped + visually verified 2026-04-30. Funded badges live on
 panel on /admin/billing.
 
 - ✅ `badgeToneByFundedStatus` + `fundedStatusLabel` added to
-  `src/lib/admin-badge-tones.ts`. Tones: `funded` accent (lime),
-  `partially_released` info, `released` muted, `refunded` error
-  tint. `unfunded` intentionally not in the map — list/detail
-  views suppress the badge entirely so legacy briefs and free
-  briefs don't carry a confusing "Unfunded" tag.
+`src/lib/admin-badge-tones.ts`. Tones: `funded` accent (lime),
+`partially_released` info, `released` muted, `refunded` error
+tint. `unfunded` intentionally not in the map — list/detail
+views suppress the badge entirely so legacy briefs and free
+briefs don't carry a confusing "Unfunded" tag.
 - ✅ `/admin/briefs` (`admin-briefs-client.tsx`) status column now
-  stacks the existing status pill on top of a small funded-status
-  pill. Tiny `FundedBadge` helper renders `null` for unfunded.
+stacks the existing status pill on top of a small funded-status
+pill. Tiny `FundedBadge` helper renders `null` for unfunded.
 - ✅ `/admin/briefs/[id]` header gets a `FundedHeaderBadge` next
-  to "Edit Brief" with an inline summary like
-  "Funded · 1.500 DKK held" or "Partially released · 500 / 1.500
-  DKK held" or "Released · 1.500 DKK paid out" or "Refunded ·
-  1.500 DKK returned".
+to "Edit Brief" with an inline summary like
+"Funded · 1.500 DKK held" or "Partially released · 500 / 1.500
+DKK held" or "Released · 1.500 DKK paid out" or "Refunded ·
+1.500 DKK returned".
 - ✅ `/admin/billing` gets a new **Escrow held** section between
-  the payment-method panel and the plan cards. Sums
-  `escrow_held_dkk` across the org's briefs in `funded` /
-  `partially_released` state. Empty state copy nudges to publish a
-  paid brief.
+the payment-method panel and the plan cards. Sums
+`escrow_held_dkk` across the org's briefs in `funded` /
+`partially_released` state. Empty state copy nudges to publish a
+paid brief.
 
 ##### 1.1f — UI polish ❌
 
-- [ ] Brief list & detail: "Funded ✓" / "Partially released" / etc.
-  badges.
-- [ ] /admin/billing: optional "Escrow balance" panel showing
-  outstanding unreleased amounts across active briefs.
+- Brief list & detail: "Funded ✓" / "Partially released" / etc.
+badges.
+- /admin/billing: optional "Escrow balance" panel showing
+outstanding unreleased amounts across active briefs.
 
 Open questions still:
+
 - Hold funds for unclaimed slots until deadline, or refund earlier on
-  org-initiated archive? Cleanest UX is "release on whichever comes
-  first." Settled in 1.1e.
+org-initiated archive? Cleanest UX is "release on whichever comes
+first." Settled in 1.1e.
 - VAT on the org-charge side (org pays platform, platform handles
-  VAT depending on cross-border rules) — coordinate with 1.2.
+VAT depending on cross-border rules) — coordinate with 1.2.
 
 What we're explicitly NOT doing: net-30 settlement period. Pay
 creator on approval, immediate Stripe transfer.
@@ -1281,22 +1271,22 @@ creator on approval, immediate Stripe transfer.
 Regulatory must-have for EU launch. The `/legal/self-billing` page
 exists; the actual flow doesn't.
 
-- [ ] Adopt **Stripe Tax** for VAT calculation rather than rolling our
-  own (handles cross-border B2B reverse charge, OSS, country-specific
-  rates; ~0.5% of transaction; integrates with existing Stripe stack)
-- [ ] Creator profile fields: `vat_number` (optional),
-  `business_status` (`sole_trader` | `company` | `private`), `country`
-- [ ] Org profile: country (env vars cover platform's own VAT)
-- [ ] Self-billing consent: creator ticks box on first payout setup
-  authorising platform to issue invoices on their behalf; store
-  `consented_at` + agreement version
-- [ ] Invoice template: both parties' VAT numbers, reverse-charge note
-  where applicable, sequential numbering (already exists via
-  `invoice_counters`)
-- [ ] Annual income summary (PDF) downloadable from `/profile/invoices`
-  — required for tax filing in most EU countries (feeds 1.3)
-- [ ] OSS reporting export: one CSV per quarter for platform's own
-  filing
+- Adopt **Stripe Tax** for VAT calculation rather than rolling our
+own (handles cross-border B2B reverse charge, OSS, country-specific
+rates; ~0.5% of transaction; integrates with existing Stripe stack)
+- Creator profile fields: `vat_number` (optional),
+`business_status` (`sole_trader` | `company` | `private`), `country`
+- Org profile: country (env vars cover platform's own VAT)
+- Self-billing consent: creator ticks box on first payout setup
+authorising platform to issue invoices on their behalf; store
+`consented_at` + agreement version
+- Invoice template: both parties' VAT numbers, reverse-charge note
+where applicable, sequential numbering (already exists via
+`invoice_counters`)
+- Annual income summary (PDF) downloadable from `/profile/invoices`
+— required for tax filing in most EU countries (feeds 1.3)
+- OSS reporting export: one CSV per quarter for platform's own
+filing
 
 E-invoicing (mandatory in IT, PL, FR coming): defer until we have an
 org in one of those countries. Add as a known-deferred item.
@@ -1308,24 +1298,24 @@ Reads the existing `payments` table (with VAT + platform-fee splits
 frozen at payout time per migrations 0007 / 0026).
 
 - ✅ KPI cards: Lifetime / This year / This month / Pending. Pending
-  uses approved-but-not-paid claims, summed at gross brief price
-  (real receipt depends on platform fee + VAT resolved at pay
-  time — flagged in helper text).
+uses approved-but-not-paid claims, summed at gross brief price
+(real receipt depends on platform fee + VAT resolved at pay
+time — flagged in helper text).
 - ✅ "By organisation" table — payments grouped, sorted by total
-  desc, with payment count + total per org.
+desc, with payment count + total per org.
 - ✅ "Last 12 months" bar list — pre-fills empty months so the
-  rolling window stays visible. Bar width is proportional to the
-  largest month in the window.
+rolling window stays visible. Bar width is proportional to the
+largest month in the window.
 - ✅ "Earnings" tab added to `ProfileNav` between Profile and
-  Payouts.
+Payouts.
 - ✅ CSV export at `/api/earnings/export.csv` (route handler).
-  Headers: invoice_number, invoice_date, status, org, brief,
-  gross_dkk, platform_fee_dkk, platform_fee_bp, subtotal_dkk,
-  vat_dkk, vat_rate_bp, vat_scheme, total_received_dkk. Filename
-  `earnings-YYYY-MM-DD.csv`. RFC 4180 quoting on string fields.
+Headers: invoice_number, invoice_date, status, org, brief,
+gross_dkk, platform_fee_dkk, platform_fee_bp, subtotal_dkk,
+vat_dkk, vat_rate_bp, vat_scheme, total_received_dkk. Filename
+`earnings-YYYY-MM-DD.csv`. RFC 4180 quoting on string fields.
 - ⏭️ Annual summary PDF — deferred to land alongside 1.2 (the same
-  invoice template work that needs to produce the canonical
-  EU-style annual summary).
+invoice template work that needs to produce the canonical
+EU-style annual summary).
 
 ---
 
@@ -1337,22 +1327,22 @@ Money mechanics are now correct. Open the doors.
 
 Replace platform-admin-only `/admin/super/orgs/new`.
 
-- [ ] On `/login?mode=signup`: third path "Create an organisation"
-  alongside the two creator paths
-- [ ] Org creation form: name, slug, country, contact email, business
-  type
-- [ ] Email verification before org row created (Supabase auth)
-- [ ] On create: org row + membership(role=`admin`) for the user,
-  default to lowest pricing plan (Free → `org_subscriptions` trigger
-  from migration 0028 already handles)
-- [ ] `discoverable=false` by default
-- [ ] Onboarding wizard post-creation: brand basics (logo, colors),
-  invite teammates, create first brief — skippable
-- [ ] Empty state on `/admin` dashboard with onboarding checklist
-- [ ] Cannot publish first paid brief until Stripe Billing setup
-  complete (1.1 escrow needs it)
-- [ ] Cannot toggle `discoverable=true` until ≥1 brief published
-  (anti-spam)
+- On `/login?mode=signup`: third path "Create an organisation"
+alongside the two creator paths
+- Org creation form: name, slug, country, contact email, business
+type
+- Email verification before org row created (Supabase auth)
+- On create: org row + membership(role=`admin`) for the user,
+default to lowest pricing plan (Free → `org_subscriptions` trigger
+from migration 0028 already handles)
+- `discoverable=false` by default
+- Onboarding wizard post-creation: brand basics (logo, colors),
+invite teammates, create first brief — skippable
+- Empty state on `/admin` dashboard with onboarding checklist
+- Cannot publish first paid brief until Stripe Billing setup
+complete (1.1 escrow needs it)
+- Cannot toggle `discoverable=true` until ≥1 brief published
+(anti-spam)
 
 Abuse mitigation: rate-limit org creation per email/IP. The
 membership-wall (curated roster model) provides the deeper protection
@@ -1362,21 +1352,21 @@ membership-wall (curated roster model) provides the deeper protection
 
 Hybrid marketplace per `memory/project_expansion_decisions.md`.
 
-- [ ] Schema: `briefs.visibility` enum (`roster` | `public`),
-  default `roster`
-- [ ] BriefForm: visibility selector with explanation copy
-- [ ] RLS update: `briefs` SELECT policy allows `visibility='public'`
-  to anyone (currently roster-scoped)
-- [ ] RLS update: `claims` INSERT policy allows non-members to claim
-  if brief is `public`
-- [ ] On a creator's `/briefs`: union of (roster briefs from their
-  orgs) + (public briefs from any org), with a clear "Public" badge
-- [ ] On `/discover` org cards: split brief count into "Roster (X)"
-  vs "Open (Y)" so creators see what they get now vs. if accepted
-- [ ] Notification: `brief_published_public` event for some discovery
-  surface — likely an opt-in email digest, not per-brief push
-- [ ] Pricing implication: public briefs may carry higher platform fee
-  (more discovery work) — wire into pricing resolver if so
+- Schema: `briefs.visibility` enum (`roster` | `public`),
+default `roster`
+- BriefForm: visibility selector with explanation copy
+- RLS update: `briefs` SELECT policy allows `visibility='public'`
+to anyone (currently roster-scoped)
+- RLS update: `claims` INSERT policy allows non-members to claim
+if brief is `public`
+- On a creator's `/briefs`: union of (roster briefs from their
+orgs) + (public briefs from any org), with a clear "Public" badge
+- On `/discover` org cards: split brief count into "Roster (X)"
+vs "Open (Y)" so creators see what they get now vs. if accepted
+- Notification: `brief_published_public` event for some discovery
+surface — likely an opt-in email digest, not per-brief push
+- Pricing implication: public briefs may carry higher platform fee
+(more discovery work) — wire into pricing resolver if so
 
 What we're explicitly NOT doing: per-creator brief targeting (private
 to one creator). That's "invite to brief" — defer indefinitely.
@@ -1389,15 +1379,15 @@ auto-suggest a roster invite to the org admin? Worth picking up after
 
 Once public briefs and discoverable orgs exist, make them indexable.
 
-- [ ] Public org pages at `/o/[slug]` — name, logo, description, list
-  of public briefs, "Join roster" CTA
-- [ ] Public brief pages at `/b/[id]` (or `/o/[slug]/briefs/[id]`) for
-  `visibility='public'` only
-- [ ] OG images auto-generated (Vercel OG / @vercel/og)
-- [ ] Sitemap.xml including all discoverable orgs and public briefs
-- [ ] Structured data: `JobPosting` schema fits brief shape closely
-- [ ] Canonical URLs, robots.txt directives
-- [ ] `/discover` itself indexable
+- Public org pages at `/o/[slug]` — name, logo, description, list
+of public briefs, "Join roster" CTA
+- Public brief pages at `/b/[id]` (or `/o/[slug]/briefs/[id]`) for
+`visibility='public'` only
+- OG images auto-generated (Vercel OG / @vercel/og)
+- Sitemap.xml including all discoverable orgs and public briefs
+- Structured data: `JobPosting` schema fits brief shape closely
+- Canonical URLs, robots.txt directives
+- `/discover` itself indexable
 
 Don't index: anything roster-scoped, individual creator profiles
 (4.3 decides on those separately).
@@ -1416,46 +1406,47 @@ Settings/Organization IA split — see §7 Decided). The org route
 already holds `logo_url`, `accent_color`, `industry`, contact and
 legal-entity fields; Brand Kit extends the same surface.
 
-- [ ] On `/admin/organization`: convert to a tabbed layout
-  (`Identity · Brand kit · Legal`), or stack Brand Kit as the next
-  section below the existing form. Tabs scale better as the brand
-  kit grows.
-- [ ] **Brand kit sections**: logos (multiple, with usage notes —
-  the existing `logo_url` is the primary; this adds variants like
-  monochrome / stacked / favicon), full colour palette (multiple
-  hex values, the existing `accent_color` becomes one entry), fonts
-  (Google Fonts URL or uploaded file references), tone of voice
-  (rich text), do's & don'ts (rich text), reference assets
-  (file uploads to Storage).
-- [ ] Default usage rights template — auto-populated on new briefs,
-  editable per brief.
-- [ ] Surface to creators: collapsible "Brand context" panel on every
-  brief detail page for one of their roster orgs.
-- [ ] Toggle per asset: include for public-brief claimants too?
-- [ ] RLS / member gating: members can VIEW (mirror current
-  `OrgDetailsView` pattern), admins can EDIT.
+- On `/admin/organization`: convert to a tabbed layout
+(`Identity · Brand kit · Legal`), or stack Brand Kit as the next
+section below the existing form. Tabs scale better as the brand
+kit grows.
+- **Brand kit sections**: logos (multiple, with usage notes —
+the existing `logo_url` is the primary; this adds variants like
+monochrome / stacked / favicon), full colour palette (multiple
+hex values, the existing `accent_color` becomes one entry), fonts
+(Google Fonts URL or uploaded file references), tone of voice
+(rich text), do's & don'ts (rich text), reference assets
+(file uploads to Storage).
+- Default usage rights template — auto-populated on new briefs,
+editable per brief.
+- Surface to creators: collapsible "Brand context" panel on every
+brief detail page for one of their roster orgs.
+- Toggle per asset: include for public-brief claimants too?
+- RLS / member gating: members can VIEW (mirror current
+`OrgDetailsView` pattern), admins can EDIT.
 
 Schema additions:
+
 - `org_brand_assets` table — polymorphic on `asset_type`
-  (`logo` | `font` | `reference`), `org_id`, `storage_path` /
-  `external_url`, `label`, `notes`, `usage_context`, `created_at`.
+(`logo` | `font` | `reference`), `org_id`, `storage_path` /
+`external_url`, `label`, `notes`, `usage_context`, `created_at`.
 - `organizations.tone_of_voice` (text or jsonb), `organizations.dos_donts`
-  (text or jsonb), `organizations.brand_colors` (jsonb array of hex
-  strings — preserves order, room for `name`/`role` per colour).
+(text or jsonb), `organizations.brand_colors` (jsonb array of hex
+strings — preserves order, room for `name`/`role` per colour).
 - Reuse the existing `org-logos` Storage bucket (migration 0031) or
-  create a sibling `org-brand-assets` bucket if file types diverge.
+create a sibling `org-brand-assets` bucket if file types diverge.
 
 #### 3.2 Campaigns (brief grouping)
 
 Multiple briefs as one logical unit.
 
-- [ ] New `campaigns` table: `id`, `org_id`, `name`, `description`,
-  `goal`, `start_date`, `end_date`, `status`
-- [ ] `briefs.campaign_id` FK (nullable — most briefs stay standalone)
-- [ ] `/admin/campaigns` list + `/admin/campaigns/[id]` detail with
-  rolled-up stats (briefs, claims, total spent, completion rate)
-- [ ] BriefForm: optional campaign selector when creating
-- [ ] Filter `/admin/briefs` and `/admin/claims` by campaign
+- New `campaigns` table: `id`, `org_id`, `name`, `description`,
+`goal`, `start_date`, `end_date`, `status`
+- `briefs.campaign_id` FK (nullable — most briefs stay standalone)
+- `/admin/campaigns` list + `/admin/campaigns/[id]` detail with
+rolled-up stats (briefs, claims, total spent, completion rate)
+- BriefForm: optional campaign selector when creating
+- Filter `/admin/briefs` and `/admin/claims` by campaign
 
 What we're explicitly NOT doing: enforced workflows ("brief 2 only
 opens when brief 1 paid"). Just grouping for now.
@@ -1465,14 +1456,14 @@ opens when brief 1 paid"). Just grouping for now.
 `/admin/super/audit` exists for platform admins; orgs need their own
 slice.
 
-- [ ] Reuse the audit log pattern (extend the existing table with
-  `org_id` if it makes sense, or new `org_audit_log`)
-- [ ] Log: brief published / archived / edited, claim approved /
-  rejected / paid, member promoted / demoted, application approved /
-  rejected, settings changes, brand asset changes
-- [ ] Surface at `/admin/audit` (admin role only)
-- [ ] Filter by actor, entity type, date range
-- [ ] Export CSV
+- Reuse the audit log pattern (extend the existing table with
+`org_id` if it makes sense, or new `org_audit_log`)
+- Log: brief published / archived / edited, claim approved /
+rejected / paid, member promoted / demoted, application approved /
+rejected, settings changes, brand asset changes
+- Surface at `/admin/audit` (admin role only)
+- Filter by actor, entity type, date range
+- Export CSV
 
 ---
 
@@ -1485,45 +1476,45 @@ Make the work itself better. These are about the product feeling good.
 `claims.status` currently goes active → submitted → approved /
 cancelled. Add a real revision loop.
 
-- [ ] Schema: `claim_revisions` table — one row per round (`version`,
-  `submitted_at`, `feedback`, `reviewer_id`)
-- [ ] Admin "Request revision": creates revision row with feedback,
-  claim back to `active` (or new `revision_requested` enum value)
-- [ ] Creator resubmit: new revision row, claim back to `submitted`
-- [ ] UI: revision history thread on claim detail (creator + admin
-  both see it)
-- [ ] Decide: max revisions before claim auto-closes? Suggest a
-  configurable cap per brief, default 3
-- [ ] Pricing: revisions free by default; orgs can optionally cap
-  rounds in the brief
+- Schema: `claim_revisions` table — one row per round (`version`,
+`submitted_at`, `feedback`, `reviewer_id`)
+- Admin "Request revision": creates revision row with feedback,
+claim back to `active` (or new `revision_requested` enum value)
+- Creator resubmit: new revision row, claim back to `submitted`
+- UI: revision history thread on claim detail (creator + admin
+both see it)
+- Decide: max revisions before claim auto-closes? Suggest a
+configurable cap per brief, default 3
+- Pricing: revisions free by default; orgs can optionally cap
+rounds in the brief
 
 #### 4.2 In-claim messaging
 
 Not generic DMs — scoped to one claim.
 
-- [ ] `claim_messages` table: `id`, `claim_id`, `author_id`, `body`,
-  `created_at`, `read_at`
-- [ ] Thread shown on creator's claim detail and admin's review modal
-- [ ] Notification on new message (respect `notify_*` prefs)
-- [ ] Plain text + auto-link URLs is enough — no markdown, no rich
-  text
-- [ ] No file uploads in messages — use the submission flow for that
-- [ ] Soft anti-disintermediation: detect emails/phone numbers and
-  warn (don't block — feels paranoid). Real enforcement is escrow +
-  ratings.
+- `claim_messages` table: `id`, `claim_id`, `author_id`, `body`,
+`created_at`, `read_at`
+- Thread shown on creator's claim detail and admin's review modal
+- Notification on new message (respect `notify_`* prefs)
+- Plain text + auto-link URLs is enough — no markdown, no rich
+text
+- No file uploads in messages — use the submission flow for that
+- Soft anti-disintermediation: detect emails/phone numbers and
+warn (don't block — feels paranoid). Real enforcement is escrow +
+ratings.
 
 #### 4.3 Creator profiles
 
 Beyond name/email. Build the surface that makes creators visible to
 orgs and to themselves.
 
-- [ ] `/c/[handle]` semi-public creator page (private toggle)
-- [ ] Fields: bio, portfolio links, IG/TikTok handles, skills/tags,
-  languages, country, past-work showcase (curated from approved
-  claims, with org permission)
-- [ ] Editable at `/profile`
-- [ ] Visible on `/discover` org pages when orgs browse their roster
-- [ ] Searchable by tags / country / language (feeds 5.3)
+- `/c/[handle]` semi-public creator page (private toggle)
+- Fields: bio, portfolio links, IG/TikTok handles, skills/tags,
+languages, country, past-work showcase (curated from approved
+claims, with org permission)
+- Editable at `/profile`
+- Visible on `/discover` org pages when orgs browse their roster
+- Searchable by tags / country / language (feeds 5.3)
 
 Permission: past-work showcase needs the org to opt in per claim
 ("allow this creator to showcase this work in their portfolio").
@@ -1534,14 +1525,14 @@ brands push back.
 
 Mutual, simultaneous-release model.
 
-- [ ] After payment: both parties get "rate this collaboration" prompt
-- [ ] 1-5 stars + optional comment
-- [ ] Released simultaneously when both have rated, OR after 14 days
-  (whichever first), to prevent retaliation
-- [ ] Visible: avg rating + count on org `/discover` pages and creator
-  profile pages
-- [ ] Schema: `ratings` table (`claim_id`, `rater_id`, `ratee_id`,
-  `score`, `comment`, `released_at`)
+- After payment: both parties get "rate this collaboration" prompt
+- 1-5 stars + optional comment
+- Released simultaneously when both have rated, OR after 14 days
+(whichever first), to prevent retaliation
+- Visible: avg rating + count on org `/discover` pages and creator
+profile pages
+- Schema: `ratings` table (`claim_id`, `rater_id`, `ratee_id`,
+`score`, `comment`, `released_at`)
 
 What we're explicitly NOT doing: prominent written reviews. Comments
 stored but only shown after light moderation. Stars do the heavy
@@ -1557,13 +1548,13 @@ Stuff that hurts at volume but is fine while small.
 
 Creators are phone-first. Verify and improve.
 
-- [ ] QA pass: every creator surface on iPhone Safari and Android
-  Chrome at 375px viewport
-- [ ] Fix obvious breaks (modals, tables, claim flow)
-- [ ] Web manifest, install prompt, basic service worker (offline
-  shell + push notification capability)
-- [ ] Push notifications for the actually-urgent events:
-  `claim_approved`, `claim_paid`, `application_approved`
+- QA pass: every creator surface on iPhone Safari and Android
+Chrome at 375px viewport
+- Fix obvious breaks (modals, tables, claim flow)
+- Web manifest, install prompt, basic service worker (offline
+shell + push notification capability)
+- Push notifications for the actually-urgent events:
+`claim_approved`, `claim_paid`, `application_approved`
 
 What we're explicitly NOT doing: native iOS/Android apps. Not until
 volume justifies it.
@@ -1573,11 +1564,11 @@ volume justifies it.
 Current `notify_*` booleans are too coarse once a creator is in 5
 orgs.
 
-- [ ] Per-org notification preferences (mute org X without muting all)
-- [ ] Per-event-type within org
-- [ ] Digest mode: daily or weekly summary instead of per-event push
-- [ ] Settings surface at `/profile/notifications` — table view
-  org × event type, toggle each cell
+- Per-org notification preferences (mute org X without muting all)
+- Per-event-type within org
+- Digest mode: daily or weekly summary instead of per-event push
+- Settings surface at `/profile/notifications` — table view
+org × event type, toggle each cell
 
 Schema: `user_notification_prefs` table (`user_id`, `org_id` nullable,
 `event_type` nullable, `enabled`); null `org_id` + null `event_type`
@@ -1587,11 +1578,12 @@ acts as the global default.
 
 Once orgs have 100+ briefs or creators are in 10 orgs.
 
-- [ ] Postgres full-text search on briefs (title, description,
-  deliverable_specs)
-- [ ] Faceted: category, duration_class, price range, deadline window,
-  org
-- [ ] Search bar on `/briefs` (creator) and `/admin/briefs` (admin)
-- [ ] Saved searches?
-- [ ] Eventually: pgvector for semantic search ("looking for cooking
-  content creators") — defer until search-by-keyword feels insufficient
+- Postgres full-text search on briefs (title, description,
+deliverable_specs)
+- Faceted: category, duration_class, price range, deadline window,
+org
+- Search bar on `/briefs` (creator) and `/admin/briefs` (admin)
+- Saved searches?
+- Eventually: pgvector for semantic search ("looking for cooking
+content creators") — defer until search-by-keyword feels insufficient
+
