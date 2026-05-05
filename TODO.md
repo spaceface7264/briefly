@@ -85,34 +85,40 @@ before Phase 2 lands, otherwise the editor's writes will fail. Run
 the migration via Supabase Dashboard → SQL Editor, then regenerate
 types and confirm zero diff.
 
-- ❌ Apply `0042_creator_profile_fields.sql` via Supabase Dashboard SQL Editor (then re-run `npx supabase gen types typescript --linked` and confirm zero diff with the hand-added rows in `src/types/database.ts`)
+- ✅ Apply `0042_creator_profile_fields.sql` via Supabase Dashboard SQL Editor — applied 2026-05-05; `npx supabase gen types typescript --linked` confirmed the hand-added rows in `src/types/database.ts` match (zero behavioural diff)
 
-### Phase 1, schema and storage (#TBD)
+### Phase 1, schema and storage (#39)
 
-- 🟡 Migration `0042_creator_profile_fields.sql` (avatar_url, bio,
+- ✅ Migration `0042_creator_profile_fields.sql` (avatar_url, bio,
   languages, skills on `profiles`; public `avatars` storage bucket)
-  — committed, pending DB apply
-- 🟡 Hand-add the new `profiles` columns to
-  `src/types/database.ts` matching generator format — committed,
-  verified manually after migration applies
-- 🟡 New constants file `src/lib/creator-profile.ts` exporting
+- ✅ Hand-add the new `profiles` columns to
+  `src/types/database.ts` matching generator format
+- ✅ New constants file `src/lib/creator-profile.ts` exporting
   `SKILLS`, `LANGUAGES`, `COUNTRIES` vocabularies plus
   `BIO_MAX` / `SKILLS_MAX` / `LANGUAGES_MAX` caps and
-  `sanitizeSkills` / `sanitizeLanguages` helpers — committed
+  `sanitizeSkills` / `sanitizeLanguages` helpers
 
 ### Phase 2, creator editor at /profile/settings (#TBD)
 
-- ❌ Avatar tile in Personal tab (browser → `avatars` bucket
-  direct upload via signed URL, mirroring submissions/brand-logos
-  pattern). Random-UUID object key, no `user_id` in the path.
-- ❌ Bio textarea + char counter (cap 500)
-- ❌ Country `<select>` from `COUNTRIES` vocab (~30 starter
+- 🟡 Avatar tile in Personal tab. **Implemented as a server-action
+  upload** (file → server action → service-role storage write)
+  rather than a browser-direct signed-URL upload. The 2 MB cap is
+  well under the Cloudflare Workers 100 MB request ceiling, and
+  this matches the existing `uploadOrgLogo` shape in
+  `src/app/admin/settings/org-actions.ts` so we keep one
+  small-file convention. Signed-URL direct upload stays the right
+  call for submissions / large assets where bytes don't belong on
+  the Worker. Random-UUID object key, no `user_id` in the path.
+- 🟡 Bio textarea + char counter (cap 500)
+- 🟡 Country `<select>` from `COUNTRIES` vocab (~30 starter
   entries)
-- ❌ Languages chip picker from `LANGUAGES` vocab (cap 8)
-- ❌ Skills chip picker from `SKILLS` vocab (cap 12)
-- ❌ Server actions `uploadAvatar` / `removeAvatar` /
-  `saveCreatorProfile` — all gated by `requireCreatorAccount()`,
-  re-validating input via the Phase 1 sanitisers before write
+- 🟡 Languages chip picker from `LANGUAGES` vocab (cap 8)
+- 🟡 Skills chip picker from `SKILLS` vocab (cap 12)
+- 🟡 Server actions `uploadAvatar` / `removeAvatar` /
+  `saveCreatorProfile` — all gated by an internal
+  `requireCreatorUser()` helper that wraps `getAccountType` and
+  returns the supabase client + user id. Inputs re-validated via
+  the Phase 1 sanitisers before write.
 
 ### Phase 3, admin-side render (#TBD)
 
