@@ -12,42 +12,47 @@ preconditions. Work top to bottom within a section.
 
 ---
 
-## Brand Assets MVP (active)
+## Brand Assets MVP (shipped, pending DB migration apply)
 
-In-flight feature: structured brand kit per org (logos, colors, typography,
-guidelines, voice/tone notes). Org admins manage it from a new sidebar
-entry; creators with an active claim on one of the org's briefs see a
-"Brand kit" panel inside the brief detail page. Plan lives at
+Structured brand kit per org (logos, colors, typography, guidelines,
+voice/tone notes). Org admins manage it from a new sidebar entry;
+creators with an active claim on one of the org's briefs see a "Brand
+kit" panel inside the brief detail page. Plan lives at
 `/Users/rami/.cursor/plans/brand-assets-mvp_bff3eca3.plan.md`.
 
 This is the MVP slice of the broader **§9 Phase 3 / 3.1 Brand asset
-library** roadmap entry below — same intent, leaner schema (one
+library** roadmap entry below: same intent, leaner schema (one
 `brand_kits` row per org instead of polymorphic `org_brand_assets` +
 `organizations.tone_of_voice` columns), and a dedicated `/admin/brand`
 surface rather than a tab inside `/admin/organization`. The roadmap
 entry stays as the maximalist target; this MVP gets us 80% of the user
 value in three small PRs.
 
-- [ ] Apply 0040_brand_kits.sql via Supabase Dashboard SQL Editor (then re-run npx supabase gen types and confirm zero diff with the hand-added types in src/types/database.ts)
-- [ ] Apply 0041_brand_kits_active_claim_fix.sql (replaces a stale 'pending' status literal that never matched the codebase's actual claims status enum: ('active','submitted','approved','paid','cancelled'). Without this, creators with `active` claims see "Brand kit not set up yet" even when one exists.)
+All three feature PRs landed on main. Outstanding work is purely
+operational (apply the migrations to live Supabase before the UI is
+useful):
 
-### Phase 1, schema and storage
-- [ ] Migration 0040_brand_kits.sql (table, RLS, brand-assets bucket)
-- [ ] Regenerate src/types/database.ts
+- [ ] Apply `0040_brand_kits.sql` via Supabase Dashboard SQL Editor (then re-run `npx supabase gen types typescript --linked` and confirm zero diff with the hand-added types in `src/types/database.ts`)
+- [ ] Apply `0041_brand_kits_active_claim_fix.sql` (replaces a stale `'pending'` claim status literal in 0040 that never matched the codebase's actual `claims.status` enum, `('active','submitted','approved','paid','cancelled')`. Without this, creators with `active` claims see "Brand kit not set up yet" even when one exists)
 
-### Phase 2, admin UI at /admin/brand
-- [ ] Sidebar nav entry "Brand"
-- [ ] Page + form scaffolding
-- [ ] Logo variant uploads (mark, dark, light)
-- [ ] Color palette editor (add/remove, name + hex, cap 12)
-- [ ] Typography editor (role/family/url, cap 6)
-- [ ] Guidelines (PDF upload OR URL)
-- [ ] Notes textarea (1000 char cap)
+### Phase 1, schema and storage (#33)
+- [x] Migration `0040_brand_kits.sql` (table, RLS, brand-assets bucket) #33
+- [x] Hand-add `brand_kits` to `src/types/database.ts` matching generator format #33
 
-### Phase 3, creator surface
-- [ ] Claim gate + signed-URL minting
-- [ ] Brand kit panel on /briefs/[id]
-- [ ] Empty state
+### Phase 2, admin UI at /admin/brand (#34)
+- [x] Sidebar nav entry "Brand" #34
+- [x] Page + form scaffolding (`src/app/admin/brand/`) #34
+- [x] Logo variant uploads (mark, dark, light) #34
+- [x] Color palette editor (add/remove, name + hex, cap 12) #34
+- [x] Typography editor (role/family/url, cap 6) #34
+- [x] Guidelines (PDF upload OR URL) #34
+- [x] Notes textarea (1000 char cap) #34
+
+### Phase 3, creator surface (#35)
+- [x] Claim gate + signed-URL minting (`src/app/briefs/[id]/page.tsx`) #35
+- [x] Brand kit panel on `/briefs/[id]` (`brand-kit-panel.tsx`) #35
+- [x] Empty state (renders when every kit field is null/empty) #35
+- [x] RLS fix migration `0041_brand_kits_active_claim_fix.sql` (claim status enum mismatch caught in Phase 3) #35
 
 ### Later
 - [ ] Per-brief overrides
