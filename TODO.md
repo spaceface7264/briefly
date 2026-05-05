@@ -66,6 +66,80 @@ on 2026-05-05.
 
 ---
 
+## Creator Profile MVP (active)
+
+Internal-only creator profile so org admins recognise who they're
+working with on `/admin/creators`, claim approvals, and submission
+reviews. Editable by the creator at `/profile/settings`. No public
+`/c/[handle]` route — that's the maximalist target captured in §9
+Phase 4.3, deferred until this MVP lands and we see how it's used.
+
+This is the MVP slice of the broader **§9 Phase 4.3 Creator
+profiles** roadmap entry below: same identity fields (avatar, bio,
+country, languages, skills), no slug system, no portfolio
+showcase, no Discover indexing. Three small PRs (schema → editor →
+admin render).
+
+Operational gate: migration `0042` must be applied to live Supabase
+before Phase 2 lands, otherwise the editor's writes will fail. Run
+the migration via Supabase Dashboard → SQL Editor, then regenerate
+types and confirm zero diff.
+
+- ❌ Apply `0042_creator_profile_fields.sql` via Supabase Dashboard SQL Editor (then re-run `npx supabase gen types typescript --linked` and confirm zero diff with the hand-added rows in `src/types/database.ts`)
+
+### Phase 1, schema and storage (#TBD)
+
+- 🟡 Migration `0042_creator_profile_fields.sql` (avatar_url, bio,
+  languages, skills on `profiles`; public `avatars` storage bucket)
+  — committed, pending DB apply
+- 🟡 Hand-add the new `profiles` columns to
+  `src/types/database.ts` matching generator format — committed,
+  verified manually after migration applies
+- 🟡 New constants file `src/lib/creator-profile.ts` exporting
+  `SKILLS`, `LANGUAGES`, `COUNTRIES` vocabularies plus
+  `BIO_MAX` / `SKILLS_MAX` / `LANGUAGES_MAX` caps and
+  `sanitizeSkills` / `sanitizeLanguages` helpers — committed
+
+### Phase 2, creator editor at /profile/settings (#TBD)
+
+- ❌ Avatar tile in Personal tab (browser → `avatars` bucket
+  direct upload via signed URL, mirroring submissions/brand-logos
+  pattern). Random-UUID object key, no `user_id` in the path.
+- ❌ Bio textarea + char counter (cap 500)
+- ❌ Country `<select>` from `COUNTRIES` vocab (~30 starter
+  entries)
+- ❌ Languages chip picker from `LANGUAGES` vocab (cap 8)
+- ❌ Skills chip picker from `SKILLS` vocab (cap 12)
+- ❌ Server actions `uploadAvatar` / `removeAvatar` /
+  `saveCreatorProfile` — all gated by `requireCreatorAccount()`,
+  re-validating input via the Phase 1 sanitisers before write
+
+### Phase 3, admin-side render (#TBD)
+
+- ❌ Reusable `<Avatar>` component (sizes `sm` / `md` / `lg`,
+  image-or-initial fallback). Replaces the ad-hoc
+  initial-letter rendering already used in `UserMenu`.
+- ❌ `/admin/creators` table row: avatar + name + country flag +
+  first 3 skills chips
+- ❌ `/admin/creators/[id]`: large avatar header, bio paragraph,
+  country / languages / skills row, then the existing claims-
+  history table
+- ❌ Submission review modal: avatar + name + skills above the
+  submission content
+- ❌ Claim approval card on `/admin/briefs/[id]`: avatar + name
+  next to the claim status pill
+
+### Later (deferred to §9 Phase 4.3)
+
+- ❌ Public `/c/[handle]` route + slug uniqueness migration
+- ❌ Portfolio showcase from approved submissions (creator opt-in
+  per submission)
+- ❌ Discover-side creator search and filter
+- ❌ Avatar crop / aspect ratio enforcement at upload time
+- ❌ Endorsement / rating system
+
+---
+
 ## 1. Apply database migrations
 
 Apply any unapplied migration in `supabase/migrations/` via the Supabase

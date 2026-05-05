@@ -1067,10 +1067,12 @@ export type Database = {
         Row: {
           account_type: string
           active_org_id: string | null
+          avatar_url: string | null
           billing_address_line1: string | null
           billing_address_line2: string | null
           billing_city: string | null
           billing_postal_code: string | null
+          bio: string | null
           country: string | null
           created_at: string
           cvr_number: string | null
@@ -1078,6 +1080,7 @@ export type Database = {
           id: string
           instagram_handle: string | null
           is_platform_admin: boolean
+          languages: string[]
           name: string | null
           notify_applications: boolean
           notify_claim_queue: boolean
@@ -1088,6 +1091,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at: string | null
           self_billing_agreement_version: string | null
+          skills: string[]
           stripe_account_id: string | null
           stripe_details_submitted: boolean
           stripe_payouts_enabled: boolean
@@ -1099,10 +1103,12 @@ export type Database = {
         Insert: {
           account_type?: string
           active_org_id?: string | null
+          avatar_url?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
           billing_postal_code?: string | null
+          bio?: string | null
           country?: string | null
           created_at?: string
           cvr_number?: string | null
@@ -1110,6 +1116,7 @@ export type Database = {
           id: string
           instagram_handle?: string | null
           is_platform_admin?: boolean
+          languages?: string[]
           name?: string | null
           notify_applications?: boolean
           notify_claim_queue?: boolean
@@ -1120,6 +1127,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null
+          skills?: string[]
           stripe_account_id?: string | null
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
@@ -1131,10 +1139,12 @@ export type Database = {
         Update: {
           account_type?: string
           active_org_id?: string | null
+          avatar_url?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
           billing_postal_code?: string | null
+          bio?: string | null
           country?: string | null
           created_at?: string
           cvr_number?: string | null
@@ -1142,6 +1152,7 @@ export type Database = {
           id?: string
           instagram_handle?: string | null
           is_platform_admin?: boolean
+          languages?: string[]
           name?: string | null
           notify_applications?: boolean
           notify_claim_queue?: boolean
@@ -1152,6 +1163,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null
+          skills?: string[]
           stripe_account_id?: string | null
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
