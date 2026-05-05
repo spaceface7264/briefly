@@ -122,18 +122,24 @@ types and confirm zero diff.
 
 ### Phase 3, admin-side render (#TBD)
 
-- ❌ Reusable `<Avatar>` component (sizes `sm` / `md` / `lg`,
-  image-or-initial fallback). Replaces the ad-hoc
-  initial-letter rendering already used in `UserMenu`.
-- ❌ `/admin/creators` table row: avatar + name + country flag +
-  first 3 skills chips
-- ❌ `/admin/creators/[id]`: large avatar header, bio paragraph,
-  country / languages / skills row, then the existing claims-
-  history table
-- ❌ Submission review modal: avatar + name + skills above the
-  submission content
-- ❌ Claim approval card on `/admin/briefs/[id]`: avatar + name
-  next to the claim status pill
+- 🟡 Reusable `<Avatar>` component (sizes `sm` / `md` / `lg` /
+  `xl`, image-or-initial fallback) at `src/components/avatar.tsx`.
+  Replaces the ad-hoc initial-letter rendering in `UserMenu` (now
+  threads `userAvatarUrl` from the layout) and is used on every
+  admin surface listed below.
+- 🟡 `/admin/creators` table: avatar (sm) + name + country flag,
+  with first 3 skills as a separate column (truncated `+N` chip
+  when there are more)
+- 🟡 `/admin/creators/[id]`: large avatar (lg) header, bio
+  paragraph, country / languages / skills summary card, then the
+  existing claims-history table. The card auto-hides when none of
+  the four fields are set, so legacy creator rows stay clean.
+- 🟡 Submission review modal: avatar (md) + name + email above
+  the submission content
+- 🟡 Claim approval cards on `/admin/briefs/[id]` (Active Claims
+  + Pending Review sidebars): avatar (sm) + name + email
+- 🟡 `/admin/claims` table Creator column: avatar (sm) + name +
+  email + instagram
 
 ### Later (deferred to §9 Phase 4.3)
 

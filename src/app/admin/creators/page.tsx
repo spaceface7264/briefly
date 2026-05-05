@@ -1,13 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
+import { Avatar } from "@/components/avatar";
+import {
+  countryFlag,
+  countryLabel,
+  skillLabel,
+} from "@/lib/creator-profile";
 import type { Profile } from "@/types/database";
 
 export default async function AdminCreatorsPage() {
   const supabase = await createClient();
   const orgId = await requireActiveOrg(supabase);
 
-  // Get creators via memberships for this org
   const { data: memberships } = await supabase
     .from("memberships")
     .select("user_id, profile:profiles(*)")
@@ -15,18 +20,19 @@ export default async function AdminCreatorsPage() {
     .eq("role", "creator")
     .eq("status", "active");
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const creators = (memberships || []).map((m: any) => m.profile).filter(Boolean) as Profile[];
 
-  // Get claim counts for each creator
   const creatorsWithCounts = await Promise.all(
     creators.map(async (creator) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [activeResult, completedResult] = await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from("claims") as any)
           .select("*", { count: "exact", head: true })
           .eq("user_id", creator.id)
           .eq("org_id", orgId)
           .eq("status", "active"),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from("claims") as any)
           .select("*", { count: "exact", head: true })
           .eq("user_id", creator.id)
@@ -46,7 +52,10 @@ export default async function AdminCreatorsPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Creators</h1>
-        <p className="text-muted">{creatorsWithCounts.length} creator{creatorsWithCounts.length !== 1 ? "s" : ""}</p>
+        <p className="text-muted">
+          {creatorsWithCounts.length} creator
+          {creatorsWithCounts.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {creatorsWithCounts.length > 0 ? (
@@ -54,67 +63,143 @@ export default async function AdminCreatorsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Creator</th>
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Instagram</th>
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Active Claims</th>
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Completed</th>
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">Joined</th>
-                <th className="text-right text-sm font-medium text-muted px-4 py-3">Actions</th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">
+                  Creator
+                </th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">
+                  Skills
+                </th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">
+                  Instagram
+                </th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">
+                  Active Claims
+                </th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">
+                  Completed
+                </th>
+                <th className="text-left text-sm font-medium text-muted px-4 py-3">
+                  Joined
+                </th>
+                <th className="text-right text-sm font-medium text-muted px-4 py-3">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
-              {creatorsWithCounts.map((creator) => (
-                <tr key={creator.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{creator.name || "No name"}</p>
-                    <p className="text-muted text-sm">{creator.email}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    {creator.instagram_handle ? (
-                      <a
-                        href={`https://instagram.com/${creator.instagram_handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:underline"
-                      >
-                        @{creator.instagram_handle}
-                      </a>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-sm">
-                    {creator.activeClaims > 0 ? (
+              {creatorsWithCounts.map((creator) => {
+                const flag = countryFlag(creator.country);
+                const country = countryLabel(creator.country);
+                // First three skills only — keeps the row scannable.
+                // The detail page renders the full set.
+                const previewSkills = (creator.skills ?? []).slice(0, 3);
+                const remaining =
+                  (creator.skills?.length ?? 0) - previewSkills.length;
+                return (
+                  <tr
+                    key={creator.id}
+                    className="border-b border-border last:border-0 hover:bg-surface-hover"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          url={creator.avatar_url}
+                          name={creator.name}
+                          email={creator.email}
+                          size="sm"
+                          alt=""
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">
+                              {creator.name || "No name"}
+                            </p>
+                            {flag && (
+                              <span
+                                className="text-base leading-none"
+                                title={country ?? undefined}
+                                aria-label={country ?? undefined}
+                              >
+                                {flag}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-muted text-sm truncate">
+                            {creator.email}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {previewSkills.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {previewSkills.map((slug) => (
+                            <span
+                              key={slug}
+                              className="px-2 py-0.5 text-xs font-medium rounded-full bg-brand-muted text-brand"
+                            >
+                              {skillLabel(slug)}
+                            </span>
+                          ))}
+                          {remaining > 0 && (
+                            <span className="px-2 py-0.5 text-xs font-medium rounded-full text-muted">
+                              +{remaining}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {creator.instagram_handle ? (
+                        <a
+                          href={`https://instagram.com/${creator.instagram_handle}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:underline"
+                        >
+                          @{creator.instagram_handle}
+                        </a>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm">
+                      {creator.activeClaims > 0 ? (
+                        <Link
+                          href={`/admin/claims?status=active`}
+                          className="text-accent hover:underline"
+                        >
+                          {creator.activeClaims}
+                        </Link>
+                      ) : (
+                        <span className="text-muted">0</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm">
+                      {creator.completedClaims > 0 ? (
+                        <span className="text-success">
+                          {creator.completedClaims}
+                        </span>
+                      ) : (
+                        <span className="text-muted">0</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted font-mono text-sm">
+                      {new Date(creator.created_at).toLocaleDateString("en-GB")}
+                    </td>
+                    <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/admin/claims?status=active`}
-                        className="text-accent hover:underline"
+                        href={`/admin/creators/${creator.id}`}
+                        className="text-accent hover:underline text-sm"
                       >
-                        {creator.activeClaims}
+                        View
                       </Link>
-                    ) : (
-                      <span className="text-muted">0</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-sm">
-                    {creator.completedClaims > 0 ? (
-                      <span className="text-success">{creator.completedClaims}</span>
-                    ) : (
-                      <span className="text-muted">0</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted font-mono text-sm">
-                    {new Date(creator.created_at).toLocaleDateString("en-GB")}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/creators/${creator.id}`}
-                      className="text-accent hover:underline text-sm"
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

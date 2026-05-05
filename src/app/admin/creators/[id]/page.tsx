@@ -3,6 +3,12 @@ import { requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
+import { Avatar } from "@/components/avatar";
+import {
+  countryLabel,
+  languageLabel,
+  skillLabel,
+} from "@/lib/creator-profile";
 import type { Profile } from "@/types/database";
 
 export default async function CreatorDetailPage({
@@ -58,23 +64,36 @@ export default async function CreatorDetailPage({
         &larr; Back to Creators
       </Link>
 
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">{profile.name || "Unnamed Creator"}</h1>
-          <p className="text-muted">{profile.email}</p>
-          {profile.instagram_handle && (
-            <a
-              href={`https://instagram.com/${profile.instagram_handle}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:underline"
-            >
-              @{profile.instagram_handle}
-            </a>
-          )}
+      <div className="flex items-start justify-between gap-6 mb-8">
+        <div className="flex items-start gap-5 min-w-0">
+          <Avatar
+            url={profile.avatar_url}
+            name={profile.name}
+            email={profile.email}
+            size="lg"
+            alt=""
+          />
+          <div className="min-w-0">
+            <h1 className="text-3xl font-bold truncate">
+              {profile.name || "Unnamed Creator"}
+            </h1>
+            <p className="text-muted truncate">{profile.email}</p>
+            {profile.instagram_handle && (
+              <a
+                href={`https://instagram.com/${profile.instagram_handle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:underline"
+              >
+                @{profile.instagram_handle}
+              </a>
+            )}
+          </div>
         </div>
         <RoleBadge role={orgRole} />
       </div>
+
+      <ProfileSummary profile={profile} />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -157,6 +176,104 @@ export default async function CreatorDetailPage({
           </div>
         </dl>
       </div>
+    </div>
+  );
+}
+
+function ProfileSummary({ profile }: { profile: Profile }) {
+  const country = countryLabel(profile.country);
+  const languages = profile.languages ?? [];
+  const skills = profile.skills ?? [];
+  const bio = profile.bio?.trim() ?? "";
+
+  // Hide the section entirely when the creator hasn't filled
+  // anything in yet — an empty card with four "—" rows just adds
+  // noise on accounts that pre-date Phase 2.
+  if (!country && !languages.length && !skills.length && !bio) {
+    return null;
+  }
+
+  return (
+    <div className="bg-surface border border-border rounded-xl p-5 mb-8 space-y-4">
+      {bio && (
+        <div>
+          <h2 className="text-xs uppercase tracking-wider text-muted mb-1">
+            Bio
+          </h2>
+          <p className="text-sm whitespace-pre-line">{bio}</p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <SummaryRow label="Country" value={country} />
+        <SummaryChips
+          label="Languages"
+          values={languages}
+          format={languageLabel}
+        />
+        <SummaryChips
+          label="Skills"
+          values={skills}
+          format={skillLabel}
+          tone="brand"
+        />
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-wider text-muted mb-1">
+        {label}
+      </dt>
+      <dd className="text-sm">
+        {value ?? <span className="text-muted">—</span>}
+      </dd>
+    </div>
+  );
+}
+
+function SummaryChips({
+  label,
+  values,
+  format,
+  tone = "muted",
+}: {
+  label: string;
+  values: string[];
+  format: (value: string) => string;
+  tone?: "muted" | "brand";
+}) {
+  const chipClass =
+    tone === "brand"
+      ? "px-2 py-0.5 text-xs font-medium rounded-full bg-brand-muted text-brand"
+      : "px-2 py-0.5 text-xs font-medium rounded-full bg-accent-muted text-accent";
+
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-wider text-muted mb-1">
+        {label}
+      </dt>
+      <dd>
+        {values.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {values.map((value) => (
+              <span key={value} className={chipClass}>
+                {format(value)}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted text-sm">—</span>
+        )}
+      </dd>
     </div>
   );
 }

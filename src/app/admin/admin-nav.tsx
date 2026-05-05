@@ -40,6 +40,7 @@ import {
   SparklesIcon,
   UserIcon,
 } from "lucide-react";
+import { Avatar } from "@/components/avatar";
 
 const LEGAL_LINKS = [
   { href: "/legal/terms", label: "Terms" },
@@ -55,6 +56,8 @@ interface AdminNavProps {
   userEmail: string;
   /** Display name shown above the email. Falls back to email when null. */
   userName: string | null;
+  /** Public URL into the `avatars` bucket. When null the UserMenu falls back to the initial-letter tile. */
+  userAvatarUrl: string | null;
   /** Whether the viewer is an admin of the active org. Drives the lock state on Invites + Billing. */
   isOrgAdmin: boolean;
   /** Whether the viewer is a platform admin. Drives the "Platform admin" link in the footer. */
@@ -181,6 +184,7 @@ export function AdminNav({
   userId,
   userEmail,
   userName,
+  userAvatarUrl,
   isOrgAdmin,
   isPlatformAdmin,
   org,
@@ -276,7 +280,11 @@ export function AdminNav({
 
         <SidebarMenu>
           <SidebarMenuItem>
-            <UserMenu email={userEmail} name={userName} />
+            <UserMenu
+              email={userEmail}
+              name={userName}
+              avatarUrl={userAvatarUrl}
+            />
           </SidebarMenuItem>
         </SidebarMenu>
 
@@ -361,10 +369,17 @@ function OrgIdentity({
  * tile, so signing out is one click away even when the rail is
  * shrunk.
  */
-function UserMenu({ email, name }: { email: string; name: string | null }) {
+function UserMenu({
+  email,
+  name,
+  avatarUrl,
+}: {
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+}) {
   const router = useRouter();
   const display = name?.trim() || email;
-  const initial = display.charAt(0).toUpperCase() || "?";
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -382,12 +397,14 @@ function UserMenu({ email, name }: { email: string; name: string | null }) {
             tooltip={display}
             className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
           >
-            <div
-              aria-hidden="true"
-              className="size-8 rounded-md bg-sidebar-accent text-sidebar-accent-foreground flex items-center justify-center text-sm font-semibold shrink-0"
-            >
-              {initial}
-            </div>
+            <Avatar
+              url={avatarUrl}
+              name={name}
+              email={email}
+              size="md"
+              alt=""
+              className="size-8 rounded-md border-0 bg-sidebar-accent text-sidebar-accent-foreground"
+            />
             <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
               {name?.trim() ? (
                 <>

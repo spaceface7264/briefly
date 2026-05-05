@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg, getOrgRole } from "@/lib/org";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
+import { Avatar } from "@/components/avatar";
 import { ClaimActions } from "./claim-actions";
 import { badgeToneByStatus, claimStatusLabel } from "@/lib/admin-badge-tones";
 import type { ClaimStatus } from "@/types/database";
@@ -20,7 +21,7 @@ export default async function AdminClaimsPage({
   // Always fetch all claims so tab counts are accurate; filter the displayed list below
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: allClaims } = await (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled)")
+    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled, avatar_url)")
     .eq("org_id", orgId)
     .order("claimed_at", { ascending: false });
 
@@ -122,11 +123,28 @@ export default async function AdminClaimsPage({
                       <p className="text-muted text-sm font-mono">{formatPrice(claim.brief?.price_dkk)}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium">{claim.creator?.name || "Unknown"}</p>
-                      <p className="text-muted text-sm">{claim.creator?.email}</p>
-                      {claim.creator?.instagram_handle && (
-                        <p className="text-accent text-sm">@{claim.creator.instagram_handle}</p>
-                      )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          url={claim.creator?.avatar_url}
+                          name={claim.creator?.name}
+                          email={claim.creator?.email}
+                          size="sm"
+                          alt=""
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">
+                            {claim.creator?.name || "Unknown"}
+                          </p>
+                          <p className="text-muted text-sm truncate">
+                            {claim.creator?.email}
+                          </p>
+                          {claim.creator?.instagram_handle && (
+                            <p className="text-accent text-sm truncate">
+                              @{claim.creator.instagram_handle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <ClaimStatusBadge status={claim.status} />

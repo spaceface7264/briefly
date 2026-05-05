@@ -12,8 +12,17 @@ import {
   badgeToneByFundedStatus,
   fundedStatusLabel,
 } from "@/lib/admin-badge-tones";
+import { Avatar } from "@/components/avatar";
 import type { Brief, BriefFundedStatus, Claim } from "@/types/database";
 import Link from "next/link";
+
+type ClaimWithCreator = Claim & {
+  creator: {
+    name: string;
+    email: string;
+    avatar_url: string | null;
+  };
+};
 
 export default function EditBriefPage() {
   const params = useParams();
@@ -21,7 +30,7 @@ export default function EditBriefPage() {
   const briefId = params.id as string;
 
   const [brief, setBrief] = useState<Brief | null>(null);
-  const [claims, setClaims] = useState<(Claim & { creator: { name: string; email: string } })[]>([]);
+  const [claims, setClaims] = useState<ClaimWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
 
@@ -37,7 +46,7 @@ export default function EditBriefPage() {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const claimsResult = await (supabase.from("claims") as any)
-        .select("*, creator:profiles(name, email)")
+        .select("*, creator:profiles(name, email, avatar_url)")
         .eq("brief_id", briefId)
         .order("claimed_at", { ascending: false });
 
@@ -177,17 +186,33 @@ export default function EditBriefPage() {
             {activeClaims.length > 0 ? (
               <ul className="space-y-3">
                 {activeClaims.map((claim) => (
-                  <li key={claim.id} className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium">{claim.creator?.name || "Unknown"}</p>
-                      <p className="text-muted text-sm">{claim.creator?.email}</p>
-                      <p className="text-muted text-xs font-mono mt-1">
-                        Claimed {new Date(claim.claimed_at).toLocaleDateString("en-GB")}
-                      </p>
+                  <li key={claim.id} className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <Avatar
+                        url={claim.creator?.avatar_url}
+                        name={claim.creator?.name}
+                        email={claim.creator?.email}
+                        size="sm"
+                        alt=""
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {claim.creator?.name || "Unknown"}
+                        </p>
+                        <p className="text-muted text-sm truncate">
+                          {claim.creator?.email}
+                        </p>
+                        <p className="text-muted text-xs font-mono mt-1">
+                          Claimed{" "}
+                          {new Date(claim.claimed_at).toLocaleDateString(
+                            "en-GB"
+                          )}
+                        </p>
+                      </div>
                     </div>
                     <Link
                       href={`/admin/claims?claim=${claim.id}`}
-                      className="text-accent text-sm hover:underline"
+                      className="text-accent text-sm hover:underline shrink-0"
                     >
                       View
                     </Link>
@@ -207,14 +232,27 @@ export default function EditBriefPage() {
               </h2>
               <ul className="space-y-3">
                 {submittedClaims.map((claim) => (
-                  <li key={claim.id} className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium">{claim.creator?.name || "Unknown"}</p>
-                      <p className="text-muted text-sm">{claim.creator?.email}</p>
+                  <li key={claim.id} className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <Avatar
+                        url={claim.creator?.avatar_url}
+                        name={claim.creator?.name}
+                        email={claim.creator?.email}
+                        size="sm"
+                        alt=""
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {claim.creator?.name || "Unknown"}
+                        </p>
+                        <p className="text-muted text-sm truncate">
+                          {claim.creator?.email}
+                        </p>
+                      </div>
                     </div>
                     <Link
                       href={`/admin/claims?claim=${claim.id}`}
-                      className="text-warning text-sm hover:underline font-medium"
+                      className="text-warning text-sm hover:underline font-medium shrink-0"
                     >
                       Review
                     </Link>
