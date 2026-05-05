@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, ConfirmDialog } from "@/components/modal";
+import { Avatar } from "@/components/avatar";
 import { payClaim } from "./pay-action";
 import { getClaimAttachmentSignedUrls } from "@/app/briefs/[id]/actions";
 
@@ -35,6 +36,7 @@ interface ClaimActionsProps {
       name: string;
       email: string;
       stripe_payouts_enabled?: boolean;
+      avatar_url?: string | null;
     };
   };
   paidInvoice?: {
@@ -336,11 +338,29 @@ function SubmissionModal({
     >
       <dl className="space-y-5">
         <div>
-          <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+          <dt className="text-xs text-muted uppercase tracking-wider mb-2">
             Creator
           </dt>
-          <dd className="font-medium">
-            {claim.creator?.name || claim.creator?.email}
+          <dd>
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar
+                url={claim.creator?.avatar_url}
+                name={claim.creator?.name}
+                email={claim.creator?.email}
+                size="md"
+                alt=""
+              />
+              <div className="min-w-0">
+                <p className="font-medium truncate">
+                  {claim.creator?.name || claim.creator?.email || "Unknown"}
+                </p>
+                {claim.creator?.name && claim.creator?.email && (
+                  <p className="text-muted text-sm truncate">
+                    {claim.creator.email}
+                  </p>
+                )}
+              </div>
+            </div>
           </dd>
         </div>
 

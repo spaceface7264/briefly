@@ -51,7 +51,7 @@ export default async function AdminLayout({
         .single(),
       supabase
         .from("profiles")
-        .select("name, is_platform_admin")
+        .select("name, is_platform_admin, avatar_url")
         .eq("id", user.id)
         .maybeSingle(),
       supabase
@@ -92,6 +92,7 @@ export default async function AdminLayout({
         userId={user.id}
         userEmail={user.email ?? ""}
         userName={profile?.name ?? null}
+        userAvatarUrl={profile?.avatar_url ?? null}
         isOrgAdmin={isOrgAdmin}
         isPlatformAdmin={isPlatformAdmin}
         org={{
