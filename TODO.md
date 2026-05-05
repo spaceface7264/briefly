@@ -409,28 +409,64 @@ App URL:
 dev (note: port 3001, not the Next default 3000). Production needs
 the real domain — blocked on §8.
 
-### Production deploy target — UNAUDITED
+### Production deploy target — Cloudflare Workers (audited 2026-05-05)
 
-I have no visibility into what's set in your Cloudflare/Vercel/etc
-environment. Verify each variable is also set there with the
-production-appropriate value:
+Public, non-secret values are baked in via `wrangler.jsonc` `vars`.
+Server-side secrets are stored as Worker secrets and added through
+the Cloudflare dashboard (Workers & Pages → rainbow → Settings →
+Variables and Secrets), not via `wrangler secret put` — the latter
+currently fails with `"the latest version of your Worker isn't
+currently deployed"` while a Workers Builds upload is pending.
 
-- `NEXT_PUBLIC_PLATFORM_NAME` — fine to mirror local (`Briefly`)
-- `NEXT_PUBLIC_LOGO_URL` — needs hosted logo URL
-- `NEXT_PUBLIC_CONTACT_EMAIL` — needs real address (blocked on §8)
-- `NEXT_PUBLIC_APP_URL` — your production domain (blocked on §8)
-- `PLATFORM_ADDRESS` — needs real legal-entity address
-- `PLATFORM_CVR` — needs real CVR
-- `PLATFORM_VAT_NUMBER` — needs real VAT number
-- `PLATFORM_SENDER_NAME`
-- `PLATFORM_SENDER_EMAIL` — needs real address (blocked on §8)
-- `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` +
-`SUPABASE_SERVICE_ROLE_KEY` — Supabase project credentials
-- `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` — Stripe creds
-(the live ones, not test keys)
+Verified set on the running Worker:
 
-Quickest way to verify the running app: load `/admin/settings` in
-production once it's deployed and look for yellow "Default" badges.
+- ✅ `NEXT_PUBLIC_SUPABASE_URL` (wrangler.jsonc var)
+- ✅ `NEXT_PUBLIC_SUPABASE_ANON_KEY` (wrangler.jsonc var)
+- ✅ `NEXT_PUBLIC_APP_URL` (wrangler.jsonc var, currently
+`https://rainbow.ramieldaoud.workers.dev` — flips to the real
+domain when §8 unblocks)
+- ✅ `SUPABASE_SERVICE_ROLE_KEY` (secret, added 2026-05-05;
+unblocked `/admin/brand` and every other surface that calls
+`createAdminClient()`)
+- ✅ `STRIPE_SECRET_KEY` (secret, added 2026-05-05; needed by
+every Stripe API call)
+
+Still missing on the Worker:
+
+- ❌ `STRIPE_WEBHOOK_SECRET` (secret) — without this the webhook
+handler at `src/app/api/stripe/webhook/route.ts` rejects every
+incoming Stripe event with HTTP 400 because
+`stripe.webhooks.constructEvent(...)` can't verify signatures.
+**Real impact**: `transfer.reversed`, `account.updated`, and
+`payment_intent.payment_failed` only arrive via webhook, so
+those state transitions silently never reach the DB. Inline
+flows that call `syncSubscriptionFromStripe(...)` /
+`syncPaymentMethodFromSession(...)` after redirect still work,
+which is why this hasn't manifested yet. Grab from Stripe
+Dashboard → Developers → Webhooks → endpoint → Signing secret,
+then add via CF dashboard.
+- ❌ `PLATFORM_ADDRESS` (secret) — empty value renders empty
+address row on self-billed invoice PDFs. Functional, not
+legally valid for EU invoicing. Blocked on §8 / CVR
+registration anyway.
+- ❌ `PLATFORM_CVR` (secret) — same shape; required for any
+real Danish self-billing.
+- ❌ `PLATFORM_VAT_NUMBER` (secret) — same shape; required for
+reverse-charge invoice text and OSS reporting.
+- ❌ `NEXT_PUBLIC_PLATFORM_NAME` (var) — falls back to `"Briefly"`
+in code. Fine until rebrand or multi-tenant deploy.
+- ❌ `NEXT_PUBLIC_LOGO_URL` (var) — falls back to inline SVG
+defaults; set once a hosted logo asset exists.
+- ❌ `NEXT_PUBLIC_CONTACT_EMAIL` (var) — falls back to
+`hello@example.com` placeholder in footer + legal pages.
+Blocked on §8 (real domain).
+- ❌ `PLATFORM_SENDER_NAME` / `PLATFORM_SENDER_EMAIL` — these
+are only consumed by the Supabase Edge Functions (see §3), not
+by the Cloudflare Worker, so they don't need to be set here.
+
+`/admin/settings` shows yellow "Default" badges next to any
+platform var that is unset in the running environment — quickest
+way to spot drift live.
 
 ---
 
