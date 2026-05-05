@@ -27,15 +27,26 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronsUpDownIcon,
   LockIcon,
   LogOutIcon,
+  ScaleIcon,
   SparklesIcon,
   UserIcon,
 } from "lucide-react";
+
+const LEGAL_LINKS = [
+  { href: "/legal/terms", label: "Terms" },
+  { href: "/legal/privacy", label: "Privacy" },
+  { href: "/legal/cookies", label: "Cookies" },
+  { href: "/legal/self-billing", label: "Self-billing agreement" },
+] as const;
 
 interface AdminNavProps {
   /** The signed-in user's id; used to subscribe to claim-notification realtime updates. */
@@ -407,6 +418,22 @@ function UserMenu({ email, name }: { email: string; name: string | null }) {
           <UserIcon />
           Account
         </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <ScaleIcon />
+            Legal
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {LEGAL_LINKS.map((link) => (
+              <DropdownMenuItem
+                key={link.href}
+                render={<Link href={link.href} />}
+              >
+                {link.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOutIcon />

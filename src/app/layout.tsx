@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { Footer } from "@/components/footer";
+import { FooterGate } from "@/components/footer-gate";
 import { ScrollToTopOnRouteChange } from "@/components/scroll-to-top-on-route-change";
 import { OrgProvider } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
@@ -57,7 +58,9 @@ export default async function RootLayout({
         <OrgProvider orgId={orgId}>
           {children}
         </OrgProvider>
-        <Footer />
+        <FooterGate>
+          <Footer />
+        </FooterGate>
         <Toaster position="bottom-right" richColors />
       </body>
     </html>
