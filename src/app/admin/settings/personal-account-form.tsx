@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -12,10 +12,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AVATAR_ALLOWED_MIME_TYPES,
+  AVATAR_MAX_BYTES,
+} from "@/lib/creator-profile";
+import {
+  removeOrgUserAvatar,
+  uploadOrgUserAvatar,
+} from "./personal-actions";
 
 interface Props {
   initialName: string;
   email: string;
+  /** Public URL into the `avatars` bucket. Null for users who haven't uploaded one yet. */
+  initialAvatarUrl: string | null;
   /** Per-org role label shown in the read-only chip ("Admin" / "Member"). */
   roleLabel: string;
   /** Org name shown next to the role chip for context. */
@@ -27,6 +37,7 @@ const PASSWORD_MIN_LEN = 6;
 export function PersonalAccountForm({
   initialName,
   email,
+  initialAvatarUrl,
   roleLabel,
   orgName,
 }: Props) {
@@ -36,7 +47,63 @@ export function PersonalAccountForm({
   const [name, setName] = useState(initialName);
   const [savingName, setSavingName] = useState(false);
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
+  const [avatarPending, startAvatar] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [pwOpen, setPwOpen] = useState(false);
+
+  function pickAvatar() {
+    fileInputRef.current?.click();
+  }
+
+  function onFileChosen(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!AVATAR_ALLOWED_MIME_TYPES.has(file.type)) {
+      toast.error("Avatar must be PNG, JPEG, or WebP");
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      toast.error("Avatar must be under 2 MB");
+      return;
+    }
+
+    // Optimistic preview while the upload + revalidate are in flight.
+    setAvatarUrl(URL.createObjectURL(file));
+
+    startAvatar(async () => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const result = await uploadOrgUserAvatar(fd);
+      if (!result.ok) {
+        toast.error("Avatar upload failed", { description: result.error });
+        // Roll back the optimistic preview.
+        setAvatarUrl(initialAvatarUrl);
+        return;
+      }
+      toast.success("Avatar updated");
+      router.refresh();
+    });
+  }
+
+  function clearAvatar() {
+    startAvatar(async () => {
+      const result = await removeOrgUserAvatar();
+      if (!result.ok) {
+        toast.error("Couldn't remove avatar", { description: result.error });
+        return;
+      }
+      setAvatarUrl(null);
+      toast.success("Avatar removed");
+      router.refresh();
+    });
+  }
+
+  const initialLetter =
+    (name || email || "?").trim().charAt(0).toUpperCase() || "?";
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -85,6 +152,67 @@ export function PersonalAccountForm({
       </div>
 
       <div className="bg-surface border border-border rounded-xl p-6 space-y-6">
+        {/* Avatar tile — sits above the name form because it's the
+            most visually anchoring field on the card. Uploads go
+            through a server action (see `personal-actions.ts`); the
+            tile shows an optimistic blob: preview while the request
+            is in flight. */}
+        <div className="flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-border bg-background">
+            {avatarUrl ? (
+              // Plain <img> by convention — same reasoning as the
+              // org-logo and creator-side avatar tile: avoids
+              // maintaining a `next/image` remotePatterns allow-list
+              // for every Supabase project URL, and keeps blob:
+              // optimistic previews working without loader config.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-muted">
+                {initialLetter}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={pickAvatar}
+              disabled={avatarPending}
+              className="px-3 py-1.5 text-sm font-medium border border-border-strong hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            >
+              {avatarPending
+                ? "Working…"
+                : avatarUrl
+                  ? "Replace"
+                  : "Upload"}
+            </button>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={clearAvatar}
+                disabled={avatarPending}
+                className="px-3 py-1.5 text-sm text-muted hover:text-error disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Remove
+              </button>
+            )}
+            <p className="text-xs text-muted sm:ml-2">
+              PNG, JPEG, or WebP. Up to 2 MB.
+            </p>
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={onFileChosen}
+        />
+
         {/* Name — the only editable field on this card. Static rows
             (email, role, password) live below as label/value pairs so
             the form input is the focal point. */}
