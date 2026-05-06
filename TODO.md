@@ -759,12 +759,22 @@ convention is deprecated` warning. The `@/lib/supabase/middleware`
 helper module keeps its name — Next's rename is only about the
 top-level file convention, not unrelated modules that happen to
 share the word.
-- ❌ **Friendlier signup error for Supabase rate limits** (logged
-2026-04-29; audit confirms no error-mapping logic in
-`src/app/login/login-form.tsx`). The signup form surfaces raw Supabase strings like
-`email rate limit exceeded`. Map known error codes to human copy
-in `LoginForm` (e.g. *"Too many signup attempts. Try again in an
-hour."*). Easy ~10-min PR.
+- ✅ **Friendlier auth errors for Supabase rate limits and the
+common signup/login failures** (2026-05-06). The audit was wrong
+about the absence of error-mapping logic — `friendlySignupError`
+existed for the signup path. Replaced with a unified
+`friendlyAuthError(err, flow)` helper that:
+  - Covers signup AND login (`handleLogin` previously surfaced raw
+    `Invalid login credentials` strings)
+  - Maps the three rate-limit code shapes (`over_email_send_rate_limit`,
+    `over_request_rate_limit`, `over_sms_send_rate_limit`) plus the
+    free-form "rate limit" / "too many requests" message variants
+  - Adds login-side cases for `invalid_credentials`,
+    `email_not_confirmed`, `user_not_found`, `user_banned`
+  - Adds signup-side cases for `email_exists`, `signup_disabled`,
+    `email_address_invalid`, `email_address_not_authorized`
+  - Falls back to the original message when nothing matches, so
+    new failure modes are never silently swallowed
 - ❌ **Show redeemed teammate invites in `/admin/settings`** (logged
 2026-04-29; audit confirms `.is("used_by", null)` filter still in
 `src/app/admin/settings/page.tsx:113` — redeemed invites still

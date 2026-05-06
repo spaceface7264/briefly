@@ -8,44 +8,116 @@ import { createClient } from "@/lib/supabase/client";
 type Mode = "login" | "signup-creator" | "signup-invite";
 
 /**
- * Map a small set of known Supabase auth signup errors to friendlier
- * copy. Falls back to the original message verbatim for anything we
- * don't explicitly handle, so new failure modes are never silently
- * swallowed. Codes match @supabase/auth-js's ErrorCode union.
+ * Map a small set of known Supabase auth errors to friendlier copy.
+ * Covers both `signInWithPassword` (login) and `signUp` failure
+ * modes — codes are disjoint between the two flows, so one helper
+ * is enough.
+ *
+ * The flow argument is used only for the fallback string ("Signup
+ * failed" vs "Sign-in failed") so the user gets a useful sentence
+ * even when we don't recognise the error code. Anything we don't
+ * explicitly handle is returned verbatim, so new failure modes are
+ * never silently swallowed — we just lose the friendliness.
+ *
+ * Codes match `@supabase/auth-js`'s ErrorCode union; the message
+ * fallbacks exist because Supabase still ships some failure modes
+ * with a code-less response.
  */
-function friendlySignupError(err: unknown): string {
+function friendlyAuthError(
+  err: unknown,
+  flow: "login" | "signup"
+): string {
   const e = err as { code?: string; message?: string } | null;
   const code = e?.code;
   const message = e?.message ?? "";
   const lower = message.toLowerCase();
 
+  // Generic rate limiting first — applies to both flows. Supabase
+  // ships at least three different shapes for this depending on
+  // the rate-limit kind (per-IP, per-email, per-fingerprint), so
+  // we OR the code with the message-substring matches.
   if (
     code === "over_email_send_rate_limit" ||
-    lower.includes("email rate limit exceeded")
+    code === "over_request_rate_limit" ||
+    code === "over_sms_send_rate_limit" ||
+    lower.includes("email rate limit exceeded") ||
+    lower.includes("rate limit") ||
+    lower.includes("too many requests")
   ) {
-    return "Too many signup attempts. Try again in an hour.";
+    return flow === "signup"
+      ? "Too many signup attempts. Try again in an hour."
+      : "Too many sign-in attempts. Try again in a few minutes.";
   }
 
-  if (
-    code === "user_already_exists" ||
-    lower.includes("user already registered")
-  ) {
-    return "An account with this email already exists. Try signing in instead.";
+  // ----- login-only cases -----
+  if (flow === "login") {
+    if (
+      code === "invalid_credentials" ||
+      lower.includes("invalid login credentials")
+    ) {
+      return "Wrong email or password.";
+    }
+
+    if (
+      code === "email_not_confirmed" ||
+      lower.includes("email not confirmed")
+    ) {
+      return "Confirm your email first. Check your inbox for the link we sent when you signed up.";
+    }
+
+    if (code === "user_not_found" || lower.includes("user not found")) {
+      return "No account found with that email. Sign up to get started.";
+    }
+
+    if (code === "user_banned" || lower.includes("banned")) {
+      return "This account is suspended. Contact support if you think this is a mistake.";
+    }
   }
 
-  if (code === "weak_password" || lower.includes("password should be at least")) {
-    return "Password must be at least 6 characters.";
+  // ----- signup-only cases -----
+  if (flow === "signup") {
+    if (
+      code === "user_already_exists" ||
+      code === "email_exists" ||
+      lower.includes("user already registered")
+    ) {
+      return "An account with this email already exists. Try signing in instead.";
+    }
+
+    if (
+      code === "weak_password" ||
+      lower.includes("password should be at least")
+    ) {
+      return "Password must be at least 6 characters.";
+    }
+
+    if (code === "signup_disabled" || lower.includes("signups not allowed")) {
+      return "Self-serve signup is disabled on this platform. Ask an admin for an invite code.";
+    }
+
+    if (
+      code === "email_address_invalid" ||
+      (code === "validation_failed" && lower.includes("email")) ||
+      lower.includes("invalid email") ||
+      lower.includes("unable to validate email address")
+    ) {
+      return "That doesn't look like a valid email address.";
+    }
+
+    if (
+      code === "email_address_not_authorized" ||
+      lower.includes("email address not authorized")
+    ) {
+      return "This email isn't on the allow-list for this platform. Ask the admin to add you.";
+    }
   }
 
-  if (
-    (code === "validation_failed" && lower.includes("email")) ||
-    lower.includes("invalid email") ||
-    lower.includes("unable to validate email address")
-  ) {
-    return "That doesn't look like a valid email address.";
-  }
-
-  return message || "Signup failed. Please try again.";
+  return (
+    message ||
+    (flow === "signup"
+      ? "Signup failed. Please try again."
+      : "Sign-in failed. Please try again.")
+  );
 }
 
 interface LoginFormProps {
@@ -99,7 +171,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
       await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) {
-      setError(signInError.message);
+      setError(friendlyAuthError(signInError, "login"));
       setLoading(false);
       return;
     }
@@ -174,7 +246,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
     });
 
     if (signUpError) {
-      setError(friendlySignupError(signUpError));
+      setError(friendlyAuthError(signUpError, "signup"));
       setLoading(false);
       return;
     }
