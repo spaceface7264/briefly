@@ -790,15 +790,15 @@ existed for the signup path. Replaced with a unified
     `email_address_invalid`, `email_address_not_authorized`
   - Falls back to the original message when nothing matches, so
     new failure modes are never silently swallowed
-- ❌ **Show redeemed teammate invites in `/admin/settings`** (logged
-2026-04-29; audit confirms `.is("used_by", null)` filter still in
-`src/app/admin/settings/page.tsx:113` — redeemed invites still
-hidden). The active-invites table only renders rows where
-`used_by IS NULL`. Once redeemed, the row disappears entirely.
-That's intentional (active = actionable) but admins lose visibility
-into "who joined via which code". Add a collapsible "Redeemed"
-section underneath the active list, or push it into a small audit
-log surface. Quick win.
+- ✅ **Show redeemed teammate invites in `/admin/settings`**
+(2026-05-06 audit pass: this was already shipped before the
+2026-04-29 audit was written, the audit just missed it). Page
+query already pulls a parallel `redeemedInvitesRaw` block
+(`/admin/settings/page.tsx`, capped at 20 most recent by
+`used_at`) and `team-invites.tsx` renders a "Redeemed" section
+underneath the active list when any rows exist. The active list
+keeps its `used_by IS NULL` filter on purpose — actionable vs
+audit-trail are two different surfaces with one URL.
 - 🟡 **Signup tile visual polish + deep-link entry** (logged
 2026-04-29; deep links *are* wired — `signup-creator` and
 `signup-invite` modes recognised in `LoginForm`. Visual polish and
