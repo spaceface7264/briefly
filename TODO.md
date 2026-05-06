@@ -751,13 +751,14 @@ teammate invites) and locked the nav for `/admin/billing` and
   meaning members can open admin pages but most mutations error out.
   The intended split (Admin = full; Member = day-to-day brief/claim
   ops, no team/billing/discoverability) needs RLS reflecting it.
-- ➕ ❌ **Rename `src/middleware.ts` → `src/proxy.ts` for Next 15**
-(logged 2026-04-29 in this audit; `src/middleware.ts` still exists,
-no `src/proxy.ts`). The build emits
-`⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.` Functionality is unchanged in Next 15 but the
-rename is required before whatever Next major drops the alias.
-Trivial PR — rename file, no API changes. Documented at
-[https://nextjs.org/docs/messages/middleware-to-proxy](https://nextjs.org/docs/messages/middleware-to-proxy).
+- ➕ ✅ **Rename `src/middleware.ts` → `src/proxy.ts` for Next 16**
+(2026-05-06). Ran `npx @next/codemod@canary middleware-to-proxy .`
+which renamed the file and the function export (`middleware` →
+`proxy`). The build no longer emits the `"middleware" file
+convention is deprecated` warning. The `@/lib/supabase/middleware`
+helper module keeps its name — Next's rename is only about the
+top-level file convention, not unrelated modules that happen to
+share the word.
 - ❌ **Friendlier signup error for Supabase rate limits** (logged
 2026-04-29; audit confirms no error-mapping logic in
 `src/app/login/login-form.tsx`). The signup form surfaces raw Supabase strings like
