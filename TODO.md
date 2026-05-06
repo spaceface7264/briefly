@@ -141,6 +141,21 @@ types and confirm zero diff.
 - 🟡 `/admin/claims` table Creator column: avatar (sm) + name +
   email + instagram
 
+### Phase 3 follow-up: org-admin avatar editor (#TBD)
+
+- 🟡 Org users can now upload + remove their own avatar from
+  `/admin/settings` Personal tab. Closes the symmetry gap noted
+  when Phase 3 shipped (the `<Avatar>` component already rendered
+  org-admin avatars via the layout query, but org users had no
+  editor surface). New file `src/app/admin/settings/personal-actions.ts`
+  with `uploadOrgUserAvatar` / `removeOrgUserAvatar`, gated by
+  `getAccountType(...) === "org"`. Mirrors the creator-side
+  action pair line-for-line; deliberately duplicated rather than
+  factored into a shared helper so each surface stays auditable
+  as a single trust boundary. Reuses the bucket / MIME / size
+  constants from `src/lib/creator-profile.ts` (the constants are
+  not creator-specific, just historically located there).
+
 ### Later (deferred to §9 Phase 4.3)
 
 - ❌ Public `/c/[handle]` route + slug uniqueness migration
