@@ -222,7 +222,6 @@ function InstagramLink({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
       className={`block ${className}`}
     >
       @{display}

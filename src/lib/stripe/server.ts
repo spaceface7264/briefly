@@ -10,6 +10,7 @@ export function stripe(): Stripe {
     }
     client = new Stripe(key, {
       typescript: true,
+      httpClient: Stripe.createFetchHttpClient(),
     });
   }
   return client;

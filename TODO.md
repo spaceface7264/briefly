@@ -569,6 +569,47 @@ by the Cloudflare Worker, so they don't need to be set here.
 platform var that is unset in the running environment — quickest
 way to spot drift live.
 
+### Cloudflare deploy operational notes (added 2026-05-07)
+
+Caught the hard way during the Stripe wiring session. Worth keeping
+in mind for any future prod debugging.
+
+- **Wrangler account gotcha**: the rainbow Worker lives on the
+`ramieldaoud@gmail.com` Cloudflare account
+(`e0bf98665f25a5c3091838e9f65408dc`), not `rami@boulders.dk`
+(`35ad5dd2c91b7d68aaae33f3d2d3de69`). Run `npx wrangler whoami`
+before `npm run deploy` and confirm the account ID matches the
+prod one — otherwise wrangler quietly creates a phantom Free-tier
+`rainbow` on the wrong account and rejects every push at the 3
+MiB size limit. Re-login via `npx wrangler logout && npx wrangler
+login` if the wrong account shows.
+- **Workers Builds is the source of truth for prod deploys.** The
+`spaceface7264/rainbow` GitHub integration auto-deploys from
+`main` to the Paid Worker. Local `npm run deploy` is a developer
+shortcut; if `main` and your local working copy disagree, the
+next CI run from `main` overrides any local push. **Always commit
++ push fixes**, don't rely on local-only deploys.
+- **Bundle size**: Worker is on the Paid plan (10 MiB gzipped
+limit). Current bundle includes ~2.2 MiB of unused `@vercel/og`
+assets (`resvg.wasm`, `index.edge.js`, `yoga.wasm`) that Next 16
+ships by default; OpenNext doesn't tree-shake them. Reducing them
+is a future ticket if size becomes a constraint again — until
+then, Paid covers it.
+- **Verifying a deploy actually shipped**: production builds mask
+server errors with a digest ID (e.g., `ERROR 3639177834`). To
+debug:
+  1. Hit the URL with a cache-buster (`?_=N`) to bypass
+    Cloudflare's edge cache; the browser cache also pins stale
+     RSC payloads, so try Incognito if normal-window still 500s.
+  2. Check **Workers & Pages → rainbow → Observability** in the
+    CF dashboard for the actual server error and stack trace.
+     Workers Logs must stay **Enabled** under Settings →
+     Observability for this to work.
+  3. Cross-check the Deployments tab: the latest "Active
+    deployment" Version ID + timestamp should match the deploy
+     you just ran. If it doesn't, your push hit a different
+     account (see first bullet) or failed validation silently.
+
 ---
 
 ## 5. Legal content review

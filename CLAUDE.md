@@ -80,6 +80,8 @@ Migrations are in `supabase/migrations/` (currently at 0039). Run via Supabase D
 - Don't write `SECURITY DEFINER` functions/triggers without `ALTER ... OWNER TO postgres`; they won't bypass RLS otherwise
 - Don't reach for `as any` to silence a type error on a DB row; regenerate `src/types/database.ts` instead
 - Don't `await supabase.from(...).update/insert/upsert/delete(...)` without destructuring `{ error }` and handling it; Supabase JS swallows errors silently, which has caused real production drift when triggers or RLS blocked the write
+- Don't construct `new Stripe(key, {...})` without `httpClient: Stripe.createFetchHttpClient()`; Stripe SDK's default Node http path hangs silently on Cloudflare Workers even with `nodejs_compat`. Always go through `src/lib/stripe/server.ts`'s `stripe()` factory rather than newing up Stripe directly
+- Don't pass event handlers (`onClick`, `onChange`, etc.) as props from a server component; Next 16 / React 19 RSC throws a masked 500 in prod (the dev message is "Event handlers cannot be passed to Client Component props"). If interaction is needed, mark the file `"use client"`
 
 ## Email Notifications
 
