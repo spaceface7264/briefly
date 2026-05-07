@@ -45,9 +45,21 @@ interface BriefsClientProps {
   briefs: BriefWithClaims[];
   initialCategory?: BriefCategory;
   initialDurationClass?: BriefDurationClass;
+  /** Identity of the active org these briefs belong to. Rendered as a
+   *  "Briefs by <logo> <name>" attribution next to the page title so
+   *  creators in multiple orgs can tell at a glance which feed they're
+   *  looking at without opening the org switcher. Null when the org
+   *  row went missing (extremely rare, but the layout still makes
+   *  sense without it). */
+  org: { name: string; logoUrl: string | null; accentColor: string | null } | null;
 }
 
-export function BriefsClient({ briefs, initialCategory, initialDurationClass }: BriefsClientProps) {
+export function BriefsClient({
+  briefs,
+  initialCategory,
+  initialDurationClass,
+  org,
+}: BriefsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasMountedRef = useRef(false);
@@ -154,8 +166,14 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
           {/* Header row — title + count + filters inline */}
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex items-baseline justify-between gap-4">
-              <div className="flex items-baseline gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h1 className="text-2xl font-bold tracking-tight">Briefs</h1>
+                {org && (
+                  <span className="inline-flex items-center gap-2 text-base text-muted">
+                    <span>by</span>
+                    <OrgChip org={org} />
+                  </span>
+                )}
                 <span className="value-text text-sm text-muted">
                   {hasActiveFilters ? `${shownCount}/${totalCount}` : totalCount}
                 </span>
@@ -294,6 +312,45 @@ export function BriefsClient({ briefs, initialCategory, initialDurationClass }: 
         </div>
       </main>
     </>
+  );
+}
+
+/**
+ * Small inline org identity rendered next to the page title as
+ * "Briefs by <chip>". Logo is loaded with a plain <img> rather than
+ * next/image because org logos live on user-upload Supabase Storage
+ * URLs we don't pre-register in next.config.ts (same rationale as
+ * the admin sidebar's OrgIdentity). Falls back to an accent-tinted
+ * initial tile when no logo has been uploaded.
+ */
+function OrgChip({
+  org,
+}: {
+  org: { name: string; logoUrl: string | null; accentColor: string | null };
+}) {
+  const initial = org.name.charAt(0).toUpperCase();
+  const accent = org.accentColor || "var(--color-accent)";
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-foreground">
+      {org.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={org.logoUrl}
+          alt=""
+          className="size-5 shrink-0 rounded-sm border border-border bg-background object-cover"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="flex size-5 shrink-0 items-center justify-center rounded-sm text-[10px] font-bold text-background"
+          style={{ backgroundColor: accent }}
+        >
+          {initial}
+        </span>
+      )}
+      <span className="font-semibold">{org.name}</span>
+    </span>
   );
 }
 

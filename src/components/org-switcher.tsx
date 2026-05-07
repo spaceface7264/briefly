@@ -143,9 +143,16 @@ export function OrgSwitcher() {
           }}
         >
           {orgs.map((org) => (
+            // closeOnClick defaults to false on MenuRadioItem (Base UI
+            // assumes radios are used for stateful pickers like
+            // sort-order where the user wants to keep comparing). Our
+            // org switcher is a destination — pick an org and go —
+            // so we close on selection to match the native <select>
+            // muscle memory we replaced.
             <DropdownMenuRadioItem
               key={org.id}
               value={org.id}
+              closeOnClick
               className="text-sm"
             >
               <span className="truncate">{org.name}</span>
