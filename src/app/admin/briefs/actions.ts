@@ -12,7 +12,16 @@ import type {
   BriefDurationClass,
 } from "@/types/database";
 import type { Json } from "@/types/database";
-import { MIN_TOTAL_ESCROW_DKK, MAX_BRIEF_TITLE_LEN } from "@/lib/pricing";
+import {
+  MIN_TOTAL_ESCROW_DKK,
+  MAX_BRIEF_TITLE_LEN,
+  getBriefAllowanceState,
+  decidePublishCharge,
+} from "@/lib/pricing";
+import {
+  commitBriefPublishCount,
+  decrementBriefPublishCount,
+} from "@/lib/billing/allowance";
 
 type SimpleResult = { ok: true } | { ok: false; error: string };
 
@@ -48,6 +57,7 @@ async function fingerprintBriefPublishParams(
   parts: {
     orgId: string;
     escrowDkk: number;
+    overageDkk: number;
     priceDkk: number;
     claimLimit: number;
     title: string;
@@ -56,6 +66,7 @@ async function fingerprintBriefPublishParams(
   const payload = [
     parts.orgId,
     String(parts.escrowDkk),
+    String(parts.overageDkk),
     String(parts.priceDkk),
     String(parts.claimLimit),
     parts.title.slice(0, 80),
@@ -68,6 +79,242 @@ async function fingerprintBriefPublishParams(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 16);
+}
+
+interface SettleSuccess {
+  ok: true;
+  paymentIntentId: string | null;
+  escrowDkkCharged: number;
+  overageDkkCharged: number;
+  fundedStatus: "unfunded" | "funded";
+}
+
+interface SettleFailure {
+  ok: false;
+  error: string;
+  needsPaymentMethod?: boolean;
+}
+
+/**
+ * Settle the publish-time charge for a brief: read the org's
+ * allowance state, decide whether the publish is covered by the
+ * monthly quota or needs an overage, charge Stripe (escrow + overage
+ * combined into one PaymentIntent), and atomically increment the
+ * publish counter.
+ *
+ * Combined PI rationale: bundling both amounts in a single charge
+ * means one bank line item for the org and one refund target on
+ * archive (escrow refunds via partial refund, the overage portion
+ * stays charged). It also keeps `briefs.stripe_payment_intent_id` as
+ * the single source of truth for "how much did this brief cost
+ * Stripe-side" without needing the `overage_payment_intent_id`
+ * column to track a second PI.
+ *
+ * If the brief insert/update fails AFTER this returns, the caller
+ * MUST refund the PI (when paymentIntentId is non-null) and call
+ * `decrementBriefPublishCount` so the org isn't left with a phantom
+ * publish on their meter and a charge on their card.
+ */
+async function settleBriefPublishCharge(args: {
+  orgId: string;
+  priceDkk: number;
+  claimLimit: number;
+  title: string;
+  clientAttemptId: string;
+}): Promise<SettleSuccess | SettleFailure> {
+  const escrowDkk = args.priceDkk * args.claimLimit;
+  const adminDb = createAdminClient();
+
+  const allowanceState = await getBriefAllowanceState(adminDb, args.orgId);
+  const decision = decidePublishCharge(allowanceState);
+
+  if (decision.kind === "blocked") {
+    return { ok: false, error: decision.reason };
+  }
+
+  const overageDkk = decision.kind === "overage" ? decision.overageDkk : 0;
+  const totalChargeDkk = escrowDkk + overageDkk;
+
+  // Free brief covered by allowance, no charge: still increment the
+  // counter so the publish counts against the quota.
+  if (totalChargeDkk === 0) {
+    const commit = await commitBriefPublishCount(adminDb, args.orgId);
+    if (!commit.ok) {
+      return { ok: false, error: `Counter increment failed: ${commit.error}` };
+    }
+    return {
+      ok: true,
+      paymentIntentId: null,
+      escrowDkkCharged: 0,
+      overageDkkCharged: 0,
+      fundedStatus: "unfunded",
+    };
+  }
+
+  // From here: there's a real Stripe charge. The escrow floor only
+  // applies when escrowDkk > 0; an overage-only charge (free brief +
+  // overage) is allowed below the floor since 79 DKK > Stripe's
+  // 2.50 DKK minimum and the floor was a guard for tiny escrow
+  // totals, not a general lower bound on PaymentIntents.
+  if (escrowDkk > 0 && escrowDkk < MIN_TOTAL_ESCROW_DKK) {
+    return {
+      ok: false,
+      error: `Total escrow must be at least ${MIN_TOTAL_ESCROW_DKK} DKK. Increase the price or the slot count.`,
+    };
+  }
+
+  const { data: org } = await adminDb
+    .from("organizations")
+    .select("name, stripe_customer_id, default_payment_method_id")
+    .eq("id", args.orgId)
+    .single();
+
+  if (!org) {
+    return { ok: false, error: "Org not found" };
+  }
+  if (!org.default_payment_method_id) {
+    return {
+      ok: false,
+      error:
+        "Add a payment method on /admin/billing before publishing a paid brief.",
+      needsPaymentMethod: true,
+    };
+  }
+
+  const customerId = await getOrCreateOrgStripeCustomer(adminDb, args.orgId, {
+    name: org.name,
+    email: null,
+  });
+
+  const paramsFingerprint = await fingerprintBriefPublishParams({
+    orgId: args.orgId,
+    escrowDkk,
+    overageDkk,
+    priceDkk: args.priceDkk,
+    claimLimit: args.claimLimit,
+    title: args.title,
+  });
+
+  const description =
+    overageDkk > 0
+      ? `Brief publish: ${args.title.slice(0, 80)} (escrow ${escrowDkk} DKK + overage ${overageDkk} DKK)`
+      : `Escrow for brief: ${args.title.slice(0, 80)}`;
+
+  let paymentIntentId: string;
+  try {
+    const paymentIntent = await stripe().paymentIntents.create(
+      {
+        amount: totalChargeDkk * 100, // DKK to øre
+        currency: "dkk",
+        customer: customerId,
+        payment_method: org.default_payment_method_id,
+        confirm: true,
+        off_session: true,
+        description,
+        metadata: {
+          org_id: args.orgId,
+          escrow_dkk: String(escrowDkk),
+          overage_dkk: String(overageDkk),
+          claim_limit: String(args.claimLimit),
+          price_dkk: String(args.priceDkk),
+          client_attempt_id: args.clientAttemptId,
+        },
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never",
+        },
+      },
+      {
+        idempotencyKey: `brief-publish-${args.orgId}-${args.clientAttemptId}-${paramsFingerprint}`,
+      }
+    );
+
+    if (paymentIntent.status !== "succeeded") {
+      return { ok: false, error: friendlyStripeStatus(paymentIntent.status) };
+    }
+    paymentIntentId = paymentIntent.id;
+  } catch (err) {
+    return { ok: false, error: friendlyStripeError(err) };
+  }
+
+  const commit = await commitBriefPublishCount(adminDb, args.orgId);
+  if (!commit.ok) {
+    // Charge succeeded but the counter failed. Refund and surface so
+    // the org isn't billed for a publish that won't appear on their
+    // brief list.
+    try {
+      await stripe().refunds.create(
+        {
+          payment_intent: paymentIntentId,
+          reason: "requested_by_customer",
+          metadata: {
+            reason: "publish_counter_increment_failed",
+            org_id: args.orgId,
+          },
+        },
+        { idempotencyKey: `brief-publish-rollback-${paymentIntentId}` }
+      );
+    } catch (refundErr) {
+      const refundMsg =
+        refundErr instanceof Error ? refundErr.message : "unknown";
+      return {
+        ok: false,
+        error: `Charge succeeded but counter increment failed AND refund failed. Contact support. Counter error: ${commit.error}. Refund error: ${refundMsg}. PaymentIntent: ${paymentIntentId}.`,
+      };
+    }
+    return {
+      ok: false,
+      error: `Counter increment failed; charge was refunded. ${commit.error}`,
+    };
+  }
+
+  return {
+    ok: true,
+    paymentIntentId,
+    escrowDkkCharged: escrowDkk,
+    overageDkkCharged: overageDkk,
+    fundedStatus: escrowDkk > 0 ? "funded" : "unfunded",
+  };
+}
+
+/**
+ * Compensating rollback called when a brief insert/update fails
+ * after `settleBriefPublishCharge` has already charged and
+ * incremented. Refunds the PI (if any) and decrements the counter.
+ * Best-effort — surfaces a support-friendly message if the refund
+ * itself fails.
+ */
+async function rollbackPublishCharge(
+  orgId: string,
+  paymentIntentId: string | null,
+  reasonContext: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const adminDb = createAdminClient();
+
+  if (paymentIntentId) {
+    try {
+      await stripe().refunds.create(
+        {
+          payment_intent: paymentIntentId,
+          reason: "requested_by_customer",
+          metadata: { reason: reasonContext, org_id: orgId },
+        },
+        { idempotencyKey: `brief-publish-rollback-${paymentIntentId}` }
+      );
+    } catch (refundErr) {
+      const refundMsg =
+        refundErr instanceof Error ? refundErr.message : "unknown";
+      return {
+        ok: false,
+        error: `Refund failed during rollback (${reasonContext}). PaymentIntent: ${paymentIntentId}. Error: ${refundMsg}.`,
+      };
+    }
+  }
+
+  // Best-effort: if this fails, the org's counter is +1 but no money
+  // was misplaced. Logging it from the caller is enough.
+  await decrementBriefPublishCount(adminDb, orgId);
+  return { ok: true };
 }
 
 interface NewBriefInput {
@@ -167,126 +414,36 @@ export async function createBriefWithEscrow(
     };
   }
 
-  const isPaid = input.price_dkk > 0;
-  const escrowDkk = input.price_dkk * input.claim_limit;
-
-  // Defense-in-depth: keep the client form from submitting a total
-  // escrow below Stripe's DKK floor. The form has its own guard, but
-  // a crafted request could bypass that, so block it server-side too
-  // before we pay the round-trip cost to Stripe.
-  if (isPaid && escrowDkk < MIN_TOTAL_ESCROW_DKK) {
+  // Settle the publish-time charge: allowance check, then escrow +
+  // optional overage in a single PaymentIntent. Returns the PI id
+  // (or null when allowance covers a free brief) and the per-side
+  // amounts to record on the brief.
+  const settle = await settleBriefPublishCharge({
+    orgId,
+    priceDkk: input.price_dkk,
+    claimLimit: input.claim_limit,
+    title: input.title,
+    clientAttemptId: input.client_attempt_id,
+  });
+  if (!settle.ok) {
     return {
       ok: false,
-      error: `Total escrow must be at least ${MIN_TOTAL_ESCROW_DKK} DKK. Increase the price or the slot count.`,
+      error: settle.error,
+      needsPaymentMethod: settle.needsPaymentMethod,
     };
   }
 
-  let stripePaymentIntentId: string | null = null;
-  let fundedStatus: "unfunded" | "funded" = "unfunded";
-  let escrowAmountDkk: number | null = null;
-  let escrowHeldDkk: number | null = null;
-
-  if (isPaid) {
-    const adminDb = createAdminClient();
-
-    const { data: org } = await adminDb
-      .from("organizations")
-      .select("name, stripe_customer_id, default_payment_method_id")
-      .eq("id", orgId)
-      .single();
-
-    if (!org) {
-      return { ok: false, error: "Org not found" };
-    }
-    if (!org.default_payment_method_id) {
-      return {
-        ok: false,
-        error:
-          "Add a payment method on /admin/billing before publishing a paid brief.",
-        needsPaymentMethod: true,
-      };
-    }
-
-    // Defensive: ensure customer exists. Helper short-circuits if
-    // stripe_customer_id is already populated, which it should be
-    // since 1.1b can't save a payment method without first creating
-    // a Customer.
-    const customerId = await getOrCreateOrgStripeCustomer(adminDb, orgId, {
-      name: org.name,
-      email: null,
-    });
-
-    // Hash the params we're about to send so the idempotency key
-    // varies when the user edits the form between submits. See the
-    // helper docs for the full rationale.
-    const paramsFingerprint = await fingerprintBriefPublishParams({
-      orgId,
-      escrowDkk,
-      priceDkk: input.price_dkk,
-      claimLimit: input.claim_limit,
-      title: input.title,
-    });
-
-    try {
-      const paymentIntent = await stripe().paymentIntents.create(
-        {
-          amount: escrowDkk * 100, // DKK → øre
-          currency: "dkk",
-          customer: customerId,
-          payment_method: org.default_payment_method_id,
-          confirm: true,
-          off_session: true,
-          description: `Escrow for brief: ${input.title.slice(0, 80)}`,
-          metadata: {
-            org_id: orgId,
-            escrow_dkk: String(escrowDkk),
-            claim_limit: String(input.claim_limit),
-            price_dkk: String(input.price_dkk),
-            client_attempt_id: input.client_attempt_id,
-          },
-          // Don't redirect for next-action handling: surface the error
-          // and let the user retry from the org-side.
-          automatic_payment_methods: {
-            enabled: true,
-            allow_redirects: "never",
-          },
-        },
-        {
-          // Composite key: orgId scopes by tenant, client_attempt_id
-          // adds form-mount entropy (so a deliberate same-content
-          // republish on a new mount gets a fresh charge), and
-          // paramsFingerprint pins the key to the actual call
-          // arguments — editing any of {amount, price, slots, title}
-          // between submits produces a fresh key, which prevents the
-          // "Keys for idempotent requests can only be used with the
-          // same parameters" rejection on legitimate edit-and-retry.
-          idempotencyKey: `brief-publish-${orgId}-${input.client_attempt_id}-${paramsFingerprint}`,
-        }
-      );
-
-      if (paymentIntent.status !== "succeeded") {
-        return {
-          ok: false,
-          error: friendlyStripeStatus(paymentIntent.status),
-        };
-      }
-
-      stripePaymentIntentId = paymentIntent.id;
-      fundedStatus = "funded";
-      escrowAmountDkk = escrowDkk;
-      escrowHeldDkk = escrowDkk;
-    } catch (err) {
-      return { ok: false, error: friendlyStripeError(err) };
-    }
-  }
+  const escrowAmountDkk = settle.escrowDkkCharged > 0 ? settle.escrowDkkCharged : null;
+  const escrowHeldDkk = settle.escrowDkkCharged > 0 ? settle.escrowDkkCharged : null;
+  const overageChargeDkk =
+    settle.overageDkkCharged > 0 ? settle.overageDkkCharged : null;
 
   // Insert via the standard (RLS-bound) client so members + admins
   // both retain the existing permission to create briefs in their
-  // org. If the insert fails after a successful charge, refund
-  // immediately to avoid an orphan PaymentIntent.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: brief, error: insertErr } = await (supabase
-    .from("briefs") as any)
+  // org. If the insert fails after a successful charge,
+  // rollbackPublishCharge refunds + decrements the counter.
+  const { data: brief, error: insertErr } = await supabase
+    .from("briefs")
     .insert({
       title: input.title,
       description: input.description,
@@ -302,49 +459,29 @@ export async function createBriefWithEscrow(
       is_ad_intended: input.is_ad_intended,
       created_by: user.id,
       org_id: orgId,
-      funded_status: fundedStatus,
+      status: "open",
+      published_at: new Date().toISOString(),
+      funded_status: settle.fundedStatus,
       escrow_amount_dkk: escrowAmountDkk,
       escrow_held_dkk: escrowHeldDkk,
-      stripe_payment_intent_id: stripePaymentIntentId,
+      stripe_payment_intent_id: settle.paymentIntentId,
+      overage_charge_dkk: overageChargeDkk,
     })
     .select("id")
     .single();
 
   if (insertErr || !brief) {
-    if (stripePaymentIntentId) {
-      // Await the rollback refund. On Cloudflare Workers the runtime
-      // tears down the request as soon as the response returns, so a
-      // fire-and-forget Promise from a server action gets cancelled
-      // mid-flight and the org keeps the charge with no brief to back
-      // it. The idempotency key keeps a (very unlikely) double action
-      // execution from issuing two refunds against the same PI.
-      try {
-        await stripe().refunds.create(
-          {
-            payment_intent: stripePaymentIntentId,
-            reason: "requested_by_customer",
-            metadata: {
-              reason: "brief_insert_failed",
-              org_id: orgId,
-            },
-          },
-          {
-            idempotencyKey: `brief-publish-rollback-${stripePaymentIntentId}`,
-          }
-        );
-      } catch (refundErr) {
-        // Both the insert and the refund failed. Surface the
-        // PaymentIntent id explicitly so support can reconcile the
-        // charge by hand. Include the original insert error since
-        // that's the bug worth investigating.
-        const insertMsg = insertErr?.message ?? "unknown";
-        const refundMsg =
-          refundErr instanceof Error ? refundErr.message : "unknown";
-        return {
-          ok: false,
-          error: `Brief save failed AND escrow refund failed. Contact support. Original error: ${insertMsg}. Refund error: ${refundMsg}. PaymentIntent: ${stripePaymentIntentId}.`,
-        };
-      }
+    const rollback = await rollbackPublishCharge(
+      orgId,
+      settle.paymentIntentId,
+      "brief_insert_failed"
+    );
+    if (!rollback.ok) {
+      const insertMsg = insertErr?.message ?? "unknown";
+      return {
+        ok: false,
+        error: `Brief save failed AND rollback failed. Contact support. Original error: ${insertMsg}. Rollback: ${rollback.error}`,
+      };
     }
     return {
       ok: false,
@@ -364,6 +501,246 @@ export async function createBriefWithEscrow(
   // rides along so the toast can name what just got published.
   const titleParam = encodeURIComponent(input.title.slice(0, 200));
   redirect(`/admin/briefs?flash=brief-published&title=${titleParam}`);
+}
+
+/**
+ * Save a brief in `draft` status: no escrow charge, no overage, no
+ * counter increment. Drafts are editable in /admin/briefs and only
+ * billable when the org chooses to publish them.
+ *
+ * Reuses the same input shape as `createBriefWithEscrow` (sans the
+ * idempotency-key fields, which only matter for a charge). Returns
+ * the new brief id so the form can route to the draft's edit page.
+ */
+type DraftInput = Omit<NewBriefInput, "client_attempt_id">;
+
+export async function saveBriefDraft(
+  input: DraftInput
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "You must be signed in" };
+
+  const orgId = await requireActiveOrg(supabase);
+
+  const trimmedTitle = (input.title ?? "").trim();
+  if (!trimmedTitle) return { ok: false, error: "Title is required." };
+  if (trimmedTitle.length > MAX_BRIEF_TITLE_LEN) {
+    return {
+      ok: false,
+      error: `Title must be ${MAX_BRIEF_TITLE_LEN} characters or fewer.`,
+    };
+  }
+  if (input.price_dkk < 0 || input.claim_limit < 1) {
+    return { ok: false, error: "Invalid price or slot count" };
+  }
+
+  const { data: brief, error: insertErr } = await supabase
+    .from("briefs")
+    .insert({
+      title: trimmedTitle,
+      description: input.description,
+      category: input.category,
+      duration_class: input.duration_class,
+      price_dkk: input.price_dkk,
+      deadline: input.deadline,
+      location: input.location,
+      claim_limit: input.claim_limit,
+      reference_urls: input.reference_urls,
+      usage_rights: input.usage_rights,
+      deliverable_specs: input.deliverable_specs,
+      is_ad_intended: input.is_ad_intended,
+      created_by: user.id,
+      org_id: orgId,
+      status: "draft",
+      published_at: null,
+      funded_status: "unfunded",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !brief) {
+    return { ok: false, error: insertErr?.message ?? "Failed to save draft" };
+  }
+
+  return { ok: true, id: brief.id };
+}
+
+/**
+ * Publish a saved draft: settle the publish charge against the org's
+ * allowance + overage and flip the brief to status='open'. The brief
+ * row's price/claim_limit/title are read from the database (not the
+ * client) so a tampered request can't pay for one set of params and
+ * publish another.
+ */
+export async function publishBriefFromDraft(
+  briefId: string,
+  clientAttemptId: string
+): Promise<{ ok: false; error: string; needsPaymentMethod?: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "You must be signed in" };
+
+  const orgId = await requireActiveOrg(supabase);
+
+  if (
+    typeof clientAttemptId !== "string" ||
+    clientAttemptId.length === 0 ||
+    clientAttemptId.length >= 80
+  ) {
+    return {
+      ok: false,
+      error: "Invalid form state. Reload the page and try again.",
+    };
+  }
+
+  // Read the canonical row server-side. RLS already restricts SELECT
+  // to org members, but we still verify org_id and status to harden
+  // against a crafted briefId in another org's draft list.
+  const adminDb = createAdminClient();
+  const { data: brief, error: briefErr } = await adminDb
+    .from("briefs")
+    .select("id, org_id, title, price_dkk, claim_limit, status")
+    .eq("id", briefId)
+    .single();
+  if (briefErr || !brief) {
+    return { ok: false, error: "Draft not found" };
+  }
+  if (brief.org_id !== orgId) {
+    return { ok: false, error: "Draft does not belong to your org" };
+  }
+  if (brief.status !== "draft") {
+    return { ok: false, error: "Brief is already published" };
+  }
+
+  const settle = await settleBriefPublishCharge({
+    orgId,
+    priceDkk: brief.price_dkk,
+    claimLimit: brief.claim_limit ?? 1,
+    title: brief.title,
+    clientAttemptId,
+  });
+  if (!settle.ok) {
+    return {
+      ok: false,
+      error: settle.error,
+      needsPaymentMethod: settle.needsPaymentMethod,
+    };
+  }
+
+  const escrowAmountDkk = settle.escrowDkkCharged > 0 ? settle.escrowDkkCharged : null;
+  const escrowHeldDkk = settle.escrowDkkCharged > 0 ? settle.escrowDkkCharged : null;
+  const overageChargeDkk =
+    settle.overageDkkCharged > 0 ? settle.overageDkkCharged : null;
+
+  // Use the admin client so the row update isn't blocked by RLS on
+  // status transitions (which include 'draft' -> 'open' that members
+  // are allowed to do anyway, but the funded_status / escrow fields
+  // are sensitive and worth keeping behind the admin path that the
+  // settle helper already uses).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updErr } = await (adminDb.from("briefs") as any)
+    .update({
+      status: "open",
+      published_at: new Date().toISOString(),
+      funded_status: settle.fundedStatus,
+      escrow_amount_dkk: escrowAmountDkk,
+      escrow_held_dkk: escrowHeldDkk,
+      stripe_payment_intent_id: settle.paymentIntentId,
+      overage_charge_dkk: overageChargeDkk,
+    })
+    .eq("id", briefId);
+
+  if (updErr) {
+    const rollback = await rollbackPublishCharge(
+      orgId,
+      settle.paymentIntentId,
+      "draft_publish_update_failed"
+    );
+    if (!rollback.ok) {
+      return {
+        ok: false,
+        error: `Publish failed AND rollback failed. Contact support. Original error: ${updErr.message}. Rollback: ${rollback.error}`,
+      };
+    }
+    return { ok: false, error: updErr.message };
+  }
+
+  const titleParam = encodeURIComponent(brief.title.slice(0, 200));
+  redirect(`/admin/briefs?flash=brief-published&title=${titleParam}`);
+}
+
+/**
+ * Update an existing draft. Only allowed while status='draft' so we
+ * can't accidentally rewrite a published brief through this path.
+ */
+export async function updateBriefDraft(
+  briefId: string,
+  input: DraftInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "You must be signed in" };
+
+  const orgId = await requireActiveOrg(supabase);
+
+  const trimmedTitle = (input.title ?? "").trim();
+  if (!trimmedTitle) return { ok: false, error: "Title is required." };
+  if (trimmedTitle.length > MAX_BRIEF_TITLE_LEN) {
+    return {
+      ok: false,
+      error: `Title must be ${MAX_BRIEF_TITLE_LEN} characters or fewer.`,
+    };
+  }
+  if (input.price_dkk < 0 || input.claim_limit < 1) {
+    return { ok: false, error: "Invalid price or slot count" };
+  }
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("briefs")
+    .select("id, org_id, status")
+    .eq("id", briefId)
+    .single();
+  if (fetchErr || !existing) {
+    return { ok: false, error: "Draft not found" };
+  }
+  if (existing.org_id !== orgId) {
+    return { ok: false, error: "Draft does not belong to your org" };
+  }
+  if (existing.status !== "draft") {
+    return { ok: false, error: "Cannot edit a published brief through draft update" };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updErr } = await (supabase.from("briefs") as any)
+    .update({
+      title: trimmedTitle,
+      description: input.description,
+      category: input.category,
+      duration_class: input.duration_class,
+      price_dkk: input.price_dkk,
+      deadline: input.deadline,
+      location: input.location,
+      claim_limit: input.claim_limit,
+      reference_urls: input.reference_urls,
+      usage_rights: input.usage_rights,
+      deliverable_specs: input.deliverable_specs,
+      is_ad_intended: input.is_ad_intended,
+    })
+    .eq("id", briefId);
+
+  if (updErr) {
+    return { ok: false, error: updErr.message };
+  }
+  // Suppress unused-var warning for now; we may surface user later.
+  void user;
+  return { ok: true };
 }
 
 function friendlyStripeStatus(status: Stripe.PaymentIntent.Status): string {

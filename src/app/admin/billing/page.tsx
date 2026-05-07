@@ -5,7 +5,9 @@ import {
   formatDkk,
   formatFeeBp,
   resolveOrgPricing,
+  getBriefAllowanceState,
   type ResolvedPricing,
+  type BriefAllowanceState,
 } from "@/lib/pricing";
 import { BillingActions } from "./billing-actions";
 import { UpgradeButton } from "./upgrade-button";
@@ -36,8 +38,10 @@ interface PlanCard {
   monthly_price_dkk: number;
   annual_price_dkk: number;
   trial_days: number;
+  monthly_brief_allowance: number | null;
+  overage_dkk_per_brief: number | null;
   features: { analytics?: boolean; custom_branding?: boolean; discovery_boost?: boolean };
-  limits: { max_active_briefs?: number | null; max_creators?: number | null };
+  limits: { max_creators?: number | null; max_seats?: number | null };
   has_monthly_price: boolean;
   has_annual_price: boolean;
 }
@@ -83,7 +87,7 @@ export default async function BillingPage({
     redirect("/admin");
   }
 
-  const [pricing, subRow, planRows, pmSummary, escrowRows] = await Promise.all([
+  const [pricing, subRow, planRows, pmSummary, escrowRows, allowance] = await Promise.all([
     resolveOrgPricing(supabase, orgId),
     supabase
       .from("org_subscriptions")
@@ -95,7 +99,7 @@ export default async function BillingPage({
     supabase
       .from("pricing_plans")
       .select(
-        "slug, name, description, monthly_price_dkk, annual_price_dkk, trial_days, features, limits, stripe_monthly_price_id, stripe_annual_price_id, visible, legacy, private_to_org_id"
+        "slug, name, description, monthly_price_dkk, annual_price_dkk, trial_days, monthly_brief_allowance, overage_dkk_per_brief, features, limits, stripe_monthly_price_id, stripe_annual_price_id, visible, legacy, private_to_org_id"
       )
       .eq("visible", true)
       .order("monthly_price_dkk", { ascending: true }),
@@ -107,6 +111,7 @@ export default async function BillingPage({
       .select("id, escrow_held_dkk")
       .eq("org_id", orgId)
       .in("funded_status", ["funded", "partially_released"]),
+    getBriefAllowanceState(supabase, orgId),
   ]);
 
   const paymentMethod = pmSummary.ok ? pmSummary.pm : null;
@@ -131,6 +136,8 @@ export default async function BillingPage({
       monthly_price_dkk: p.monthly_price_dkk,
       annual_price_dkk: p.annual_price_dkk,
       trial_days: p.trial_days,
+      monthly_brief_allowance: p.monthly_brief_allowance ?? null,
+      overage_dkk_per_brief: p.overage_dkk_per_brief ?? null,
       features: (p.features ?? {}) as PlanCard["features"],
       limits: (p.limits ?? {}) as PlanCard["limits"],
       has_monthly_price: Boolean(p.stripe_monthly_price_id),
@@ -189,6 +196,8 @@ export default async function BillingPage({
       />
 
       <PaymentMethodSection paymentMethod={paymentMethod} />
+
+      <BriefUsageSection allowance={allowance} />
 
       <EscrowHeldSection
         heldDkk={escrowHeldDkk}
@@ -332,6 +341,60 @@ function PaymentMethodSection({
   );
 }
 
+function BriefUsageSection({ allowance }: { allowance: BriefAllowanceState }) {
+  const isUnlimited = allowance.allowance === null;
+  const used = allowance.publishedThisPeriod ?? 0;
+  const total = allowance.allowance;
+  const remaining = allowance.remaining;
+  const overageDkk = allowance.overageDkk;
+  const anchor = new Date(allowance.periodAnchor);
+  const nextReset = new Date(anchor);
+  nextReset.setMonth(nextReset.getMonth() + 1);
+
+  return (
+    <section className="mb-10">
+      <h2 className="text-xl font-semibold mb-2">Briefs this period</h2>
+      <p className="text-sm text-muted mb-4">
+        Each plan includes a monthly publishing allowance. Drafts don&apos;t
+        count; the count goes up when you publish.
+      </p>
+      <div className="bg-surface border border-border rounded-xl p-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          {isUnlimited ? (
+            <>
+              <p className="text-2xl font-bold">Unlimited</p>
+              <p className="text-xs text-muted mt-1">
+                {used} published this period.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl font-bold">
+                {used} <span className="text-muted font-normal">of</span> {total}
+              </p>
+              <p className="text-xs text-muted mt-1">
+                {remaining! > 0
+                  ? `${remaining} brief${remaining === 1 ? "" : "s"} left this period.`
+                  : overageDkk
+                    ? `Allowance used. ${formatDkk(overageDkk)} overage will apply per additional brief.`
+                    : "Allowance used. Upgrade to publish more this period."}
+              </p>
+            </>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-xs uppercase tracking-wider text-muted mb-1">
+            Resets
+          </p>
+          <p className="text-sm font-medium">
+            {nextReset.toLocaleDateString("en-GB")}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function EscrowHeldSection({
   heldDkk,
   briefCount,
@@ -415,16 +478,29 @@ function PlanCardsSection({
 
               <ul className="space-y-1.5 text-sm text-muted mb-4">
                 <Bullet>
-                  Active briefs:{" "}
-                  {p.limits.max_active_briefs == null
+                  Briefs / month:{" "}
+                  {p.monthly_brief_allowance == null
                     ? "Unlimited"
-                    : p.limits.max_active_briefs}
+                    : p.monthly_brief_allowance}
                 </Bullet>
+                {p.overage_dkk_per_brief != null &&
+                  p.monthly_brief_allowance != null && (
+                    <Bullet>
+                      Overage:{" "}
+                      {formatDkk(p.overage_dkk_per_brief)} / extra brief
+                    </Bullet>
+                  )}
                 <Bullet>
                   Creators:{" "}
                   {p.limits.max_creators == null
                     ? "Unlimited"
                     : p.limits.max_creators}
+                </Bullet>
+                <Bullet>
+                  Seats:{" "}
+                  {p.limits.max_seats == null
+                    ? "Unlimited"
+                    : p.limits.max_seats}
                 </Bullet>
                 {p.features.analytics && <Bullet>Analytics</Bullet>}
                 {p.features.custom_branding && <Bullet>Custom branding</Bullet>}

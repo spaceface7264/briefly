@@ -15,6 +15,7 @@ export const badgeToneByStatus: Record<BriefStatus | ClaimStatus, string> = {
   approved: "bg-success/20 text-success",
   paid: "bg-success-muted text-success",
   archived: "bg-muted/20 text-muted",
+  draft: "bg-muted/20 text-muted",
   active: "bg-accent-muted text-accent",
   cancelled: "bg-error/20 text-error",
 };
