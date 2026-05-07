@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { getOrgRole, requireActiveOrg } from "@/lib/org";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import {
@@ -7,11 +7,17 @@ import {
   countryLabel,
   skillLabel,
 } from "@/lib/creator-profile";
+import {
+  instagramDisplayHandle,
+  instagramProfileUrl,
+} from "@/lib/instagram";
 import type { Profile } from "@/types/database";
 
 export default async function AdminCreatorsPage() {
   const supabase = await createClient();
   const orgId = await requireActiveOrg(supabase);
+  const role = await getOrgRole(supabase);
+  const canManageRoster = role === "admin";
 
   const { data: memberships } = await supabase
     .from("memberships")
@@ -50,12 +56,32 @@ export default async function AdminCreatorsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Creators</h1>
-        <p className="text-muted">
-          {creatorsWithCounts.length} creator
-          {creatorsWithCounts.length !== 1 ? "s" : ""}
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Creators</h1>
+          <p className="text-muted">
+            {creatorsWithCounts.length} creator
+            {creatorsWithCounts.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {!canManageRoster && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-raised border border-border text-xs text-muted">
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            Roster changes are admin only
+          </span>
+        )}
       </div>
 
       {creatorsWithCounts.length > 0 ? (
@@ -152,18 +178,29 @@ export default async function AdminCreatorsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {creator.instagram_handle ? (
-                        <a
-                          href={`https://instagram.com/${creator.instagram_handle}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:underline"
-                        >
-                          @{creator.instagram_handle}
-                        </a>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
+                      {(() => {
+                        const display = instagramDisplayHandle(
+                          creator.instagram_handle
+                        );
+                        const url = instagramProfileUrl(
+                          creator.instagram_handle
+                        );
+                        if (!display) {
+                          return <span className="text-muted">-</span>;
+                        }
+                        return url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:underline"
+                          >
+                            @{display}
+                          </a>
+                        ) : (
+                          <span className="text-accent">@{display}</span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 font-mono text-sm">
                       {creator.activeClaims > 0 ? (

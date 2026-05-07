@@ -12,6 +12,7 @@ import {
   sanitizeLanguages,
   sanitizeSkills,
 } from "@/lib/creator-profile";
+import { normalizeInstagramHandle } from "@/lib/instagram";
 
 const AVATARS_BUCKET = "avatars";
 
@@ -212,10 +213,21 @@ export async function saveCreatorProfile(
 
   const name =
     typeof input.name === "string" ? input.name.trim().slice(0, 200) : "";
-  const instagram =
-    typeof input.instagram === "string"
-      ? input.instagram.trim().slice(0, 100)
-      : "";
+  // Normalise to a bare handle so reads can build a profile URL
+  // without re-cleaning. Invalid input becomes null (we'd rather drop
+  // the value than store something that links to a 404). The client
+  // form blocks save when validation fails, so reaching this branch
+  // with a non-empty invalid string means a hand-crafted request.
+  const rawInstagram =
+    typeof input.instagram === "string" ? input.instagram.trim() : "";
+  const instagram = rawInstagram ? normalizeInstagramHandle(rawInstagram) : null;
+  if (rawInstagram && !instagram) {
+    return {
+      ok: false,
+      error:
+        "Instagram handle should be a username like @yourhandle (letters, numbers, periods, underscores).",
+    };
+  }
   const bio =
     typeof input.bio === "string" ? input.bio.trim().slice(0, BIO_MAX) : "";
   const country =
@@ -229,7 +241,7 @@ export async function saveCreatorProfile(
     .from("profiles")
     .update({
       name: name || null,
-      instagram_handle: instagram || null,
+      instagram_handle: instagram,
       bio: bio || null,
       country,
       languages,

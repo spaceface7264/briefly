@@ -4,8 +4,8 @@ export default function ProfileLoading() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Profile</h1>
-        <p className="text-muted">Update your creator information</p>
+        <h1 className="text-3xl font-bold mb-2">Settings</h1>
+        <p className="text-muted">Your name, email, and password.</p>
       </div>
       <ProfileSkeleton />
     </>

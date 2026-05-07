@@ -4,11 +4,22 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateOrgDetails, uploadOrgLogo } from "./org-actions";
 
+type OrgTab = "identity" | "brand" | "legal";
+
 interface Props {
+  /** Which tab the surrounding page is rendering. The form keeps a
+   *  single source of truth for state so values persist across tab
+   *  switches; only the visible section changes. */
+  activeTab: OrgTab;
+  /** Org id is needed for the discoverability toggle on the Identity
+   *  tab — it talks to a separate server action that flips just the
+   *  bool without touching the rest of the form state. */
+  orgId: string;
   org: {
     name: string;
     slug: string;
     description: string | null;
+    discoverable: boolean;
     industry: string | null;
     logo_url: string | null;
     accent_color: string | null;
@@ -19,7 +30,7 @@ interface Props {
   };
 }
 
-export function OrgDetailsForm({ org }: Props) {
+export function OrgDetailsForm({ activeTab, orgId, org }: Props) {
   const router = useRouter();
   const [name, setName] = useState(org.name);
   const [description, setDescription] = useState(org.description ?? "");
@@ -92,61 +103,69 @@ export function OrgDetailsForm({ org }: Props) {
   }
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold mb-1">Organisation</h2>
-        <p className="text-muted text-sm">
-          How your org appears to creators on /discover, in emails, and on
-          invoices. Slug is fixed after creation.
-        </p>
-      </div>
-
-      <form
-        onSubmit={submit}
-        className="bg-surface border border-border rounded-xl p-5 space-y-6"
-      >
-        <Section title="Identity">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Labelled label="Display name">
-              <input
-                type="text"
-                required
-                minLength={2}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+    <form
+      onSubmit={submit}
+      className="bg-surface border border-border rounded-xl p-6 space-y-6"
+    >
+      {activeTab === "identity" && (
+        <div className="space-y-6">
+          <Section
+            title="Identity"
+            description="How your org appears to creators on /discover, in emails, and on invoices. Slug is fixed after creation."
+          >
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Labelled label="Display name">
+                <input
+                  type="text"
+                  required
+                  minLength={2}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input"
+                />
+              </Labelled>
+              <Labelled label="Slug (read-only)">
+                <input
+                  type="text"
+                  value={org.slug}
+                  disabled
+                  className="input font-mono opacity-60 cursor-not-allowed"
+                />
+              </Labelled>
+            </div>
+            <Labelled label="Description (used on /discover)">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="What does your org do? Who do you typically commission content for?"
                 className="input"
               />
             </Labelled>
-            <Labelled label="Slug (read-only)">
+            <Labelled label="Industry">
               <input
                 type="text"
-                value={org.slug}
-                disabled
-                className="input font-mono opacity-60 cursor-not-allowed"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                placeholder="e.g. fitness, fashion, SaaS"
+                className="input"
               />
             </Labelled>
-          </div>
-          <Labelled label="Description (used on /discover)">
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="What does your org do? Who do you typically commission content for?"
-              className="input"
-            />
-          </Labelled>
-          <Labelled label="Industry">
-            <input
-              type="text"
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              placeholder="e.g. fitness, fashion, SaaS"
-              className="input"
-            />
-          </Labelled>
-        </Section>
+          </Section>
 
-        <Section title="Branding">
+          <DiscoverabilityRow
+            orgId={orgId}
+            initial={org.discoverable}
+            description={description}
+          />
+        </div>
+      )}
+
+      {activeTab === "brand" && (
+        <Section
+          title="Brand kit"
+          description="Org-level visual identity. Logos, palette, typography, and guidelines live on the dedicated /admin/brand surface."
+        >
           <div className="space-y-3">
             <span className="block text-xs uppercase tracking-wider text-muted">
               Logo
@@ -276,8 +295,13 @@ export function OrgDetailsForm({ org }: Props) {
             </div>
           </Labelled>
         </Section>
+      )}
 
-        <Section title="Contact & legal">
+      {activeTab === "legal" && (
+        <Section
+          title="Contact & legal"
+          description="Used on invoices and creator-visible contact details."
+        >
           <div className="grid sm:grid-cols-2 gap-4">
             <Labelled label="Contact email (shown publicly)">
               <input
@@ -315,64 +339,69 @@ export function OrgDetailsForm({ org }: Props) {
             />
           </Labelled>
         </Section>
+      )}
 
-        {error && <p className="text-sm text-error">{error}</p>}
+      {error && <p className="text-sm text-error">{error}</p>}
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">
-          {saved && (
-            <span className="inline-flex items-center gap-1.5 text-success text-sm">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Saved
-            </span>
-          )}
-          <button
-            type="submit"
-            disabled={pending}
-            className="px-4 py-2 bg-accent text-background font-semibold rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors text-sm"
-          >
-            {pending ? "Saving…" : "Save changes"}
-          </button>
-        </div>
+      <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">
+        {saved && (
+          <span className="inline-flex items-center gap-1.5 text-success text-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Saved
+          </span>
+        )}
+        <button
+          type="submit"
+          disabled={pending}
+          className="px-4 py-2 bg-accent text-background font-semibold rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors text-sm"
+        >
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+      </div>
 
-        <style>{`
-          .input {
-            width: 100%;
-            padding: 0.5rem 0.75rem;
-            background: var(--background);
-            border: 1px solid var(--color-border);
-            border-radius: 0.5rem;
-            font-size: 0.875rem;
-            font-family: inherit;
-          }
-          .input:focus {
-            outline: none;
-            border-color: var(--color-accent);
-          }
-          textarea.input {
-            resize: vertical;
-            min-height: 4rem;
-          }
-        `}</style>
-      </form>
-    </section>
+      <style>{`
+        .input {
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          background: var(--background);
+          border: 1px solid var(--color-border);
+          border-radius: 0.5rem;
+          font-size: 0.875rem;
+          font-family: inherit;
+        }
+        .input:focus {
+          outline: none;
+          border-color: var(--color-accent);
+        }
+        textarea.input {
+          resize: vertical;
+          min-height: 4rem;
+        }
+      `}</style>
+    </form>
   );
 }
 
 function Section({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-xs uppercase tracking-[0.18em] text-muted font-semibold">
-        {title}
-      </h3>
-      {children}
+    <div className="space-y-4">
+      <header>
+        <h2 className="text-base font-semibold">{title}</h2>
+        {description && (
+          <p className="text-muted text-sm mt-0.5">{description}</p>
+        )}
+      </header>
+      <div className="space-y-4">{children}</div>
     </div>
   );
 }
@@ -391,5 +420,84 @@ function Labelled({
       </span>
       {children}
     </label>
+  );
+}
+
+/**
+ * Inline discoverability toggle that lives inside the Identity tab.
+ * Talks to its own server action so flipping the bool doesn't bundle
+ * with the rest of the form's "Save changes" path — admins should be
+ * able to flip discovery on/off without committing other unsaved edits.
+ *
+ * Renders a "missing description" warning when discoverability is on
+ * but the description input is empty (the feature is mostly useless
+ * without a discover blurb).
+ */
+function DiscoverabilityRow({
+  initial,
+  description,
+}: {
+  orgId: string;
+  initial: boolean;
+  description: string;
+}) {
+  const [discoverable, setDiscoverable] = useState(initial);
+  const [saving, setSaving] = useState(false);
+
+  async function handleToggle() {
+    setSaving(true);
+    const result = await updateOrgDetails({ discoverable: !discoverable });
+    if (result.ok) {
+      setDiscoverable(!discoverable);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="border-t border-border pt-6 space-y-3">
+      <header>
+        <h3 className="text-base font-semibold">Creator discovery</h3>
+        <p className="text-muted text-sm mt-0.5">
+          When on, your org appears on /discover where creators can find you
+          and apply to join your roster.
+        </p>
+      </header>
+
+      <div className="bg-background border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-medium">
+              {discoverable ? "Discoverable" : "Hidden"}
+            </p>
+            <p className="text-sm text-muted mt-0.5">
+              {discoverable
+                ? "Creators can find and apply to your organization"
+                : "Only invite codes can add creators to your roster"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={saving}
+            aria-pressed={discoverable}
+            className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
+              discoverable ? "bg-accent" : "bg-border"
+            } ${saving ? "opacity-50" : ""}`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-background transition-transform ${
+                discoverable ? "translate-x-5" : ""
+              }`}
+            />
+          </button>
+        </div>
+
+        {discoverable && !description.trim() && (
+          <p className="text-sm text-warning mt-3">
+            Add a description above so creators know what you do.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

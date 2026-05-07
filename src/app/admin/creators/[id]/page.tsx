@@ -9,6 +9,10 @@ import {
   languageLabel,
   skillLabel,
 } from "@/lib/creator-profile";
+import {
+  instagramDisplayHandle,
+  instagramProfileUrl,
+} from "@/lib/instagram";
 import type { Profile } from "@/types/database";
 
 export default async function CreatorDetailPage({
@@ -78,16 +82,23 @@ export default async function CreatorDetailPage({
               {profile.name || "Unnamed Creator"}
             </h1>
             <p className="text-muted truncate">{profile.email}</p>
-            {profile.instagram_handle && (
-              <a
-                href={`https://instagram.com/${profile.instagram_handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline"
-              >
-                @{profile.instagram_handle}
-              </a>
-            )}
+            {(() => {
+              const display = instagramDisplayHandle(profile.instagram_handle);
+              const url = instagramProfileUrl(profile.instagram_handle);
+              if (!display) return null;
+              return url ? (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  @{display}
+                </a>
+              ) : (
+                <span className="text-accent">@{display}</span>
+              );
+            })()}
           </div>
         </div>
         <RoleBadge role={orgRole} />
