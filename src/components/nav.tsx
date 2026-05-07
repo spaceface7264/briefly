@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar } from "@/components/avatar";
 import { NotificationCenter } from "@/components/notification-center";
 import type { NotificationRow } from "@/lib/notification-center";
 
@@ -46,6 +47,9 @@ export function Nav() {
   const [accountChecked, setAccountChecked] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profileLabel, setProfileLabel] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -62,18 +66,26 @@ export function Nav() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("account_type, name, email")
+        .select("account_type, name, email, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
       const typed = profile as
-        | { account_type?: string; name?: string | null; email?: string | null }
+        | {
+            account_type?: string;
+            name?: string | null;
+            email?: string | null;
+            avatar_url?: string | null;
+          }
         | null;
       setAccountType(typed?.account_type === "org" ? "org" : "creator");
       // Prefer the profile name; fall back to the email so the
       // dropdown header is never blank for a freshly-signed-up
       // creator who hasn't filled out their profile yet.
       setProfileLabel(typed?.name?.trim() || typed?.email?.trim() || null);
+      setProfileName(typed?.name ?? null);
+      setProfileEmail(typed?.email ?? user.email ?? null);
+      setProfileAvatarUrl(typed?.avatar_url ?? null);
       setAccountChecked(true);
     }
     checkAccount();
@@ -256,33 +268,27 @@ export function Nav() {
 
             <DropdownMenu>
               <DropdownMenuTrigger
-                className={`relative px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer ${
+                aria-label="Account menu"
+                className={`relative px-1 py-1 rounded-full transition-colors whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   isProfileActive
-                    ? "text-brand"
-                    : "text-muted hover:text-foreground"
+                    ? "ring-2 ring-brand"
+                    : "hover:bg-surface-hover"
                 }`}
               >
-                <span className="inline-flex items-center justify-center w-5 h-5">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5.121 17.804A9.963 9.963 0 0112 15c2.53 0 4.84.94 6.879 2.485M15 9a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                </span>
+                <Avatar
+                  url={profileAvatarUrl}
+                  name={profileName}
+                  email={profileEmail}
+                  size="sm"
+                  alt=""
+                  className="border-0"
+                />
                 <svg
-                  className="w-3.5 h-3.5 opacity-60"
+                  className="w-3.5 h-3.5 opacity-60 mr-1 text-muted"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
