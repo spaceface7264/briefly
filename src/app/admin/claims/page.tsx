@@ -5,6 +5,10 @@ import { formatPrice } from "@/lib/utils";
 import { Avatar } from "@/components/avatar";
 import { ClaimActions } from "./claim-actions";
 import { badgeToneByStatus, claimStatusLabel } from "@/lib/admin-badge-tones";
+import {
+  instagramDisplayHandle,
+  instagramProfileUrl,
+} from "@/lib/instagram";
 import type { ClaimStatus } from "@/types/database";
 
 export default async function AdminClaimsPage({
@@ -139,9 +143,10 @@ export default async function AdminClaimsPage({
                             {claim.creator?.email}
                           </p>
                           {claim.creator?.instagram_handle && (
-                            <p className="text-accent text-sm truncate">
-                              @{claim.creator.instagram_handle}
-                            </p>
+                            <InstagramLink
+                              handle={claim.creator.instagram_handle}
+                              className="text-accent text-sm truncate hover:underline"
+                            />
                           )}
                         </div>
                       </div>
@@ -191,5 +196,36 @@ function ClaimStatusBadge({ status }: { status: ClaimStatus }) {
     <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${badgeToneByStatus[status]}`}>
       {claimStatusLabel[status]}
     </span>
+  );
+}
+
+/**
+ * Small read-only Instagram link. Falls back to plain text if the
+ * stored handle isn't usable as a link target. Block-level by default
+ * so it sits on its own line under the creator's name/email.
+ */
+function InstagramLink({
+  handle,
+  className = "",
+}: {
+  handle: string | null | undefined;
+  className?: string;
+}) {
+  const display = instagramDisplayHandle(handle);
+  const url = instagramProfileUrl(handle);
+  if (!display) return null;
+  if (!url) {
+    return <p className={className}>@{display}</p>;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={`block ${className}`}
+    >
+      @{display}
+    </a>
   );
 }

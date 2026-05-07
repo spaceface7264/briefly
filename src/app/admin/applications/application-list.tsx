@@ -3,6 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { planLimitErrorMessage } from "@/lib/pricing";
+import {
+  instagramDisplayHandle,
+  instagramProfileUrl,
+} from "@/lib/instagram";
 import { reviewApplication } from "./actions";
 
 export interface Application {
@@ -114,11 +118,29 @@ function ApplicationRow({
           <p className="font-medium truncate">
             {application.applicant?.name || application.applicant?.email || "Unknown"}
           </p>
-          {application.applicant?.instagram_handle && (
-            <span className="text-xs text-muted">
-              @{application.applicant.instagram_handle}
-            </span>
-          )}
+          {application.applicant?.instagram_handle &&
+            (() => {
+              const display = instagramDisplayHandle(
+                application.applicant.instagram_handle
+              );
+              const url = instagramProfileUrl(
+                application.applicant.instagram_handle
+              );
+              if (!display) return null;
+              const className = "text-xs text-muted hover:text-accent hover:underline";
+              return url ? (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={className}
+                >
+                  @{display}
+                </a>
+              ) : (
+                <span className={className}>@{display}</span>
+              );
+            })()}
         </div>
         {application.applicant?.email && (
           <p className="text-sm text-muted truncate">
