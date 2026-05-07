@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { ChevronDownIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { switchOrg } from "@/app/admin/settings/org-actions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Paths whose [id] segment is org-scoped and would 404 after a switch
 // to an org that doesn't have access to that resource. Used to bounce
@@ -17,6 +25,16 @@ interface Org {
   id: string;
   name: string;
   role: string;
+}
+
+// Shape of a single row from the membership join. Hand-written rather
+// than pulled from generated database types because Supabase returns
+// the joined `org` as a record-or-array depending on the relation
+// inference, and the runtime value here is always a single record.
+interface MembershipRow {
+  org_id: string;
+  role: string;
+  org: { id: string; name: string } | null;
 }
 
 export function OrgSwitcher() {
@@ -49,10 +67,13 @@ export function OrgSwitcher() {
         .eq("status", "active");
 
       if (memberships) {
+        const rows = memberships as unknown as MembershipRow[];
         setOrgs(
-          memberships
-            .filter((m: any) => m.org)
-            .map((m: any) => ({
+          rows
+            .filter((m): m is MembershipRow & { org: { id: string; name: string } } =>
+              m.org !== null
+            )
+            .map((m) => ({
               id: m.org.id,
               name: m.org.name,
               role: m.role,
@@ -67,47 +88,71 @@ export function OrgSwitcher() {
   if (orgs.length <= 1) return null;
 
   const activeOrg = orgs.find((o) => o.id === activeOrgId);
+  const triggerLabel = activeOrg?.name ?? "Switch organization";
 
   async function handleSwitch(orgId: string) {
-    if (orgId === activeOrgId) return;
+    if (orgId === activeOrgId || switching) return;
     setSwitching(true);
-    const result = await switchOrg(orgId);
-    if (result.ok) {
-      setActiveOrgId(orgId);
-      // If we're on an org-scoped detail page (e.g. /briefs/[id]),
-      // the resource almost certainly belongs to the previous org and
-      // would 404 in the new one. Bounce to the parent listing.
-      const detailMatch = ORG_SCOPED_DETAIL_PATTERNS.find((p) =>
-        p.pattern.test(pathname)
-      );
-      if (detailMatch) {
-        router.push(detailMatch.parent);
-      } else {
-        router.refresh();
+    try {
+      const result = await switchOrg(orgId);
+      if (result.ok) {
+        setActiveOrgId(orgId);
+        // If we're on an org-scoped detail page (e.g. /briefs/[id]),
+        // the resource almost certainly belongs to the previous org and
+        // would 404 in the new one. Bounce to the parent listing.
+        const detailMatch = ORG_SCOPED_DETAIL_PATTERNS.find((p) =>
+          p.pattern.test(pathname)
+        );
+        if (detailMatch) {
+          router.push(detailMatch.parent);
+        } else {
+          router.refresh();
+        }
       }
+    } finally {
+      setSwitching(false);
     }
-    setSwitching(false);
   }
 
   return (
-    <select
-      value={activeOrgId || ""}
-      onChange={(e) => handleSwitch(e.target.value)}
-      disabled={switching}
-      className="no-global-focus-ring px-2.5 py-1 bg-transparent border border-border rounded-md text-xs text-muted hover:text-foreground hover:border-border-strong focus-visible:outline-none focus:border-accent transition-colors cursor-pointer disabled:opacity-50"
-      title="Switch organization"
-    >
-      {orgs.map((org) => (
-        // Role suffix omitted intentionally: this switcher only
-        // renders on the creator surface (see nav.tsx), where every
-        // membership row carries role="creator". Showing "(creator)"
-        // next to every option just adds noise. The org-side
-        // identity surface in admin-nav.tsx still shows the role
-        // because admins/members/owners differ in their abilities.
-        <option key={org.id} value={org.id}>
-          {org.name}
-        </option>
-      ))}
-    </select>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        disabled={switching}
+        aria-label="Switch organization"
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-transparent px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:border-border-strong hover:text-foreground focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 data-popup-open:border-border-strong data-popup-open:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="max-w-[160px] truncate">{triggerLabel}</span>
+        <ChevronDownIcon className="size-3.5 opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={6}
+        // Override the wrapper's default `w-(--anchor-width)` so the
+        // panel sizes to its widest org name (plus checkmark padding)
+        // instead of inheriting the trigger's truncated 160px width.
+        // The min keeps the panel from collapsing to barely-wider-than-
+        // the-checkmark when every org has a short name.
+        className="!w-auto min-w-56"
+      >
+        <DropdownMenuRadioGroup
+          value={activeOrgId ?? ""}
+          onValueChange={(value) => {
+            if (typeof value === "string") {
+              void handleSwitch(value);
+            }
+          }}
+        >
+          {orgs.map((org) => (
+            <DropdownMenuRadioItem
+              key={org.id}
+              value={org.id}
+              className="text-sm"
+            >
+              <span className="truncate">{org.name}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
