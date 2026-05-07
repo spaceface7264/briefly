@@ -35,9 +35,14 @@ interface PlanCard {
   description: string | null;
   monthly_price_dkk: number;
   annual_price_dkk: number;
+  default_fee_bp: number;
   trial_days: number;
   features: { analytics?: boolean; custom_branding?: boolean; discovery_boost?: boolean };
-  limits: { max_active_briefs?: number | null; max_creators?: number | null };
+  limits: {
+    max_active_briefs?: number | null;
+    max_creators?: number | null;
+    max_seats?: number | null;
+  };
   has_monthly_price: boolean;
   has_annual_price: boolean;
 }
@@ -95,7 +100,7 @@ export default async function BillingPage({
     supabase
       .from("pricing_plans")
       .select(
-        "slug, name, description, monthly_price_dkk, annual_price_dkk, trial_days, features, limits, stripe_monthly_price_id, stripe_annual_price_id, visible, legacy, private_to_org_id"
+        "slug, name, description, monthly_price_dkk, annual_price_dkk, default_fee_bp, trial_days, features, limits, stripe_monthly_price_id, stripe_annual_price_id, visible, legacy, private_to_org_id"
       )
       .eq("visible", true)
       .order("monthly_price_dkk", { ascending: true }),
@@ -130,6 +135,7 @@ export default async function BillingPage({
       description: p.description,
       monthly_price_dkk: p.monthly_price_dkk,
       annual_price_dkk: p.annual_price_dkk,
+      default_fee_bp: p.default_fee_bp,
       trial_days: p.trial_days,
       features: (p.features ?? {}) as PlanCard["features"],
       limits: (p.limits ?? {}) as PlanCard["limits"],
@@ -371,7 +377,7 @@ function PlanCardsSection({
   return (
     <section>
       <h2 className="text-xl font-semibold mb-4">Available plans</h2>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {plans.map((p) => {
           const isCurrent = p.slug === currentPlanSlug;
           const monthlyConfigured = p.has_monthly_price;
@@ -415,6 +421,12 @@ function PlanCardsSection({
 
               <ul className="space-y-1.5 text-sm text-muted mb-4">
                 <Bullet>
+                  <strong className="text-foreground">
+                    {formatFeeBp(p.default_fee_bp)}
+                  </strong>{" "}
+                  take rate on creator payouts
+                </Bullet>
+                <Bullet>
                   Active briefs:{" "}
                   {p.limits.max_active_briefs == null
                     ? "Unlimited"
@@ -425,6 +437,12 @@ function PlanCardsSection({
                   {p.limits.max_creators == null
                     ? "Unlimited"
                     : p.limits.max_creators}
+                </Bullet>
+                <Bullet>
+                  Admin / member seats:{" "}
+                  {p.limits.max_seats == null
+                    ? "Unlimited"
+                    : p.limits.max_seats}
                 </Bullet>
                 {p.features.analytics && <Bullet>Analytics</Bullet>}
                 {p.features.custom_branding && <Bullet>Custom branding</Bullet>}

@@ -12,6 +12,7 @@ import {
   MIN_TOTAL_ESCROW_DKK,
   MAX_BRIEF_TITLE_LEN,
   formatDkk,
+  formatFeeBp,
 } from "@/lib/pricing";
 import { createBriefWithEscrow } from "./actions";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
@@ -106,9 +107,18 @@ interface BriefFormProps {
    * "missing payment method" warning + disables the submit button on
    * paid create flows. Edits and zero-price briefs ignore this. */
   hasPaymentMethod?: boolean;
+  /** Org's currently-resolved take rate in basis points. Surfaced on
+   * the upfront cost panel so publishers see the platform fee that
+   * will be deducted from each creator payout. Optional because the
+   * edit page mounts the form without a server fetch. */
+  feeBp?: number;
 }
 
-export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
+export function BriefForm({
+  brief,
+  hasPaymentMethod = true,
+  feeBp,
+}: BriefFormProps) {
   const router = useRouter();
   const orgId = useOrgId();
   const isEditing = !!brief;
@@ -837,6 +847,15 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
                 escrow and released to creators as you approve their
                 submissions.
               </p>
+              {typeof feeBp === "number" && feeBp > 0 && (
+                <p className="text-xs text-muted mt-2">
+                  Platform fee:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatFeeBp(feeBp)}
+                  </span>{" "}
+                  of each creator payout. The creator receives the rest.
+                </p>
+              )}
             </div>
           </div>
           {belowMinimumEscrow && (
