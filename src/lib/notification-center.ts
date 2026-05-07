@@ -10,6 +10,19 @@ export type NotificationRow = Tables<"notifications"> & {
 
 export const NOTIFICATION_PAGE_SIZE = 20;
 
+// The notifications inbox loads a wider page than the bell-dropdown
+// because the user is on a dedicated screen and can absorb more rows
+// at once. 25 strikes a balance: enough to fill a viewport without
+// blowing past Postgres' default seq-scan window for accounts with
+// thousands of historical notifications.
+export const NOTIFICATIONS_INBOX_PAGE_SIZE = 25;
+
+export type NotificationsFilter = "all" | "unread";
+
+export function isNotificationsFilter(value: unknown): value is NotificationsFilter {
+  return value === "all" || value === "unread";
+}
+
 export function notificationHref(notification: NotificationRow): string {
   const entityType = notification.entity_type;
   const entityId = notification.entity_id;
