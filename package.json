@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "_dev_note": "Forcing Webpack HMR until Next ships vercel/next.js#91704. Turbopack's dev async-hooks Map leaks under HMR and crashes with 'RangeError: Map maximum size exceeded' after a few minutes. Drop --no-turbo once the fix lands in a 16.x patch.",
-    "dev": "next dev --no-turbo",
+    "_dev_note": "Forcing Webpack HMR until Next ships vercel/next.js#91704. Turbopack's dev async-hooks Map leaks under HMR and crashes with 'RangeError: Map maximum size exceeded' after a few minutes. Drop --webpack once the fix lands in a 16.x patch.",
+    "dev": "next dev --webpack",
     "build": "next build",
     "build:cf": "opennextjs-cloudflare build",
     "start": "next start",
