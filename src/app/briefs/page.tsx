@@ -34,7 +34,19 @@ export default async function BriefsPage({ searchParams }: Props) {
     query = query.eq("duration_class", duration as BriefDurationClass);
   }
 
-  const { data: briefs, error } = await query;
+  // Fetch the active org's identity (name + logo + accent) in parallel
+  // with the brief list so the "Briefs by <org>" header has the data
+  // it needs from the very first paint. accent_color drives the
+  // initial-letter fallback tile when logo_url is null, matching the
+  // org-identity treatment in the admin sidebar.
+  const [{ data: briefs, error }, { data: org }] = await Promise.all([
+    query,
+    supabase
+      .from("organizations")
+      .select("name, logo_url, accent_color")
+      .eq("id", orgId)
+      .single(),
+  ]);
 
   if (error) {
     console.error("Error fetching briefs:", error);
@@ -72,6 +84,15 @@ export default async function BriefsPage({ searchParams }: Props) {
       briefs={briefsWithClaims}
       initialCategory={category as BriefCategory | undefined}
       initialDurationClass={duration as BriefDurationClass | undefined}
+      org={
+        org
+          ? {
+              name: org.name,
+              logoUrl: org.logo_url,
+              accentColor: org.accent_color,
+            }
+          : null
+      }
     />
   );
 }
