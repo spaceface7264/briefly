@@ -98,8 +98,14 @@ export function OrgSwitcher() {
       title="Switch organization"
     >
       {orgs.map((org) => (
+        // Role suffix omitted intentionally: this switcher only
+        // renders on the creator surface (see nav.tsx), where every
+        // membership row carries role="creator". Showing "(creator)"
+        // next to every option just adds noise. The org-side
+        // identity surface in admin-nav.tsx still shows the role
+        // because admins/members/owners differ in their abilities.
         <option key={org.id} value={org.id}>
-          {org.name} ({org.role})
+          {org.name}
         </option>
       ))}
     </select>
