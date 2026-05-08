@@ -1234,6 +1234,8 @@ export type Database = {
           country: string | null
           created_at: string
           cvr_number: string | null
+          disabled_at: string | null
+          disabled_reason: string | null
           email: string | null
           id: string
           instagram_handle: string | null
@@ -1271,6 +1273,8 @@ export type Database = {
           country?: string | null
           created_at?: string
           cvr_number?: string | null
+          disabled_at?: string | null
+          disabled_reason?: string | null
           email?: string | null
           id: string
           instagram_handle?: string | null
@@ -1308,6 +1312,8 @@ export type Database = {
           country?: string | null
           created_at?: string
           cvr_number?: string | null
+          disabled_at?: string | null
+          disabled_reason?: string | null
           email?: string | null
           id?: string
           instagram_handle?: string | null

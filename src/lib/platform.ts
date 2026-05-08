@@ -95,8 +95,13 @@ interface SupportAuditEntry {
   actorId: string;
   /** Stable verb in the `<domain>.<action>` shape, e.g. `brief.publish`. */
   action: string;
-  /** Org being acted on (the support_org_id at the time of the write). */
-  targetOrgId: string;
+  /**
+   * Org being acted on (the support_org_id at the time of the write).
+   * Nullable for user-level actions (disable, enable, password reset)
+   * where the target is a profile, not an org. The platform_audit_log
+   * column already accepts NULL.
+   */
+  targetOrgId: string | null;
   /** Optional table name + row id for forensic linkability. */
   targetTable?: string;
   targetRowId?: string;
