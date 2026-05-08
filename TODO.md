@@ -167,111 +167,123 @@ types and confirm zero diff.
 
 ---
 
-## Platform Admin v2 (active)
+## Platform Admin v2 ✅
 
 Split platform admin from org admin. Before this, "platform admin"
 was a flag (`profiles.is_platform_admin`) bolted onto an org account,
 which meant the same person was simultaneously running an org and
 managing the platform. Platform admin is now a real account type
 with no org membership and a "support mode" that lets it scope into
-any org as that org's admin without joining it. Branch: `admin-v2`.
+any org as that org's admin without joining it.
 
-Foundation lives in two migrations:
+Merged 2026-05-08 in PR #54. Eight migrations + a full operational
+shell at `/admin/super/*`. Memory entry:
+`memory/project_platform_admin_v2.md` captures the pattern for new
+`/admin/super/*` tools.
 
-- `0046_platform_admin_v2.sql` — adds `'platform'` account_type,
-  `profiles.support_org_id`, rewrites `active_org_id()` /
-  `is_org_admin()` / `is_org_member()` to honor support mode, adds
-  `is_platform_admin()` SELECT bypass on org-scoped tables, creates
-  `platform_audit_log`.
-- `0047_fix_rls_recursion.sql` — fixes recursion 0046 reintroduced
-  by inlining `EXISTS (SELECT 1 FROM memberships ...)` instead of
-  using the `is_org_member()` SECURITY DEFINER helper. Caught when
-  anonymous reads of `organizations` started returning 42P17 and
-  the login form's `getAccountType` fell through to `null`.
+### Migrations applied
 
-### Phase 1, schema and helpers (admin-v2 branch)
+- ✅ `0046_platform_admin_v2.sql` — `'platform'` account_type,
+  `profiles.support_org_id`, helper rewrites (`active_org_id`,
+  `is_org_admin`, `is_org_member`) honor support mode, cross-org
+  SELECT bypass on org-scoped tables, `platform_audit_log` table
+- ✅ `0047_fix_rls_recursion.sql` — fixed 42P17 recursion 0046
+  reintroduced on memberships / organizations SELECT
+- ✅ `0048_platform_admin_v2_followup.sql` — CHECK constraint that
+  `support_org_id` only sets on platform accounts; cleanup pass
+  for stale memberships on platform accounts;
+  `ALTER FUNCTION ... OWNER TO postgres` on the rewritten helpers
+- ✅ `0049_org_lifecycle.sql` — `organizations.status`,
+  `suspended_at`, `suspended_reason`, `archived_at`. Discoverable
+  policy tightened to require status='active'
+- ✅ `0050_lifecycle_rls_hardening.sql` — `is_org_active_for_writes`
+  helper plus AND clauses on the WRITE policies for briefs, claims,
+  payments, invite_codes, memberships, organizations, brand_kits.
+  Member writes blocked on suspended / archived orgs; platform
+  support mode is the override
+- ✅ `0051_platform_notices.sql` — `platform_notices` +
+  `platform_notice_dismissals` with DB-enforced audience-vs-target
+  consistency CHECK
+- ✅ `0052_user_management.sql` — `profiles.disabled_at`,
+  `disabled_reason` (v1 flag, see caveats below)
+- ✅ `0053_money_tools.sql` — `payment_status` enum gains
+  `refunded`; `payments` gains `stripe_refund_id` and
+  `refunded_amount_dkk`
 
-- ✅ Migration `0046_platform_admin_v2.sql` (account_type, support
-  column, helper rewrites, cross-org SELECT bypass, audit log)
-- ✅ Migration `0047_fix_rls_recursion.sql` (use helpers in
-  memberships + organizations SELECT)
-- ✅ `src/types/database.ts` — added `support_org_id` to profiles
-  Row/Insert/Update + FK relationship; added `platform_audit_log`
-  table type. Run `npx supabase gen types typescript --linked` once
-  the branch lands and verify zero diff.
+### Identity + support mode plumbing
 
-### Phase 2, identity + support mode plumbing (admin-v2 branch)
-
-- ✅ `AccountType` extended to `creator | org | platform`
-- ✅ `requireCreatorAccount` / `requireOrgAccount` /
-  `landingPathForAccountType` route platform users to `/admin/super`
-- ✅ `getActiveOrg` reads `support_org_id` for platform accounts
-- ✅ `requireOrgAdmin` returns `actingAs: "platform-support"` when a
-  platform admin is scoped into an org
-- ✅ `src/lib/platform.ts` — `requirePlatformAccount`, `getSupportOrg`
-- ✅ `enterSupportMode` / `exitSupportMode` server actions, both
-  audit-logged via `platform_audit_log`
-- ✅ "Open in support mode" form on `/admin/super/orgs/[id]` (with
-  reason field)
-- ✅ `SupportModeBanner` component, sticky strip across `/admin/*`
-  with the org name, accent-colored chip, and exit button
-- ✅ `AdminNav` role chip switches to amber `Support` when scoped in
-- ✅ Admin layout admits platform users only when `support_org_id`
-  is set; otherwise hands children through bare so `/admin/super`
-  renders inside its own shell
-- ✅ `/admin` (dashboard root) bounces platform users to
-  `/admin/super` (cannot live in the parent layout — would loop on
-  `/admin/super`, which shares it)
-- ✅ Login form post-auth router sends platform users to
+- ✅ `AccountType` = `creator | org | platform`; guards
+  (`requireCreatorAccount`, `requireOrgAccount`,
+  `requireOrgAdmin`, `landingPathForAccountType`) all support-mode
+  aware
+- ✅ `src/lib/platform.ts` — `requirePlatformAccount`,
+  `requirePlatformAccountOrRedirect`, `getSupportOrg`,
+  `logSupportAction`
+- ✅ `enterSupportMode` / `exitSupportMode` server actions,
+  audit-logged
+- ✅ `SupportModeBanner` across `/admin/*` when scoped in;
+  `AdminNav` role chip = amber `Support`
+- ✅ Admin layout bypasses its shell on `/admin/super/*` via
+  middleware-set `x-pathname` so the platform shell takes over
+- ✅ Platform shell at `/admin/super/*` with collapsible sidebar
+  (mirrors org admin shell muscle memory)
+- ✅ Login form + landing routes send platform users to
   `/admin/super`
 
-### Phase 3, operational tools (next)
+### Operational tools (all live)
 
-Identity split is in. The /admin/super shell only exposes the legacy
-pricing surface today (overview, orgs list, override grants, pricing
-audit). The operational tools that justify a full-time platform-admin
-account come next. Order is rough; first one is the cheapest unlock.
+- ✅ Org detail enrichment at `/admin/super/orgs/[id]`: logo +
+  meta header, support-mode hero, at-a-glance stats (briefs /
+  claims / people / escrow with payment-method warning), people
+  table, lifecycle section (suspend / restore / archive), pricing,
+  overrides, platform audit + pricing audit filtered to this org
+- ✅ Audit log at `/admin/super/audit` with Platform / Pricing
+  tabs; action pills color-coded by domain
+- ✅ Health dashboard at `/admin/super/health`: failed payments,
+  stuck claims, orgs ≥80% of plan limits, support sessions left
+  open >24h
+- ✅ User management at `/admin/super/users` (search) and
+  `/admin/super/users/[id]` (detail with disable / enable / force
+  password reset). Reset link delivered via HttpOnly path-scoped
+  60s cookie, never lands in URL
+- ✅ Money tools at `/admin/super/money`: manual refund (partial
+  refund supported via compare-and-set on `refunded_amount_dkk`),
+  retry stuck transfer (filters status='failed' to avoid
+  corrupting unrelated rows), credit-org placeholder
+- ✅ Platform notices at `/admin/super/notices` plus
+  `<PlatformNoticeBanner>` rendered at the top of every `/admin/*`
+  shell (severity-tinted; dismissible flag enforced server-side)
 
-- ❌ Generic `platform_audit_log` viewer at `/admin/super/audit`
-  (currently shows pricing audit only). Filter by actor / target org /
-  action namespace; closes the support-mode feedback loop.
-- ❌ Org lifecycle: suspend, restore, archive. New columns on
-  `organizations` (`status`, `suspended_at`, `suspended_reason`),
-  RLS gate writes/transfers when `status != 'active'`. Surface at
-  `/admin/super/orgs/[id]`. Audit-logged.
-- ❌ User management: disable / re-enable, force password reset,
-  merge duplicates, transfer org ownership when sole owner leaves.
-  New `/admin/super/users` route; needs a list view with search.
-- ❌ Manual money tools: refund a payment outside the archive flow,
-  retry a stuck transfer, credit an org for a support incident, view
-  escrow drift. All idempotent, audit-logged.
-- ❌ Health dashboard: failed PaymentIntents, stuck claims (approved
-  but no transfer), orgs near allowance cap, creator submission /
-  rejection anomalies. Read-only at `/admin/super/health`.
-- ❌ Platform-wide notices: banner targeted at one org or all orgs
-  (maintenance, pricing change, ToS update). New `platform_notices`
-  table; render in admin shells.
+### Deferred / known caveats
 
-### Edge-case routes
-
-- ❌ `/admin/briefs`, `/admin/claims`, `/admin/creators`, etc. when
-  hit directly by a platform-admin-without-support-mode currently
-  redirect to `/discover` (via `requireActiveOrg`). Should redirect
-  to `/admin/super` instead. Tiny patch but easy to forget.
-
-### Cleanup before merging admin-v2
-
-- ❌ Strip diagnostic `console.error` calls from
-  `src/lib/pricing-server.ts` and `src/app/admin/super/page.tsx`
-  (added during the redirect-loop debug session 2026-05-08).
+- ❌ `disabled_at` is a flag, not a hard ban. A disabled user can
+  still log in and pass `requireOrgAdmin` / `requireCreatorAccount`
+  / RLS. Tightening these to consult `disabled_at` is a follow-up;
+  the surface area is large
+- ❌ Multi-tab support session is silently shared via the single
+  `support_org_id` column. If a platform admin opens org A in tab
+  1 and "Open in support mode" on org B in tab 2, tab 1 is
+  silently scoped to B. Either reject `enterSupportMode` when one
+  is already active, or store sessions keyed by browser cookie
+- ❌ `<PlatformNoticeBanner>` doesn't render on `/admin/super/*`.
+  Intentional (platform admin is the publisher), but worth
+  confirming when ToS-style banners need to apply to admins too
 - ❌ `Nav` (`src/components/nav.tsx`) classifies every non-org user
-  as `creator`. Platform users routed there (e.g. via direct URL
-  to `/discover` or `/`) see creator nav items. Either filter to
-  show no nav items for platform users, or send them to
-  `/admin/super` server-side from those routes too.
-- ❌ Smoke test: enter support mode, do a brief edit, exit, verify
-  both `support.enter` / `support.exit` rows in `platform_audit_log`
-  with the correct `target_org_id` and `actor_id`.
+  as `creator`. A platform user manually navigating to `/discover`
+  or `/` sees creator nav items. Filter to show nothing for
+  platform users, or redirect them away server-side
+- ❌ `as unknown as` casts in seven `/admin/super/*` files. Same
+  spirit-of-the-rule violation as `as any`. Rooted in nested
+  `profiles!fk_name` joins where Supabase types treat the relation
+  as one-or-many. A typed join helper or two-step queries would
+  remove the need
+- ❌ Stuck-claim detection in `/admin/super/health` uses
+  `claims.updated_at < 24h ago AND status='approved'` because there
+  is no `approved_at` column. Add a real `approved_at` so the
+  signal isn't muddied by other UPDATEs
+- ❌ Refund tool walks `payments → claims → briefs` to refund the
+  org-side escrow PI. It does NOT auto-reverse the original
+  creator transfer; that has to happen manually in Stripe
 
 ---
 
