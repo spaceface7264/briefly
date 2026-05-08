@@ -3,10 +3,10 @@
 -- Today a "platform admin" is a flag (profiles.is_platform_admin)
 -- bolted on top of any account. To support production we want a real
 -- third identity:
---   * account_type = 'platform' — no org membership, no creator inbox
+--   * account_type = 'platform', no org membership, no creator inbox
 --   * still flagged is_platform_admin = TRUE so existing pricing
 --     code keeps working
---   * given a "support mode" — can scope into any org and operate as
+--   * given a "support mode", can scope into any org and operate as
 --     that org's admin without being a member
 --
 -- Three reads-cross-orgs design choices worth flagging:
@@ -15,7 +15,7 @@
 --      caller is a platform admin and that org is the one they've
 --      scoped into via profiles.support_org_id. This means every
 --      existing RLS policy that gates on is_org_admin() automatically
---      grants support-mode writes — no per-policy rewrite required.
+--      grants support-mode writes, no per-policy rewrite required.
 --
 --   2. active_org_id() falls back to support_org_id for platform
 --      accounts. Same trick: any policy that joins on
@@ -55,7 +55,7 @@ ALTER TABLE profiles
 -- the org quietly drops any active support session pointing at it.
 --
 -- We don't enforce "only platform accounts can have this set" at the
--- DB level — the server action that writes it does the check, and
+-- DB level, the server action that writes it does the check, and
 -- having a stale support_org_id on a non-platform account is harmless
 -- (active_org_id() ignores it for non-platform accounts).
 
@@ -256,7 +256,7 @@ CREATE POLICY "Members read their orgs"
     )
   );
 
--- "Anyone can read discoverable orgs" (from 0030) is left alone — it
+-- "Anyone can read discoverable orgs" (from 0030) is left alone, it
 -- already lets unauthenticated users see the discover surface.
 
 -- memberships: members can read their org's memberships; platform

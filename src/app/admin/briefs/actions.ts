@@ -4,9 +4,9 @@ import type Stripe from "stripe";
 import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe/server";
 import { getOrCreateOrgStripeCustomer } from "@/lib/stripe/customer";
-import { requireActiveOrg, requireOrgAdmin } from "@/lib/org";
-import { createClient } from "@/lib/supabase/server";
+import { requireOrgAdmin } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logSupportAction } from "@/lib/platform";
 import type {
   BriefCategory,
   BriefDurationClass,
@@ -370,13 +370,13 @@ type CreateResult = { ok: false; error: string; needsPaymentMethod?: boolean };
 export async function createBriefWithEscrow(
   input: NewBriefInput
 ): Promise<CreateResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "You must be signed in" };
-
-  const orgId = await requireActiveOrg(supabase);
+  // Money-moving path: settles a publish-time charge against the
+  // org's saved card. requireOrgAdmin() also accepts platform admins
+  // scoped into this org via support mode; the actingAs flag drives
+  // the platform_audit_log write below.
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const { supabase, userId, orgId, actingAs } = gate;
 
   // Defense-in-depth: trim and length-check the title here so a
   // crafted request can't bypass the form's `maxLength` and ship a
@@ -457,7 +457,7 @@ export async function createBriefWithEscrow(
       usage_rights: input.usage_rights,
       deliverable_specs: input.deliverable_specs,
       is_ad_intended: input.is_ad_intended,
-      created_by: user.id,
+      created_by: userId,
       org_id: orgId,
       status: "open",
       published_at: new Date().toISOString(),
@@ -489,6 +489,24 @@ export async function createBriefWithEscrow(
     };
   }
 
+  if (actingAs === "platform-support") {
+    await logSupportAction(supabase, {
+      actorId: userId,
+      action: "brief.create_with_escrow",
+      targetOrgId: orgId,
+      targetTable: "briefs",
+      targetRowId: brief.id,
+      after: {
+        title: input.title,
+        price_dkk: input.price_dkk,
+        claim_limit: input.claim_limit,
+        escrow_dkk_charged: settle.escrowDkkCharged,
+        overage_dkk_charged: settle.overageDkkCharged,
+        payment_intent_id: settle.paymentIntentId,
+      },
+    });
+  }
+
   // Success: redirect at the action layer. Throws NEXT_REDIRECT which
   // Next translates into a 303 response; the browser navigates before
   // the client ever sees a "result." The destination's loading.tsx
@@ -517,13 +535,11 @@ type DraftInput = Omit<NewBriefInput, "client_attempt_id">;
 export async function saveBriefDraft(
   input: DraftInput
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "You must be signed in" };
-
-  const orgId = await requireActiveOrg(supabase);
+  // Drafts don't move money but still write under the org's name; gate
+  // through requireOrgAdmin so support mode is recognised and audited.
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const { supabase, userId, orgId, actingAs } = gate;
 
   const trimmedTitle = (input.title ?? "").trim();
   if (!trimmedTitle) return { ok: false, error: "Title is required." };
@@ -552,7 +568,7 @@ export async function saveBriefDraft(
       usage_rights: input.usage_rights,
       deliverable_specs: input.deliverable_specs,
       is_ad_intended: input.is_ad_intended,
-      created_by: user.id,
+      created_by: userId,
       org_id: orgId,
       status: "draft",
       published_at: null,
@@ -563,6 +579,21 @@ export async function saveBriefDraft(
 
   if (insertErr || !brief) {
     return { ok: false, error: insertErr?.message ?? "Failed to save draft" };
+  }
+
+  if (actingAs === "platform-support") {
+    await logSupportAction(supabase, {
+      actorId: userId,
+      action: "brief.draft_save",
+      targetOrgId: orgId,
+      targetTable: "briefs",
+      targetRowId: brief.id,
+      after: {
+        title: trimmedTitle,
+        price_dkk: input.price_dkk,
+        claim_limit: input.claim_limit,
+      },
+    });
   }
 
   return { ok: true, id: brief.id };
@@ -579,13 +610,13 @@ export async function publishBriefFromDraft(
   briefId: string,
   clientAttemptId: string
 ): Promise<{ ok: false; error: string; needsPaymentMethod?: boolean }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "You must be signed in" };
-
-  const orgId = await requireActiveOrg(supabase);
+  // Money-moving path: settles the publish charge against the org's
+  // saved card, exactly like createBriefWithEscrow but starting from
+  // an existing draft. Same gate, same audit trail when run in
+  // support mode.
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const { supabase, userId, orgId, actingAs } = gate;
 
   if (
     typeof clientAttemptId !== "string" ||
@@ -670,6 +701,24 @@ export async function publishBriefFromDraft(
     return { ok: false, error: updErr.message };
   }
 
+  if (actingAs === "platform-support") {
+    await logSupportAction(supabase, {
+      actorId: userId,
+      action: "brief.publish",
+      targetOrgId: orgId,
+      targetTable: "briefs",
+      targetRowId: briefId,
+      after: {
+        title: brief.title,
+        price_dkk: brief.price_dkk,
+        claim_limit: brief.claim_limit,
+        escrow_dkk_charged: settle.escrowDkkCharged,
+        overage_dkk_charged: settle.overageDkkCharged,
+        payment_intent_id: settle.paymentIntentId,
+      },
+    });
+  }
+
   const titleParam = encodeURIComponent(brief.title.slice(0, 200));
   redirect(`/admin/briefs?flash=brief-published&title=${titleParam}`);
 }
@@ -682,13 +731,9 @@ export async function updateBriefDraft(
   briefId: string,
   input: DraftInput
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "You must be signed in" };
-
-  const orgId = await requireActiveOrg(supabase);
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const { supabase, userId, orgId, actingAs } = gate;
 
   const trimmedTitle = (input.title ?? "").trim();
   if (!trimmedTitle) return { ok: false, error: "Title is required." };
@@ -738,8 +783,22 @@ export async function updateBriefDraft(
   if (updErr) {
     return { ok: false, error: updErr.message };
   }
-  // Suppress unused-var warning for now; we may surface user later.
-  void user;
+
+  if (actingAs === "platform-support") {
+    await logSupportAction(supabase, {
+      actorId: userId,
+      action: "brief.draft_update",
+      targetOrgId: orgId,
+      targetTable: "briefs",
+      targetRowId: briefId,
+      after: {
+        title: trimmedTitle,
+        price_dkk: input.price_dkk,
+        claim_limit: input.claim_limit,
+      },
+    });
+  }
+
   return { ok: true };
 }
 

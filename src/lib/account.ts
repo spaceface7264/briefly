@@ -43,7 +43,7 @@ export async function requireCreatorAccount(
 /**
  * Server-side guard for org-only pages. Sends creators to /briefs and
  * platform users to /admin/super. Platform users in support mode are
- * allowed through — see src/lib/platform.ts → getSupportOrg.
+ * allowed through, see src/lib/platform.ts → getSupportOrg.
  */
 export async function requireOrgAccount(
   supabase: SupabaseClient

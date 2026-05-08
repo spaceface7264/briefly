@@ -16,7 +16,7 @@ interface SupportModeBannerProps {
  * context. The exit action clears profiles.support_org_id and bounces
  * the admin back to /admin/super.
  *
- * Server component — the exit form posts to a server action so we
+ * Server component, the exit form posts to a server action so we
  * don't ship hydration cost for what's mostly an audit signal.
  */
 export function SupportModeBanner({ org }: SupportModeBannerProps) {

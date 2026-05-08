@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Returns the active org_id for the current user.
  *
- * For platform accounts, support_org_id wins — they don't have an
+ * For platform accounts, support_org_id wins, they don't have an
  * "owned" org; they borrow one for the duration of a support session.
  * For org/creator accounts we fall back to the first membership when
  * active_org_id is null and self-heal by writing it back.
@@ -36,7 +36,7 @@ export async function getActiveOrg(
   if (data.active_org_id) return data.active_org_id;
 
   // Fallback: find first membership and set it as active. Only for
-  // org/creator accounts — platform accounts shouldn't have any.
+  // org/creator accounts, platform accounts shouldn't have any.
   const { data: membership } = await supabase
     .from("memberships")
     .select("org_id")
@@ -59,9 +59,9 @@ export async function getActiveOrg(
  * Returns the active org_id, redirecting if not available.
  *
  * Routing on the no-org case depends on account type:
- *   * platform — bounce to /admin/super (their canonical shell;
+ *   * platform, bounce to /admin/super (their canonical shell;
  *     they enter an org via support mode)
- *   * other    — bounce to /discover (creator without a roster
+ *   * other   , bounce to /discover (creator without a roster
  *     yet, or org user whose org was deleted out from under them)
  */
 export async function requireActiveOrg(
@@ -110,7 +110,7 @@ export async function getActiveOrgDetails(supabase: SupabaseClient) {
  *
  * Use from server components for UI gating decisions like "should
  * this button render?". The server actions themselves still gate
- * via `requireOrgAdmin()` — this is the read-side counterpart so
+ * via `requireOrgAdmin()`, this is the read-side counterpart so
  * we don't render buttons that would 401 on click.
  */
 export async function getOrgRole(
@@ -156,7 +156,7 @@ export async function getOrgRole(
  *
  * Membership-based admin is the normal path. Platform admins are
  * granted equivalent powers when scoped into the active org via
- * support mode — the SQL helper `is_org_admin()` mirrors this on the
+ * support mode, the SQL helper `is_org_admin()` mirrors this on the
  * RLS side so writes go through.
  *
  * Returns the supabase client, userId, orgId, and an `actingAs` flag

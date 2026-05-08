@@ -152,7 +152,7 @@ const navItems: NavItem[] = [
   {
     href: "/admin/organization",
     label: "Organization",
-    // Not adminOnly — members can view the org page read-only. The
+    // Not adminOnly, members can view the org page read-only. The
     // OrgDetailsForm/View split inside the page handles the
     // editable-vs-readonly choice based on role.
     icon: (
@@ -197,7 +197,7 @@ export function AdminNav({
 }: AdminNavProps) {
   // Only the claim-unread badge needs client state. Role/admin flags
   // arrive from the server layout, so the very first render already
-  // has the correct lock state — no flash.
+  // has the correct lock state, no flash.
   const [claimUnread, setClaimUnread] = useState(0);
   const pathname = usePathname();
   const platformAdminActive = pathname.startsWith("/admin/super");
@@ -344,7 +344,7 @@ function OrgIdentity({
       aria-label={`${org.name} dashboard`}
     >
       {org.logoUrl ? (
-        // Org logos come from user uploads — Next/Image would need
+        // Org logos come from user uploads, Next/Image would need
         // every host configured in next.config.ts, so use a plain
         // <img> here as we do on /discover.
         // eslint-disable-next-line @next/next/no-img-element
@@ -514,7 +514,7 @@ function NavRow({
     return (
       <SidebarMenuItem>
         <SidebarMenuButton
-          tooltip="Admins only — ask an admin in your org"
+          tooltip="Admins only, ask an admin in your org"
           aria-disabled="true"
           className="cursor-not-allowed opacity-50"
         >

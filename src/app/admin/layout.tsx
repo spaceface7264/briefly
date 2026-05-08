@@ -25,13 +25,13 @@ export default async function AdminLayout({
   }
 
   // Three account types route here:
-  //   * org      — their own shell, normal admin/member gating
-  //   * platform — only when scoped into an org via support mode;
+  //   * org     , their own shell, normal admin/member gating
+  //   * platform, only when scoped into an org via support mode;
   //                a platform admin without support_org_id is allowed
   //                through to /admin/super (handled by its own gate)
   //                or bounced from the org dashboard to /admin/super
   //                (handled by /admin/page.tsx)
-  //   * creator  — never; sent to /briefs
+  //   * creator , never; sent to /briefs
   const accountType = await getAccountType(supabase);
   if (accountType === "creator") redirect("/briefs");
   if (!accountType) redirect("/login");
@@ -56,7 +56,7 @@ export default async function AdminLayout({
   // Platform admin without a support session: render the children bare.
   // /admin/super has its own layout with the SuperHeader; /admin (the
   // dashboard root) bounces to /admin/super from inside its own
-  // page.tsx, so we don't redirect here — that would loop on
+  // page.tsx, so we don't redirect here, that would loop on
   // /admin/super itself, since this layout wraps both.
   if (!orgId) {
     return <>{children}</>;

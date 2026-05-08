@@ -2,7 +2,7 @@
 --
 -- 0030 fixed the original recursion by routing memberships /
 -- organizations SELECT through is_org_member() / is_org_admin()
--- (SECURITY DEFINER — they bypass RLS on the inner query). 0046
+-- (SECURITY DEFINER, they bypass RLS on the inner query). 0046
 -- added platform-admin bypass clauses but inlined a fresh
 -- `EXISTS (SELECT 1 FROM memberships ...)` in those same SELECT
 -- policies, which sends Postgres back through memberships RLS →
@@ -15,7 +15,7 @@
 --
 -- Fix: use the existing helpers in the SELECT policies on
 -- memberships and organizations. The profiles policy from 0046 is
--- left intact — its inner EXISTS hits memberships, but with the
+-- left intact, its inner EXISTS hits memberships, but with the
 -- memberships SELECT policy now resolving via is_org_member() it no
 -- longer recurses.
 
@@ -41,5 +41,5 @@ CREATE POLICY "Members read their orgs"
     OR is_org_member(id)
   );
 
--- "Anyone can read discoverable orgs" (from 0030) is left alone — it's
+-- "Anyone can read discoverable orgs" (from 0030) is left alone, it's
 -- the OR-clause that lets /discover work for unauthenticated visitors.

@@ -68,7 +68,7 @@ export default async function AdminOrganizationPage({
   // actions enforce the same gate via `requireOrgAdmin()`; this flag
   // drives the UI choice between editable form and read-only view.
   // Platform admins in support mode have no membership row, so the
-  // direct lookup misses them — fall through to getOrgRole, which is
+  // direct lookup misses them, fall through to getOrgRole, which is
   // support-mode aware.
   const isAdmin =
     myMembership?.role === "admin" ||

@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
  *
  * Writes go through the service-role client only for the audit log
  * insert (to skirt RLS during ON CONFLICT-style retries). The
- * profiles.support_org_id update goes through the user's own client —
+ * profiles.support_org_id update goes through the user's own client.
  * RLS already lets them update their own row.
  */
 export async function enterSupportMode(formData: FormData) {
