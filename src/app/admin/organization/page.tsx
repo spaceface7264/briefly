@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireActiveOrg, getOrgRole } from "@/lib/org";
 import { redirect } from "next/navigation";
 import { OrgDetailsForm } from "../settings/org-details-form";
 import { OrgDetailsView } from "../settings/org-details-view";
@@ -67,7 +67,12 @@ export default async function AdminOrganizationPage({
   // Members can VIEW the org page (read-only) but not edit it. Server
   // actions enforce the same gate via `requireOrgAdmin()`; this flag
   // drives the UI choice between editable form and read-only view.
-  const isAdmin = myMembership?.role === "admin";
+  // Platform admins in support mode have no membership row, so the
+  // direct lookup misses them — fall through to getOrgRole, which is
+  // support-mode aware.
+  const isAdmin =
+    myMembership?.role === "admin" ||
+    (await getOrgRole(supabase)) === "admin";
 
   return (
     <div className="max-w-4xl">

@@ -62,6 +62,11 @@ interface AdminNavProps {
   isOrgAdmin: boolean;
   /** Whether the viewer is a platform admin. Drives the "Platform admin" link in the footer. */
   isPlatformAdmin: boolean;
+  /** Platform admin scoped into someone else's org via support mode.
+   *  Repaints the org-identity chip and removes the legacy "creator
+   *  signs out here" affordances we don't want a support session
+   *  exiting through. */
+  isSupportMode: boolean;
   /** Active org branding shown as the top-left identity anchor of the sidebar. */
   org: {
     name: string;
@@ -187,6 +192,7 @@ export function AdminNav({
   userAvatarUrl,
   isOrgAdmin,
   isPlatformAdmin,
+  isSupportMode,
   org,
 }: AdminNavProps) {
   // Only the claim-unread badge needs client state. Role/admin flags
@@ -239,7 +245,11 @@ export function AdminNav({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-2">
-        <OrgIdentity org={org} isOrgAdmin={isOrgAdmin} />
+        <OrgIdentity
+          org={org}
+          isOrgAdmin={isOrgAdmin}
+          isSupportMode={isSupportMode}
+        />
       </SidebarHeader>
 
       <SidebarContent>
@@ -260,7 +270,11 @@ export function AdminNav({
       </SidebarContent>
 
       <SidebarFooter>
-        {isPlatformAdmin && (
+        {isPlatformAdmin && !isSupportMode && (
+          // In support mode the banner is the platform-admin entry
+          // point (and the only correct exit). Repeating the link
+          // here would suggest the user can swap surfaces while
+          // staying scoped in, which they can't.
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -302,14 +316,26 @@ export function AdminNav({
 function OrgIdentity({
   org,
   isOrgAdmin,
+  isSupportMode,
 }: {
   org: AdminNavProps["org"];
   isOrgAdmin: boolean;
+  isSupportMode: boolean;
 }) {
   const orgInitial = org.name.charAt(0).toUpperCase();
   const orgAccent = org.accentColor ?? "#C8FF00";
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+
+  // Role chip varies by viewer:
+  //   * support mode  → "Support" with a warning tone
+  //   * org admin     → "Admin" in accent
+  //   * org member    → "Member" muted
+  const chip = isSupportMode
+    ? { label: "Support", className: "text-amber-400" }
+    : isOrgAdmin
+      ? { label: "Admin", className: "text-accent" }
+      : { label: "Member", className: "text-muted" };
 
   return (
     <Link
@@ -341,16 +367,10 @@ function OrgIdentity({
           <div className="text-sm font-semibold truncate" title={org.name}>
             {org.name}
           </div>
-          {/* Reflects the viewer's role in this org, not the surface
-              name — a member browsing /admin/* should see "Member",
-              not "Admin". Admin gets the accent color to signal
-              elevated access; member is muted. */}
           <div
-            className={`text-[10px] font-medium uppercase tracking-wider ${
-              isOrgAdmin ? "text-accent" : "text-muted"
-            }`}
+            className={`text-[10px] font-medium uppercase tracking-wider ${chip.className}`}
           >
-            {isOrgAdmin ? "Admin" : "Member"}
+            {chip.label}
           </div>
         </div>
       )}

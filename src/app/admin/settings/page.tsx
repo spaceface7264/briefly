@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireActiveOrg, getOrgRole } from "@/lib/org";
 import { redirect } from "next/navigation";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { preferencesFromProfile } from "@/lib/notifications";
@@ -142,8 +142,12 @@ export default async function AdminSettingsPage({
   // Single source of truth for "can this user mutate org-level settings?"
   // Server actions enforce the same check via `requireOrgAdmin()`; this
   // flag is for UI gating so members see read-only views instead of
-  // editable forms that fail on submit.
-  const isAdmin = myMembership?.role === "admin";
+  // editable forms that fail on submit. Platform admins scoped into
+  // this org via support mode have no membership row — read the
+  // profile directly to grant them the same UI as a real admin.
+  const isAdmin =
+    myMembership?.role === "admin" ||
+    (await getOrgRole(supabase)) === "admin";
   // Server component runs once per request — `Date.now()` here is a
   // deliberate, single-call snapshot used to derive `is_expired` so the
   // client component can stay pure. The lint rule about purity targets

@@ -1,31 +1,13 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireOrgAdmin } from "@/lib/org";
 import { InviteActions } from "./invite-actions";
 
 export default async function AdminInvitesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const orgId = await requireActiveOrg(supabase);
-
-  // Creator-invite issuance is admin-only — mirror the gate already
-  // present in /admin/billing. Members are bounced back to the
-  // dashboard if they bookmark or type the URL directly. The nav
-  // also renders this item as locked for them.
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("org_id", orgId)
-    .eq("status", "active")
-    .single();
-  if (membership?.role !== "admin") {
-    redirect("/admin");
-  }
+  // Creator-invite issuance is admin-only. requireOrgAdmin() also
+  // accepts platform admins scoped into this org via support mode.
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) redirect("/admin");
+  const { supabase, orgId } = gate;
 
   const { data: invites } = await (supabase as any)
     .from("invite_codes")

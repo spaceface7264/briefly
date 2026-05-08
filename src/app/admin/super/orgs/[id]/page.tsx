@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatFeeBp, resolveOrgPricing } from "@/lib/pricing";
+import { enterSupportMode } from "../support-actions";
 import { GrantOverrideForm } from "./grant-form";
 import { OverrideRow } from "./override-row";
 
@@ -90,6 +91,36 @@ export default async function SuperOrgDetailPage({
             {pricing.source}
           </Field>
         </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold mb-2">Support mode</h2>
+        <p className="text-muted text-sm mb-4">
+          Open this org&apos;s admin shell as if you were one of its admins.
+          Every write is logged to{" "}
+          <code className="font-mono text-xs">platform_audit_log</code>.
+        </p>
+        <form action={enterSupportMode} className="space-y-3">
+          <input type="hidden" name="org_id" value={org.id} />
+          <label className="block">
+            <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+              Reason (optional)
+            </span>
+            <input
+              type="text"
+              name="reason"
+              placeholder="e.g. customer reported stuck claim"
+              maxLength={500}
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors text-sm"
+          >
+            Open in support mode →
+          </button>
+        </form>
       </section>
 
       <section>

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireOrgAdmin } from "@/lib/org";
 import {
   formatDkk,
   formatFeeBp,
@@ -55,13 +54,13 @@ export default async function BillingPage({
     session_id?: string;
   }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // Billing is admin-only. requireOrgAdmin() also accepts platform
+  // admins scoped into this org via support mode (the SQL helpers
+  // is_org_admin() / active_org_id() mirror this on the RLS side).
+  const gate = await requireOrgAdmin();
+  if (!gate.ok) redirect("/admin");
+  const { supabase, orgId } = gate;
 
-  const orgId = await requireActiveOrg(supabase);
   const { checkout, setup, session_id: setupSessionId } = await searchParams;
 
   // Setup callback: if Stripe sent us back with ?setup=success&session_id=…,
@@ -73,18 +72,6 @@ export default async function BillingPage({
   if (setup === "success" && setupSessionId) {
     const result = await syncPaymentMethodFromSession(setupSessionId);
     if (!result.ok) setupSyncError = result.error;
-  }
-
-  // Confirm the user is an admin of the org — billing is admin-only.
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("org_id", orgId)
-    .eq("status", "active")
-    .single();
-  if (membership?.role !== "admin") {
-    redirect("/admin");
   }
 
   const [pricing, subRow, planRows, pmSummary, escrowRows, allowance] = await Promise.all([

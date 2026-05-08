@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireActiveOrg } from "@/lib/org";
 import { getAccountType } from "@/lib/account";
 import { AdminNav } from "./admin-nav";
+import { SupportModeBanner } from "@/components/support-mode-banner";
 import {
   SidebarInset,
   SidebarProvider,
@@ -23,32 +24,58 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  // Org-only surface. Creator accounts get bounced to their shell.
+  // Three account types route here:
+  //   * org      — their own shell, normal admin/member gating
+  //   * platform — only when scoped into an org via support mode;
+  //                a platform admin without support_org_id is allowed
+  //                through to /admin/super (handled by its own gate)
+  //                or bounced from the org dashboard to /admin/super
+  //                (handled by /admin/page.tsx)
+  //   * creator  — never; sent to /briefs
   const accountType = await getAccountType(supabase);
-  if (accountType !== "org") {
-    redirect("/briefs");
+  if (accountType === "creator") redirect("/briefs");
+  if (!accountType) redirect("/login");
+
+  const isPlatformActor = accountType === "platform";
+
+  // Resolve the org context. For org accounts this is the standard
+  // active_org_id path. For platform admins it's support_org_id;
+  // requireActiveOrg honors that via getActiveOrg, which reads
+  // support_org_id when account_type='platform'.
+  const orgId = isPlatformActor
+    ? await (async () => {
+        const { data } = await supabase
+          .from("profiles")
+          .select("support_org_id")
+          .eq("id", user.id)
+          .maybeSingle();
+        return data?.support_org_id ?? null;
+      })()
+    : await requireActiveOrg(supabase);
+
+  // Platform admin without a support session: render the children bare.
+  // /admin/super has its own layout with the SuperHeader; /admin (the
+  // dashboard root) bounces to /admin/super from inside its own
+  // page.tsx, so we don't redirect here — that would loop on
+  // /admin/super itself, since this layout wraps both.
+  if (!orgId) {
+    return <>{children}</>;
   }
 
-  // Org accounts are always tied to exactly one org. Admins and members
-  // both land here; member-vs-admin gating is enforced inside the
-  // sub-pages and server actions that need it (billing, settings, team).
-  const orgId = await requireActiveOrg(supabase);
-
   // Resolve the data AdminNav needs server-side and pass it in as
-  // props. Client-side bootstrap of these used to cause a brief flash
-  // where Invites/Billing rendered as unlocked links before the effect
-  // resolved and re-rendered them as locked buttons. By resolving here
-  // we render the correct initial HTML, including the org's branding
-  // anchor in the top-left of the sidebar.
+  // props. For platform admins we synthesise an admin-equivalent
+  // membership so the nav doesn't lock the admin-only rows.
   const [{ data: membership }, { data: profile }, { data: org }] =
     await Promise.all([
-      supabase
-        .from("memberships")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("org_id", orgId)
-        .eq("status", "active")
-        .single(),
+      isPlatformActor
+        ? Promise.resolve({ data: { role: "admin" as const } })
+        : supabase
+            .from("memberships")
+            .select("role")
+            .eq("user_id", user.id)
+            .eq("org_id", orgId)
+            .eq("status", "active")
+            .single(),
       supabase
         .from("profiles")
         .select("name, is_platform_admin, avatar_url")
@@ -69,10 +96,8 @@ export default async function AdminLayout({
   }
 
   if (!org) {
-    // The active org was deleted out from under the membership row.
-    // Bounce to login so the post-login redirector can decide whether
-    // to surface the "this org is no longer on this platform" state.
-    redirect("/login");
+    // The active (or support) org was deleted out from under us.
+    redirect(isPlatformActor ? "/admin/super" : "/login");
   }
 
   const isOrgAdmin = membership.role === "admin";
@@ -95,6 +120,7 @@ export default async function AdminLayout({
         userAvatarUrl={profile?.avatar_url ?? null}
         isOrgAdmin={isOrgAdmin}
         isPlatformAdmin={isPlatformAdmin}
+        isSupportMode={isPlatformActor}
         org={{
           name: org.name,
           logoUrl: org.logo_url,
@@ -102,6 +128,16 @@ export default async function AdminLayout({
         }}
       />
       <SidebarInset>
+        {isPlatformActor && (
+          <SupportModeBanner
+            org={{
+              id: org.id,
+              name: org.name,
+              logoUrl: org.logo_url,
+              accentColor: org.accent_color,
+            }}
+          />
+        )}
         {/* Compact page-shell header that hosts the sidebar toggle.
             On desktop it lets the user collapse the nav to icons; on
             mobile it's the only way to open the off-canvas drawer. */}
