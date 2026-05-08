@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requirePlatformAccountOrRedirect } from "@/lib/platform";
+import {
+  logSupportAction,
+  requirePlatformAccountOrRedirect,
+} from "@/lib/platform";
 import type { Json } from "@/types/database";
 
 type Severity = "info" | "warning" | "critical";
@@ -51,42 +54,6 @@ function toJsonSnapshot(row: NoticeRowSnapshot): Json {
 }
 
 /**
- * Local audit-log helper that supports a nullable target_org_id.
- * `logSupportAction` from @/lib/platform takes a non-null targetOrgId
- * because every previous caller acted inside a single org. Platform-
- * wide notices have no target org by design, so we write the audit
- * row directly here. Service-role client because platform-wide rows
- * carry a NULL target_org_id which the platform_audit_log insert
- * policy still accepts (it only gates on actor + is_platform_admin).
- *
- * Failures are logged and swallowed, matching the loss-tolerance
- * convention from `logSupportAction`: never roll back a successful
- * notice mutation because the audit insert hiccupped.
- */
-async function logNoticeAction(entry: {
-  actorId: string;
-  action: "notice.create" | "notice.expire";
-  targetOrgId: string | null;
-  targetRowId: string;
-  before?: NoticeRowSnapshot | null;
-  after?: NoticeRowSnapshot | null;
-}): Promise<void> {
-  const admin = createAdminClient();
-  const { error } = await admin.from("platform_audit_log").insert({
-    actor_id: entry.actorId,
-    action: entry.action,
-    target_org_id: entry.targetOrgId,
-    target_table: "platform_notices",
-    target_row_id: entry.targetRowId,
-    before: entry.before ? toJsonSnapshot(entry.before) : null,
-    after: entry.after ? toJsonSnapshot(entry.after) : null,
-  });
-  if (error) {
-    console.error("[platform_audit_log] notice insert failed:", error);
-  }
-}
-
-/**
  * Create a new platform notice. Platform-admin only. The audience /
  * target_org_id consistency is enforced by a CHECK constraint at the
  * DB level (audience='all' requires target_org_id NULL,
@@ -99,7 +66,7 @@ async function logNoticeAction(entry: {
  * platform-only writes; staying consistent.
  */
 export async function createNotice(formData: FormData): Promise<void> {
-  const { userId } = await requirePlatformAccountOrRedirect();
+  const { supabase, userId } = await requirePlatformAccountOrRedirect();
 
   const titleRaw = formData.get("title");
   const bodyRaw = formData.get("body");
@@ -170,12 +137,13 @@ export async function createNotice(formData: FormData): Promise<void> {
     throw new Error(insertError.message);
   }
 
-  await logNoticeAction({
+  await logSupportAction(supabase, {
     actorId: userId,
     action: "notice.create",
     targetOrgId: created?.target_org_id ?? null,
-    targetRowId: created?.id ?? "",
-    after: created as NoticeRowSnapshot | null,
+    targetTable: "platform_notices",
+    targetRowId: created?.id,
+    after: created ? toJsonSnapshot(created as NoticeRowSnapshot) : null,
   });
 
   revalidatePath("/admin/super/notices");
@@ -189,7 +157,7 @@ export async function createNotice(formData: FormData): Promise<void> {
  * still references it and the dismissals join-table FK would cascade.
  */
 export async function expireNotice(formData: FormData): Promise<void> {
-  const { userId } = await requirePlatformAccountOrRedirect();
+  const { supabase, userId } = await requirePlatformAccountOrRedirect();
 
   const noticeId = formData.get("notice_id");
   if (typeof noticeId !== "string" || noticeId.length === 0) {
@@ -221,13 +189,14 @@ export async function expireNotice(formData: FormData): Promise<void> {
     throw new Error(updateError.message);
   }
 
-  await logNoticeAction({
+  await logSupportAction(supabase, {
     actorId: userId,
     action: "notice.expire",
     targetOrgId: beforeRow.target_org_id,
+    targetTable: "platform_notices",
     targetRowId: noticeId,
-    before: beforeRow,
-    after: after as NoticeRowSnapshot | null,
+    before: toJsonSnapshot(beforeRow),
+    after: after ? toJsonSnapshot(after as NoticeRowSnapshot) : null,
   });
 
   revalidatePath("/admin/super/notices");

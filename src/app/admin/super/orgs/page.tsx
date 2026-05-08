@@ -33,7 +33,7 @@ export default async function SuperOrgsPage() {
         discoverable: org.discoverable ?? false,
         status: org.status ?? "active",
         fee_bp: pricing.fee_bp,
-        plan_name: pricing.plan?.name ?? "—",
+        plan_name: pricing.plan?.name ?? "-",
         override_count: pricing.applied_overrides.length,
         source: pricing.source,
       };
@@ -94,7 +94,7 @@ export default async function SuperOrgsPage() {
                   </span>
                 </Td>
                 <Td className="text-muted">
-                  {row.override_count > 0 ? row.override_count : "—"}
+                  {row.override_count > 0 ? row.override_count : "-"}
                 </Td>
                 <Td className="text-muted">{row.discoverable ? "Yes" : "No"}</Td>
                 <Td className="text-right">

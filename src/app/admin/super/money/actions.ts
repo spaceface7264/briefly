@@ -195,25 +195,40 @@ export async function refundPayment(formData: FormData): Promise<void> {
   const newRefundedTotal = alreadyRefundedDkk + amountDkk;
   const fullyRefunded = newRefundedTotal >= totalAvailableDkk;
 
-  const { error: updateError } = await admin
+  // Compare-and-set against the running total we read at the top of
+  // this action. If a concurrent partial refund landed in between,
+  // refunded_amount_dkk has drifted and the .eq below matches zero
+  // rows. Stripe has already returned the money in that case, so we
+  // surface the drift loudly rather than retry (a retry would compute
+  // against a stale base and could under- or over-refund).
+  const { data: updatedRows, error: updateError } = await admin
     .from("payments")
     .update({
       status: fullyRefunded ? "refunded" : payment.status,
       stripe_refund_id: refund.id,
       refunded_amount_dkk: newRefundedTotal,
     })
-    .eq("id", payment.id);
+    .eq("id", payment.id)
+    .eq("refunded_amount_dkk", alreadyRefundedDkk)
+    .select("id");
 
   if (updateError) {
-    // Stripe already returned the money; log loudly but do not roll
-    // back. Surface the drift to the admin so they can reconcile by
-    // hand from the Stripe refund id in the URL.
     console.error(
       `[refundPayment] Stripe refund ${refund.id} succeeded but payments row ${payment.id} update failed: ${updateError.message}`
     );
     redirect(
       `/admin/super/money?payment_id=${encodeURIComponent(paymentId)}&refund_error=${encodeURIComponent(
         `Refund ${refund.id} succeeded but DB update failed: ${updateError.message}. Manual reconciliation required.`
+      )}`
+    );
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    console.error(
+      `[refundPayment] Stripe refund ${refund.id} succeeded but payments row ${payment.id} drifted (concurrent refund). Manual reconciliation required.`
+    );
+    redirect(
+      `/admin/super/money?payment_id=${encodeURIComponent(paymentId)}&refund_error=${encodeURIComponent(
+        `Refund ${refund.id} succeeded at Stripe but the payments row was concurrently updated. Reconcile manually using the Stripe refund id.`
       )}`
     );
   }
@@ -403,10 +418,17 @@ export async function retryTransfer(formData: FormData): Promise<void> {
   // is unmistakable in reporting as a hand-recovered row that needs
   // a follow-up invoice issuance pass before being shown to the
   // creator. Support flags this in the audit reason.
+  //
+  // Filter on status='failed' specifically. A stale 'pending' /
+  // 'refunded' row from an unrelated history entry must not get
+  // flipped to 'succeeded' by the retry; we'd rather insert a fresh
+  // recovery stub than corrupt an existing row with a different
+  // story.
   const { data: existingFailed } = await admin
     .from("payments")
     .select("id, status")
     .eq("claim_id", claim.id)
+    .eq("status", "failed")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

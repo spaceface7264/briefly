@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlatformAccountOrRedirect } from "@/lib/platform";
@@ -7,6 +8,7 @@ import {
   enableUser,
   forcePasswordReset,
 } from "../actions";
+import { RESET_LINK_COOKIE_PREFIX } from "../constants";
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +35,10 @@ interface PlatformAuditRecord {
 
 export default async function SuperUserDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ reset_link?: string }>;
 }) {
   const { id } = await params;
-  const { reset_link: resetLinkRaw } = await searchParams;
   const { supabase } = await requirePlatformAccountOrRedirect();
 
   const { data: profile } = await supabase
@@ -85,13 +84,20 @@ export default async function SuperUserDetailPage({
   const isCreator = profile.account_type === "creator";
   const isDisabled = Boolean(profile.disabled_at);
 
-  // Reset link arrives via redirect query string after a successful
-  // forcePasswordReset call. Validate it's a Supabase URL so we
-  // don't render arbitrary pasted strings.
+  // Reset link arrives via an HttpOnly cookie set by forcePasswordReset.
+  // Read it once, then clear the cookie so a refresh doesn't re-render
+  // the link. Validate it's an HTTP URL so we don't render arbitrary
+  // values if someone hand-rolled the cookie.
+  const cookieStore = await cookies();
+  const resetCookieName = `${RESET_LINK_COOKIE_PREFIX}${id}`;
+  const resetCookie = cookieStore.get(resetCookieName);
   const resetLink =
-    typeof resetLinkRaw === "string" && resetLinkRaw.startsWith("http")
-      ? resetLinkRaw
+    resetCookie && resetCookie.value.startsWith("http")
+      ? resetCookie.value
       : null;
+  if (resetCookie) {
+    cookieStore.delete(resetCookieName);
+  }
 
   return (
     <div className="space-y-10">
@@ -137,10 +143,10 @@ export default async function SuperUserDetailPage({
 
         <dl className="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm max-w-2xl">
           <Inline label="User ID" value={<code className="font-mono text-xs">{profile.id}</code>} />
-          <Inline label="Country" value={profile.country ?? "—"} />
+          <Inline label="Country" value={profile.country ?? "-"} />
           <Inline
             label="Instagram"
-            value={profile.instagram_handle ?? "—"}
+            value={profile.instagram_handle ?? "-"}
           />
           <Inline
             label="Created"

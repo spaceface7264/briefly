@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   requirePlatformAccountOrRedirect,
   logSupportAction,
@@ -50,17 +50,15 @@ async function applyLifecycle(
     throw new Error("Reason is required when suspending an org");
   }
 
-  await requirePlatformAccountOrRedirect();
+  // Cross-tenant write (the platform admin isn't a member of this
+  // org). The RLS-bound client would silently 0-row the UPDATE,
+  // leave the audit row in place, and make this look successful.
+  // Use the service-role client and rely on requirePlatformAccount
+  // for authorization.
+  const { supabase, userId } = await requirePlatformAccountOrRedirect();
+  const admin = createAdminClient();
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-
-  const { data: before } = await supabase
+  const { data: before } = await admin
     .from("organizations")
     .select("id, status, suspended_at, suspended_reason, archived_at")
     .eq("id", orgId)
@@ -119,7 +117,7 @@ async function applyLifecycle(
     };
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await admin
     .from("organizations")
     .update(updates)
     .eq("id", orgId);
@@ -128,7 +126,7 @@ async function applyLifecycle(
   }
 
   await logSupportAction(supabase, {
-    actorId: user.id,
+    actorId: userId,
     action: `org.${action}`,
     targetOrgId: orgId,
     targetTable: "organizations",

@@ -162,7 +162,7 @@ export default async function SuperUsersPage({
                   </div>
                 </Td>
                 <Td className="text-muted">
-                  {row.membership_count > 0 ? row.membership_count : "—"}
+                  {row.membership_count > 0 ? row.membership_count : "-"}
                 </Td>
                 <Td>
                   <StatusPill disabledAt={row.disabled_at} />

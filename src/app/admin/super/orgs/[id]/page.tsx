@@ -200,8 +200,8 @@ export default async function SuperOrgDetailPage({
           <p className="text-sm text-muted mt-3 max-w-2xl">{org.description}</p>
         )}
         <dl className="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm max-w-2xl">
-          <Inline label="Industry" value={org.industry ?? "—"} />
-          <Inline label="Contact" value={org.contact_email ?? "—"} />
+          <Inline label="Industry" value={org.industry ?? "-"} />
+          <Inline label="Contact" value={org.contact_email ?? "-"} />
           <Inline
             label="Discoverable"
             value={org.discoverable ? "Yes" : "No"}
@@ -313,9 +313,9 @@ export default async function SuperOrgDetailPage({
                     key={`${m.user_id}-${m.role}`}
                     className="border-t border-border"
                   >
-                    <Td>{m.profile?.name ?? "—"}</Td>
+                    <Td>{m.profile?.name ?? "-"}</Td>
                     <Td className="text-muted font-mono text-xs">
-                      {m.profile?.email ?? "—"}
+                      {m.profile?.email ?? "-"}
                     </Td>
                     <Td>
                       <RoleChip role={m.role} />
@@ -334,7 +334,7 @@ export default async function SuperOrgDetailPage({
       <section>
         <h2 className="text-xl font-semibold mb-4">Effective pricing</h2>
         <div className="bg-surface border border-border rounded-xl p-5 grid sm:grid-cols-3 gap-4">
-          <Field label="Plan">{pricing.plan?.name ?? "—"}</Field>
+          <Field label="Plan">{pricing.plan?.name ?? "-"}</Field>
           <Field label="Take rate">{formatFeeBp(pricing.fee_bp)}</Field>
           <Field label="Source" className="font-mono text-xs">
             {pricing.source}

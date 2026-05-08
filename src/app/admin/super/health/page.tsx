@@ -6,10 +6,10 @@ export const dynamic = "force-dynamic";
 
 // Dashboard surfaces operational issues without waiting for a customer
 // email. Sections are ordered by money risk, then platform-trust risk:
-//   1. Failed payments      — direct revenue loss, creator-facing
-//   2. Stuck claims         — slots paid for that never released
-//   3. Plan-limit pressure  — orgs about to hit a writ ceiling
-//   4. Stale support sessions — forgotten god-mode access
+//   1. Failed payments     , direct revenue loss, creator-facing
+//   2. Stuck claims        , slots paid for that never released
+//   3. Plan-limit pressure , orgs about to hit a write ceiling
+//   4. Stale support sessions, forgotten god-mode access
 //
 // All queries run on the platform-admin's RLS-bound client. Platform
 // admins have blanket SELECT on the relevant tables (memberships /

@@ -1,10 +1,15 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logSupportAction, requirePlatformAccount } from "@/lib/platform";
+import {
+  RESET_LINK_COOKIE_PREFIX,
+  RESET_LINK_TTL_SECONDS,
+} from "./constants";
 
 /**
  * Disable a user. Sets profiles.disabled_at = now() and stores the
@@ -170,8 +175,11 @@ export async function enableUser(formData: FormData): Promise<void> {
  *
  * Uses supabase.auth.admin.generateLink which requires the service-
  * role client. The link is single-use and short-lived per Supabase's
- * defaults (1 hour), so leaking it through an HTTP-only cookie or
- * the URL is acceptable for this use case.
+ * defaults (1 hour), but anyone who reads the link can reset the
+ * target's password, so we still keep it out of the URL (which would
+ * persist in browser history + leak via Referer). Instead, we stash
+ * it in an HttpOnly path-scoped cookie with a 60s TTL; the detail
+ * page reads it once on render and immediately clears it.
  */
 export async function forcePasswordReset(formData: FormData): Promise<void> {
   const userId = formData.get("user_id");
@@ -233,9 +241,22 @@ export async function forcePasswordReset(formData: FormData): Promise<void> {
     after: { email: profile.email },
   });
 
-  // Stash the link on the redirect so the detail page can render it
-  // inline. URL-encoded so the URL itself is safe in the query string.
-  const params = new URLSearchParams({ reset_link: actionLink });
+  // Stash the link in an HttpOnly cookie scoped to this user's detail
+  // path. The detail page reads it on the next render and clears it.
+  // 60s is long enough to survive the redirect + first paint but
+  // short enough that a forgotten browser session doesn't keep the
+  // link recoverable.
+  const cookieStore = await cookies();
+  cookieStore.set({
+    name: `${RESET_LINK_COOKIE_PREFIX}${userId}`,
+    value: actionLink,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: `/admin/super/users/${userId}`,
+    maxAge: RESET_LINK_TTL_SECONDS,
+  });
+
   revalidatePath(`/admin/super/users/${userId}`);
-  redirect(`/admin/super/users/${userId}?${params.toString()}`);
+  redirect(`/admin/super/users/${userId}`);
 }
