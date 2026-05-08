@@ -5,6 +5,11 @@ import { formatDkk, formatFeeBp, resolveOrgPricing } from "@/lib/pricing";
 import { enterSupportMode } from "../support-actions";
 import { GrantOverrideForm } from "./grant-form";
 import { OverrideRow } from "./override-row";
+import {
+  archiveOrg,
+  restoreOrg,
+  suspendOrg,
+} from "./lifecycle-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +64,7 @@ export default async function SuperOrgDetailPage({
   const { data: org } = await supabase
     .from("organizations")
     .select(
-      "id, name, slug, description, discoverable, industry, logo_url, accent_color, contact_email, default_payment_method_id, created_at"
+      "id, name, slug, description, discoverable, industry, logo_url, accent_color, contact_email, default_payment_method_id, created_at, status, suspended_at, suspended_reason, archived_at"
     )
     .eq("id", id)
     .single();
@@ -184,8 +189,11 @@ export default async function SuperOrgDetailPage({
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-3xl font-bold mb-0.5 truncate">{org.name}</h1>
-            <p className="font-mono text-xs text-muted">{org.slug}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-3xl font-bold truncate">{org.name}</h1>
+              <StatusPill status={org.status} />
+            </div>
+            <p className="font-mono text-xs text-muted mt-0.5">{org.slug}</p>
           </div>
         </div>
         {org.description && (
@@ -204,6 +212,14 @@ export default async function SuperOrgDetailPage({
           />
         </dl>
       </div>
+
+      <LifecycleSection
+        orgId={org.id}
+        status={org.status}
+        suspendedAt={org.suspended_at}
+        suspendedReason={org.suspended_reason}
+        archivedAt={org.archived_at}
+      />
 
       {/* Hero action: support mode is the gateway to operating on this
           org. Putting it above the stats so the support reason field
@@ -494,6 +510,158 @@ function Td({
   className?: string;
 }) {
   return <td className={`px-4 py-3 ${className}`}>{children}</td>;
+}
+
+function StatusPill({ status }: { status: string }) {
+  if (status === "active") {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-success/15 text-success">
+        Active
+      </span>
+    );
+  }
+  if (status === "suspended") {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-amber-400/15 text-amber-300">
+        Suspended
+      </span>
+    );
+  }
+  return (
+    <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-foreground/10 text-muted">
+      Archived
+    </span>
+  );
+}
+
+function LifecycleSection({
+  orgId,
+  status,
+  suspendedAt,
+  suspendedReason,
+  archivedAt,
+}: {
+  orgId: string;
+  status: string;
+  suspendedAt: string | null;
+  suspendedReason: string | null;
+  archivedAt: string | null;
+}) {
+  const tone =
+    status === "suspended"
+      ? "bg-amber-400/5 border-amber-400/30"
+      : status === "archived"
+        ? "bg-foreground/5 border-border-strong"
+        : "bg-surface border-border";
+
+  return (
+    <section className={`border rounded-xl p-5 ${tone}`}>
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+        <div>
+          <h2 className="text-lg font-semibold mb-1">Lifecycle</h2>
+          {status === "active" && (
+            <p className="text-muted text-sm">
+              Org is live. Suspend to block writes from its admins
+              while support investigates; archive to take it offline
+              indefinitely.
+            </p>
+          )}
+          {status === "suspended" && suspendedAt && (
+            <p className="text-sm text-amber-300">
+              Suspended {new Date(suspendedAt).toLocaleString("en-GB")}
+              {suspendedReason ? `: ${suspendedReason}` : ""}.
+            </p>
+          )}
+          {status === "archived" && archivedAt && (
+            <p className="text-sm text-muted">
+              Archived {new Date(archivedAt).toLocaleString("en-GB")}. Org
+              data is preserved; nobody can write until restored.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {status === "active" && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          <form action={suspendOrg} className="flex flex-col gap-2">
+            <input type="hidden" name="org_id" value={orgId} />
+            <label className="block">
+              <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+                Suspend reason (required)
+              </span>
+              <input
+                type="text"
+                name="reason"
+                required
+                placeholder="e.g. card chargeback under investigation"
+                maxLength={500}
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="self-start px-4 py-2 bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-semibold rounded-lg transition-colors text-sm"
+            >
+              Suspend org
+            </button>
+          </form>
+          <form action={archiveOrg} className="flex flex-col gap-2">
+            <input type="hidden" name="org_id" value={orgId} />
+            <label className="block">
+              <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+                Archive reason (optional)
+              </span>
+              <input
+                type="text"
+                name="reason"
+                placeholder="e.g. churned, owner requested deletion"
+                maxLength={500}
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="self-start px-4 py-2 bg-foreground/10 hover:bg-foreground/15 text-foreground font-semibold rounded-lg transition-colors text-sm"
+            >
+              Archive org
+            </button>
+          </form>
+        </div>
+      )}
+
+      {status !== "active" && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <form action={restoreOrg} className="flex-1 flex flex-col sm:flex-row gap-2">
+            <input type="hidden" name="org_id" value={orgId} />
+            <input
+              type="text"
+              name="reason"
+              placeholder="Restore reason (optional)"
+              maxLength={500}
+              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-success/15 hover:bg-success/25 text-success font-semibold rounded-lg transition-colors text-sm whitespace-nowrap"
+            >
+              Restore to active
+            </button>
+          </form>
+          {status === "suspended" && (
+            <form action={archiveOrg}>
+              <input type="hidden" name="org_id" value={orgId} />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-foreground/10 hover:bg-foreground/15 text-foreground font-semibold rounded-lg transition-colors text-sm whitespace-nowrap"
+              >
+                Archive instead
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function AuditRow({

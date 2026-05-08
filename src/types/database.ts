@@ -658,6 +658,7 @@ export type Database = {
         Row: {
           accent_color: string | null
           address: string | null
+          archived_at: string | null
           contact_email: string | null
           country: string
           created_at: string
@@ -674,13 +675,17 @@ export type Database = {
           sender_email: string | null
           sender_name: string | null
           slug: string
+          status: string
           stripe_customer_id: string | null
+          suspended_at: string | null
+          suspended_reason: string | null
           updated_at: string
           vat_number: string | null
         }
         Insert: {
           accent_color?: string | null
           address?: string | null
+          archived_at?: string | null
           contact_email?: string | null
           country?: string
           created_at?: string
@@ -697,13 +702,17 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           slug: string
+          status?: string
           stripe_customer_id?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
           updated_at?: string
           vat_number?: string | null
         }
         Update: {
           accent_color?: string | null
           address?: string | null
+          archived_at?: string | null
           contact_email?: string | null
           country?: string
           created_at?: string
@@ -720,7 +729,10 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           slug?: string
+          status?: string
           stripe_customer_id?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
           updated_at?: string
           vat_number?: string | null
         }

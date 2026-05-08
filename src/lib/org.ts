@@ -189,6 +189,8 @@ export async function requireOrgAdmin() {
     if (!profile.support_org_id) {
       return { ok: false as const, error: "Enter support mode first" };
     }
+    // Platform-support intentionally bypasses the org-status gate
+    // below so a suspended org can still be unstuck from inside.
     return {
       ok: true as const,
       supabase,
@@ -203,16 +205,36 @@ export async function requireOrgAdmin() {
     return { ok: false as const, error: "No active organization" };
   }
 
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("org_id", orgId)
-    .eq("status", "active")
-    .single();
+  const [{ data: membership }, { data: orgRow }] = await Promise.all([
+    supabase
+      .from("memberships")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("org_id", orgId)
+      .eq("status", "active")
+      .single(),
+    supabase
+      .from("organizations")
+      .select("status")
+      .eq("id", orgId)
+      .maybeSingle(),
+  ]);
 
   if (membership?.role !== "admin") {
     return { ok: false as const, error: "Admin access required" };
+  }
+
+  // Org-admin writes are blocked when the org isn't active. Platform
+  // admins in support mode took the early-return above and skip this
+  // check, so they can still fix things from inside a suspended org.
+  if (orgRow && orgRow.status !== "active") {
+    return {
+      ok: false as const,
+      error:
+        orgRow.status === "suspended"
+          ? "This organization is currently suspended. Contact support."
+          : "This organization is archived and read-only.",
+    };
   }
 
   return {
