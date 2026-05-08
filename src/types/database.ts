@@ -943,6 +943,96 @@ export type Database = {
           },
         ]
       }
+      platform_notice_dismissals: {
+        Row: {
+          dismissed_at: string
+          notice_id: string
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string
+          notice_id: string
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string
+          notice_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_notice_dismissals_notice_id_fkey"
+            columns: ["notice_id"]
+            isOneToOne: false
+            referencedRelation: "platform_notices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_notice_dismissals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_notices: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          created_by: string
+          dismissible: boolean
+          ends_at: string | null
+          id: string
+          severity: string
+          starts_at: string
+          target_org_id: string | null
+          title: string
+        }
+        Insert: {
+          audience: string
+          body: string
+          created_at?: string
+          created_by: string
+          dismissible?: boolean
+          ends_at?: string | null
+          id?: string
+          severity?: string
+          starts_at?: string
+          target_org_id?: string | null
+          title: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          created_by?: string
+          dismissible?: boolean
+          ends_at?: string | null
+          id?: string
+          severity?: string
+          starts_at?: string
+          target_org_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_notices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_notices_target_org_id_fkey"
+            columns: ["target_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_audit_log: {
         Row: {
           action: string
