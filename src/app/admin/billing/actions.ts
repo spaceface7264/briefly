@@ -89,8 +89,8 @@ export async function createCheckoutSession(
         billing_interval: interval,
       },
     },
-    success_url: `${appUrl()}/admin/billing?checkout=success`,
-    cancel_url: `${appUrl()}/admin/billing?checkout=cancelled`,
+    success_url: `${await appUrl()}/admin/billing?checkout=success`,
+    cancel_url: `${await appUrl()}/admin/billing?checkout=cancelled`,
     allow_promotion_codes: true,
   });
 
@@ -126,7 +126,7 @@ export async function createPortalSession(): Promise<
 
   const session = await stripe().billingPortal.sessions.create({
     customer: subRow.stripe_customer_id,
-    return_url: `${appUrl()}/admin/billing`,
+    return_url: `${await appUrl()}/admin/billing`,
   });
 
   return { ok: true, url: session.url };
@@ -280,8 +280,8 @@ export async function createPaymentMethodSetupSession(): Promise<
     mode: "setup",
     customer: customerId,
     payment_method_types: ["card"],
-    success_url: `${appUrl()}/admin/billing?setup=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl()}/admin/billing?setup=cancelled`,
+    success_url: `${await appUrl()}/admin/billing?setup=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${await appUrl()}/admin/billing?setup=cancelled`,
   });
 
   if (!session.url) {
