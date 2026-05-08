@@ -85,19 +85,20 @@ export default async function SuperUserDetailPage({
   const isDisabled = Boolean(profile.disabled_at);
 
   // Reset link arrives via an HttpOnly cookie set by forcePasswordReset.
-  // Read it once, then clear the cookie so a refresh doesn't re-render
-  // the link. Validate it's an HTTP URL so we don't render arbitrary
-  // values if someone hand-rolled the cookie.
+  // Validate it's an HTTP URL so we don't render arbitrary values if
+  // someone hand-rolled the cookie. We can't delete the cookie from a
+  // server component (Next 16 only allows writes from Server Actions
+  // or Route Handlers), so rely on the cookie's short TTL: it expires
+  // within RESET_LINK_TTL_SECONDS (60s). Refreshing within that window
+  // re-renders the link, which is fine, the platform admin already
+  // saw it once, the only thing this protects against is URL / history
+  // leakage and that's already addressed by the HttpOnly cookie path.
   const cookieStore = await cookies();
-  const resetCookieName = `${RESET_LINK_COOKIE_PREFIX}${id}`;
-  const resetCookie = cookieStore.get(resetCookieName);
+  const resetCookie = cookieStore.get(`${RESET_LINK_COOKIE_PREFIX}${id}`);
   const resetLink =
     resetCookie && resetCookie.value.startsWith("http")
       ? resetCookie.value
       : null;
-  if (resetCookie) {
-    cookieStore.delete(resetCookieName);
-  }
 
   return (
     <div className="space-y-10">
