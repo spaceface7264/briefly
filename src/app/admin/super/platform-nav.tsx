@@ -30,6 +30,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  ActivityIcon,
+  BellIcon,
   BookOpenIcon,
   Building2Icon,
   ChevronsUpDownIcon,
@@ -38,6 +40,8 @@ import {
   LogOutIcon,
   ScaleIcon,
   Settings2Icon,
+  UsersIcon,
+  WalletIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 
@@ -71,9 +75,29 @@ const navItems: NavItem[] = [
     icon: <GaugeIcon />,
   },
   {
+    href: "/admin/super/health",
+    label: "Health",
+    icon: <ActivityIcon />,
+  },
+  {
     href: "/admin/super/orgs",
     label: "Orgs",
     icon: <Building2Icon />,
+  },
+  {
+    href: "/admin/super/users",
+    label: "Users",
+    icon: <UsersIcon />,
+  },
+  {
+    href: "/admin/super/money",
+    label: "Money tools",
+    icon: <WalletIcon />,
+  },
+  {
+    href: "/admin/super/notices",
+    label: "Notices",
+    icon: <BellIcon />,
   },
   {
     href: "/admin/super/platform",

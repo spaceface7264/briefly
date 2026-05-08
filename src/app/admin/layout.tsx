@@ -5,6 +5,7 @@ import { requireActiveOrg } from "@/lib/org";
 import { getAccountType } from "@/lib/account";
 import { AdminNav } from "./admin-nav";
 import { SupportModeBanner } from "@/components/support-mode-banner";
+import { PlatformNoticeBanner } from "@/components/platform-notice-banner";
 import {
   SidebarInset,
   SidebarProvider,
@@ -138,6 +139,10 @@ export default async function AdminLayout({
         }}
       />
       <SidebarInset>
+        {/* Platform-wide and per-org notices stack above the support
+            mode banner so a "site is read-only for the next 30 minutes"
+            advisory shows even during a support session. */}
+        <PlatformNoticeBanner />
         {isPlatformActor && (
           <SupportModeBanner
             org={{
