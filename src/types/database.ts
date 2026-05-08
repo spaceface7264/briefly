@@ -773,9 +773,11 @@ export type Database = {
           platform_fee_dkk: number
           platform_name_snapshot: string | null
           platform_vat_snapshot: string | null
+          refunded_amount_dkk: number
           self_billing_agreement_version_snapshot: string | null
           status: Database["public"]["Enums"]["payment_status"]
           stripe_account_id: string
+          stripe_refund_id: string | null
           stripe_transfer_id: string | null
           subtotal_dkk: number | null
           total_dkk: number | null
@@ -810,9 +812,11 @@ export type Database = {
           platform_fee_dkk?: number
           platform_name_snapshot?: string | null
           platform_vat_snapshot?: string | null
+          refunded_amount_dkk?: number
           self_billing_agreement_version_snapshot?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           stripe_account_id: string
+          stripe_refund_id?: string | null
           stripe_transfer_id?: string | null
           subtotal_dkk?: number | null
           total_dkk?: number | null
@@ -847,9 +851,11 @@ export type Database = {
           platform_fee_dkk?: number
           platform_name_snapshot?: string | null
           platform_vat_snapshot?: string | null
+          refunded_amount_dkk?: number
           self_billing_agreement_version_snapshot?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           stripe_account_id?: string
+          stripe_refund_id?: string | null
           stripe_transfer_id?: string | null
           subtotal_dkk?: number | null
           total_dkk?: number | null
@@ -1522,7 +1528,7 @@ export type Database = {
         | "application_received"
         | "application_approved"
         | "application_rejected"
-      payment_status: "pending" | "succeeded" | "failed"
+      payment_status: "pending" | "succeeded" | "failed" | "refunded"
       user_role: "creator" | "admin" | "member"
       vat_scheme: "none" | "standard" | "reverse_charge"
     }
@@ -1683,7 +1689,7 @@ export const Constants = {
         "application_approved",
         "application_rejected",
       ],
-      payment_status: ["pending", "succeeded", "failed"],
+      payment_status: ["pending", "succeeded", "failed", "refunded"],
       user_role: ["creator", "admin", "member"],
       vat_scheme: ["none", "standard", "reverse_charge"],
     },
