@@ -19,16 +19,23 @@ export async function updateSession(request: NextRequest) {
     .getAll()
     .some((c) => c.name.startsWith("sb-"));
 
+  // Forward the current pathname as a header so server components can
+  // make per-route decisions (e.g. admin/layout skipping its shell on
+  // /admin/super, where the platform shell takes over). Next 16 does
+  // not expose pathname server-side without this.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
   // Skip auth/session overhead on fully public, fully signed-out
   // requests. Anything else (protected route, login page, or any
   // request carrying sb-* cookies) goes through the full refresh +
   // recovery path below.
   if (!isProtectedPath && !isLoginPath && !hasAuthCookies) {
-    return NextResponse.next({ request });
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   let supabaseResponse = NextResponse.next({
-    request,
+    request: { headers: requestHeaders },
   });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -57,7 +64,7 @@ export async function updateSession(request: NextRequest) {
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({
-            request,
+            request: { headers: requestHeaders },
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)

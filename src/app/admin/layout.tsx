@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { requireActiveOrg } from "@/lib/org";
@@ -16,6 +16,16 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // /admin/super has its own platform shell with a different sidebar.
+  // Hand children through bare so the platform layout doesn't render
+  // inside the org admin sidebar. Pathname comes from middleware via
+  // x-pathname; Next 16 does not expose it server-side otherwise.
+  const headerList = await headers();
+  const pathname = headerList.get("x-pathname") ?? "";
+  if (pathname.startsWith("/admin/super")) {
+    return <>{children}</>;
+  }
+
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -54,7 +64,7 @@ export default async function AdminLayout({
     : await requireActiveOrg(supabase);
 
   // Platform admin without a support session: render the children bare.
-  // /admin/super has its own layout with the SuperHeader; /admin (the
+  // /admin/super has its own platform shell layout; /admin (the
   // dashboard root) bounces to /admin/super from inside its own
   // page.tsx, so we don't redirect here, that would loop on
   // /admin/super itself, since this layout wraps both.
