@@ -4,7 +4,6 @@ import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -12,8 +11,15 @@ import {
   MIN_TOTAL_ESCROW_DKK,
   MAX_BRIEF_TITLE_LEN,
   formatDkk,
+  decidePublishCharge,
+  type BriefAllowanceState,
 } from "@/lib/pricing";
-import { createBriefWithEscrow } from "./actions";
+import {
+  createBriefWithEscrow,
+  saveBriefDraft,
+  updateBriefDraft,
+  publishBriefFromDraft,
+} from "./actions";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory; label: string }[] = [
@@ -106,11 +112,14 @@ interface BriefFormProps {
    * "missing payment method" warning + disables the submit button on
    * paid create flows. Edits and zero-price briefs ignore this. */
   hasPaymentMethod?: boolean;
+  /** Pricing v2: allowance + overage state for publish-charge preview.
+   * Optional so existing callers (the [id] edit page for already-
+   * published briefs) keep working without it. */
+  allowance?: BriefAllowanceState;
 }
 
-export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
+export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFormProps) {
   const router = useRouter();
-  const orgId = useOrgId();
   const isEditing = !!brief;
 
   const [title, setTitle] = useState(brief?.title || "");
@@ -143,7 +152,13 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   // still do so by navigating back to the form).
   const clientAttemptId = useMemo(() => crypto.randomUUID(), []);
 
-  const [saving, setSaving] = useState(false);
+  // Tracks which submit action is currently in flight so each button
+  // only shows its own loading label. Both buttons stay disabled
+  // while any mode is active to prevent double-submits.
+  const [submitMode, setSubmitMode] = useState<
+    "draft" | "publish" | "save_published" | null
+  >(null);
+  const saving = submitMode !== null;
 
   // Toast a brief-publishing error. Plan-limit errors get an
   // "Upgrade" action that jumps to /admin/billing; everything else
@@ -273,109 +288,9 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
     setShowTemplatePrompt(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    // Trim once at submit time so leading/trailing whitespace can't
-    // sneak into the row (and break list sorting / matching) while
-    // still letting the user type spaces inside the title.
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      toastSubmitError("Title is required.");
-      return;
-    }
-    if (trimmedTitle.length > MAX_BRIEF_TITLE_LEN) {
-      toastSubmitError(
-        `Title must be ${MAX_BRIEF_TITLE_LEN} characters or fewer.`
-      );
-      return;
-    }
-
-    // Belt-and-suspenders: the submit button is disabled below the
-    // minimum, but a tampered `disabled` attribute or a keyboard
-    // submit can still get here. Re-check before charging the round
-    // trip cost to the server action and Stripe.
-    if (belowMinimumEscrow) {
-      toastSubmitError(
-        `Total escrow must be at least ${MIN_TOTAL_ESCROW_DKK} DKK. Increase the price or the slot count.`
-      );
-      return;
-    }
-
-    setSaving(true);
-
-    if (isEditing) {
-      // Edit path stays a direct client-side update — no escrow
-      // re-charge on edits (escrow is locked at publish time per
-      // 1.1a). Refunds on price/limit changes are out of scope.
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        toastSubmitError("You must be logged in");
-        setSaving(false);
-        return;
-      }
-
-      // Build the update payload. Skip price + claim_limit on funded
-      // briefs even if the disabled inputs were tampered with — the
-      // disabled attribute is a UX hint, not a security boundary.
-      const updatePayload: Record<string, unknown> = {
-        title: trimmedTitle,
-        description,
-        category,
-        duration_class: durationClass,
-        deadline: deadline || null,
-        location: location || null,
-        reference_urls: referenceUrls.map((u) => u.trim()).filter(Boolean),
-        usage_rights: usageRights || null,
-        deliverable_specs: entriesToSpecs(specEntries),
-        is_ad_intended: isAdIntended,
-      };
-      if (!escrowLocked) {
-        updatePayload.price_dkk = parseInt(priceDkk) || 0;
-        updatePayload.claim_limit = parseInt(claimLimit) || 1;
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (supabase.from("briefs") as any)
-        .update(updatePayload)
-        .eq("id", brief.id);
-
-      if (result.error) {
-        const limitError = planLimitErrorMessage(result.error);
-        // Surface the escrow-immutability trigger from migration 0038
-        // as a friendly message instead of a raw Postgres exception.
-        // The trigger is the security boundary; the disabled inputs
-        // above are only a UX hint, so a tampered payload can still
-        // trip the trigger.
-        const rawMessage = (result.error as { message?: string }).message ?? "";
-        const isEscrowLockError =
-          rawMessage.includes("escrow column") ||
-          rawMessage.includes("funded_status");
-        const escrowError = isEscrowLockError
-          ? "Price, slot count, and escrow fields are locked once a brief is funded. Archive and republish to change them."
-          : null;
-        toastSubmitError(limitError ?? escrowError ?? "Failed to save brief");
-        setSaving(false);
-        return;
-      }
-
-      toast.success(
-        "Brief saved",
-        trimmedTitle ? { description: trimmedTitle } : undefined
-      );
-      router.push("/admin/briefs");
-      router.refresh();
-      return;
-    }
-
-    // Create path — server action runs the escrow PaymentIntent +
-    // insert, then redirects to /admin/briefs on success. The
-    // redirect throws inside the action, so any value we receive
-    // back here is by definition a failure result.
-    const result = await createBriefWithEscrow({
-      title: trimmedTitle,
+  function buildBaseInput() {
+    return {
+      title: title.trim(),
       description,
       category,
       duration_class: durationClass,
@@ -387,12 +302,173 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
       usage_rights: usageRights || null,
       deliverable_specs: entriesToSpecs(specEntries),
       is_ad_intended: isAdIntended,
+    };
+  }
+
+  function validateTitleAndEscrow(): boolean {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      toastSubmitError("Title is required.");
+      return false;
+    }
+    if (trimmedTitle.length > MAX_BRIEF_TITLE_LEN) {
+      toastSubmitError(
+        `Title must be ${MAX_BRIEF_TITLE_LEN} characters or fewer.`
+      );
+      return false;
+    }
+    return true;
+  }
+
+  async function handleSaveDraft(e: React.MouseEvent) {
+    e.preventDefault();
+    if (!validateTitleAndEscrow()) return;
+    // Drafts can ignore the escrow floor since no charge will fire;
+    // the floor only matters on publish.
+    setSubmitMode("draft");
+
+    if (isEditing && brief && brief.status === "draft") {
+      const result = await updateBriefDraft(brief.id, buildBaseInput());
+      if (!result.ok) {
+        toastSubmitError(result.error);
+        setSubmitMode(null);
+        return;
+      }
+      toast.success("Draft saved");
+      setSubmitMode(null);
+      router.push("/admin/briefs");
+      router.refresh();
+      return;
+    }
+
+    // New brief saved as draft.
+    const result = await saveBriefDraft(buildBaseInput());
+    if (!result.ok) {
+      toastSubmitError(result.error);
+      setSubmitMode(null);
+      return;
+    }
+    toast.success("Draft saved");
+    setSubmitMode(null);
+    router.push("/admin/briefs");
+    router.refresh();
+  }
+
+  async function handlePublish(e: React.MouseEvent | React.FormEvent) {
+    e.preventDefault();
+    if (!validateTitleAndEscrow()) return;
+    if (belowMinimumEscrow) {
+      toastSubmitError(
+        `Total escrow must be at least ${MIN_TOTAL_ESCROW_DKK} DKK. Increase the price or the slot count.`
+      );
+      return;
+    }
+    setSubmitMode("publish");
+
+    // Publishing an existing draft: the brief row exists, just settle
+    // the charge and flip status to 'open'. Server action redirects
+    // on success.
+    if (isEditing && brief && brief.status === "draft") {
+      // Save any unsaved edits first so the publish reflects the
+      // latest form state (price, slots, title — all matter for the
+      // charge math).
+      const draftSave = await updateBriefDraft(brief.id, buildBaseInput());
+      if (!draftSave.ok) {
+        toastSubmitError(draftSave.error);
+        setSubmitMode(null);
+        return;
+      }
+      const result = await publishBriefFromDraft(brief.id, clientAttemptId);
+      const limitError = planLimitErrorMessage({ message: result.error });
+      toastSubmitError(limitError ?? result.error);
+      setSubmitMode(null);
+      return;
+    }
+
+    // New brief published directly. Server action redirects on
+    // success, so any returned value is by definition a failure.
+    const result = await createBriefWithEscrow({
+      ...buildBaseInput(),
       client_attempt_id: clientAttemptId,
     });
-
     const limitError = planLimitErrorMessage({ message: result.error });
     toastSubmitError(limitError ?? result.error);
-    setSaving(false);
+    setSubmitMode(null);
+  }
+
+  async function handleSavePublished(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validateTitleAndEscrow()) return;
+
+    setSubmitMode("save_published");
+    // Edit path for already-published briefs stays a direct
+    // client-side update — no escrow re-charge (escrow is locked at
+    // publish time per 1.1a). Refunds on price/limit changes are
+    // out of scope.
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      toastSubmitError("You must be logged in");
+      setSubmitMode(null);
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    const updatePayload: Record<string, unknown> = {
+      title: trimmedTitle,
+      description,
+      category,
+      duration_class: durationClass,
+      deadline: deadline || null,
+      location: location || null,
+      reference_urls: referenceUrls.map((u) => u.trim()).filter(Boolean),
+      usage_rights: usageRights || null,
+      deliverable_specs: entriesToSpecs(specEntries),
+      is_ad_intended: isAdIntended,
+    };
+    if (!escrowLocked) {
+      updatePayload.price_dkk = parseInt(priceDkk) || 0;
+      updatePayload.claim_limit = parseInt(claimLimit) || 1;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (supabase.from("briefs") as any)
+      .update(updatePayload)
+      .eq("id", brief!.id);
+
+    if (result.error) {
+      const limitError = planLimitErrorMessage(result.error);
+      const rawMessage = (result.error as { message?: string }).message ?? "";
+      const isEscrowLockError =
+        rawMessage.includes("escrow column") ||
+        rawMessage.includes("funded_status");
+      const escrowError = isEscrowLockError
+        ? "Price, slot count, and escrow fields are locked once a brief is funded. Archive and republish to change them."
+        : null;
+      toastSubmitError(limitError ?? escrowError ?? "Failed to save brief");
+      setSubmitMode(null);
+      return;
+    }
+
+    toast.success(
+      "Brief saved",
+      trimmedTitle ? { description: trimmedTitle } : undefined
+    );
+    setSubmitMode(null);
+    router.push("/admin/briefs");
+    router.refresh();
+  }
+
+  // Form-level submit dispatches based on the brief's lifecycle
+  // state. New briefs and drafts default to Publish on Enter; this
+  // matches the primary CTA below.
+  async function handleSubmit(e: React.FormEvent) {
+    if (isEditing && brief && brief.status !== "draft") {
+      await handleSavePublished(e);
+      return;
+    }
+    await handlePublish(e);
   }
 
   const priceNum = parseInt(priceDkk) || 0;
@@ -414,6 +490,39 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
   // Adjustments to a funded brief require archive + republish.
   const escrowLocked =
     isEditing && (brief?.funded_status ?? "unfunded") !== "unfunded";
+
+  // Pricing v2: derive publish-charge labels and hints from the
+  // allowance state. When `allowance` isn't passed (legacy callers
+  // like the published-brief edit page), fall back to the old
+  // escrow-only label so nothing breaks.
+  const showPublishedEditOnly = isEditing && brief?.status !== "draft";
+
+  const publishDecision = allowance ? decidePublishCharge(allowance) : null;
+  const overageDkk =
+    publishDecision?.kind === "overage" ? publishDecision.overageDkk : 0;
+  const publishBlocked = publishDecision?.kind === "blocked";
+  const totalChargeDkk = escrowTotal + overageDkk;
+
+  let publishLabel: string;
+  if (submitMode === "publish") {
+    publishLabel = totalChargeDkk > 0 ? "Charging…" : "Publishing…";
+  } else if (publishBlocked) {
+    publishLabel = "Upgrade to publish";
+  } else if (totalChargeDkk > 0) {
+    publishLabel = `Publish & charge ${formatDkk(totalChargeDkk)}`;
+  } else {
+    publishLabel = "Publish";
+  }
+
+  let publishHint: string | null = null;
+  if (publishDecision?.kind === "overage") {
+    publishHint = `Over the monthly allowance: ${formatDkk(overageDkk)} overage on top of escrow.`;
+  } else if (publishDecision?.kind === "allowance" && allowance?.allowance != null) {
+    const used = (allowance.publishedThisPeriod ?? 0) + 1;
+    publishHint = `Counts as ${used} of ${allowance.allowance} included briefs this month.`;
+  } else if (publishDecision?.kind === "blocked") {
+    publishHint = publishDecision.reason;
+  }
 
   const inputClass = "w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors";
 
@@ -864,23 +973,42 @@ export function BriefForm({ brief, hasPaymentMethod = true }: BriefFormProps) {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Allowance hint + actions */}
+      {publishHint && (
+        <p className="pt-2 text-xs text-muted">{publishHint}</p>
+      )}
       <div className="flex items-center gap-4 pt-4">
-        <button
-          type="submit"
-          disabled={saving || blockedOnPaymentMethod || belowMinimumEscrow}
-          className="px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
-        >
-          {saving
-            ? isPaidCreate
-              ? "Charging…"
-              : "Saving..."
-            : isEditing
-              ? "Save Changes"
-              : isPaidCreate
-                ? `Publish & charge ${formatDkk(escrowTotal)}`
-                : "Create Brief"}
-        </button>
+        {showPublishedEditOnly ? (
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
+          >
+            {submitMode === "save_published" ? "Saving…" : "Save Changes"}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={
+                saving || blockedOnPaymentMethod || belowMinimumEscrow ||
+                publishBlocked
+              }
+              className="px-6 py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
+            >
+              {publishLabel}
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={saving}
+              className="px-6 py-3 border border-border hover:bg-surface-hover text-foreground font-medium rounded-lg transition-colors"
+            >
+              {submitMode === "draft" ? "Saving…" : "Save as draft"}
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={() => router.back()}

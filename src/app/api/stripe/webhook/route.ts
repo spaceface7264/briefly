@@ -130,6 +130,36 @@ export async function POST(request: NextRequest) {
       try {
         const subscription = await stripe().subscriptions.retrieve(subId);
         await syncSubscriptionFromStripe(subscription);
+
+        // Pricing v2: a successful renewal invoice resets the org's
+        // brief-publish counter for the new period and bumps the
+        // anchor. Skip on payment_failed: we don't want to gift a
+        // fresh quota when the card declined.
+        if (event.type === "invoice.paid") {
+          const orgId = subscription.metadata?.org_id;
+          if (orgId) {
+            // Use Stripe's period_start when available; fall back to
+            // now() so the anchor never drifts behind reality.
+            type SubAny = Stripe.Subscription & {
+              current_period_start?: number | null;
+            };
+            const periodStartTs = (subscription as SubAny).current_period_start;
+            const anchor = periodStartTs
+              ? new Date(periodStartTs * 1000).toISOString()
+              : new Date().toISOString();
+            const { error } = await supabase.rpc("reset_brief_publish_period", {
+              p_org_id: orgId,
+              p_anchor: anchor,
+            });
+            if (error) {
+              console.error(
+                "Failed to reset brief publish period:",
+                error.message
+              );
+              return NextResponse.json({ error: "rpc error" }, { status: 500 });
+            }
+          }
+        }
       } catch (err) {
         console.error("Failed to sync subscription from invoice:", err);
         return NextResponse.json({ error: "sync error" }, { status: 500 });

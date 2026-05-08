@@ -55,7 +55,7 @@ export async function createOrg(input: CreateOrgInput): Promise<CreateOrgResult>
 
   const { data: adminProfile, error: profErr } = await db
     .from("profiles")
-    .select("id, active_org_id")
+    .select("id, active_org_id, account_type")
     .eq("email", adminEmail)
     .maybeSingle();
   if (profErr) {
@@ -66,6 +66,50 @@ export async function createOrg(input: CreateOrgInput): Promise<CreateOrgResult>
       ok: false,
       error: `No user with email ${adminEmail}. Have them sign up first, then re-run.`,
     };
+  }
+
+  // Migration 0033 enforces (account_type, role) at the trigger level:
+  // a 'creator' profile can only hold creator memberships. The
+  // standard signup flow lands every user as 'creator' by default, so
+  // any user we want to bootstrap as an org admin needs to be flipped
+  // to 'org' first.
+  //
+  // Safe to flip only when the user has no active memberships yet:
+  // otherwise we'd silently strip them of creator-side access without
+  // their consent, or the trigger's "org accounts can only belong to
+  // one organization" rule would fight us. In those cases we surface
+  // a clear error and let the platform admin pick an unaffiliated
+  // user instead.
+  let flippedAccountType = false;
+  if (adminProfile.account_type !== "org") {
+    const { count: existingMembershipCount, error: memCountErr } = await db
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", adminProfile.id)
+      .eq("status", "active");
+    if (memCountErr) {
+      return {
+        ok: false,
+        error: `Failed to check existing memberships: ${memCountErr.message}`,
+      };
+    }
+    if ((existingMembershipCount ?? 0) > 0) {
+      return {
+        ok: false,
+        error: `${adminEmail} is currently a creator with active memberships. Either pick a fresh user, or have them leave their existing org(s) first.`,
+      };
+    }
+    const { error: flipErr } = await db
+      .from("profiles")
+      .update({ account_type: "org" })
+      .eq("id", adminProfile.id);
+    if (flipErr) {
+      return {
+        ok: false,
+        error: `Failed to convert ${adminEmail} to an org account: ${flipErr.message}`,
+      };
+    }
+    flippedAccountType = true;
   }
 
   const { data: existing } = await db
@@ -111,6 +155,19 @@ export async function createOrg(input: CreateOrgInput): Promise<CreateOrgResult>
         ok: false,
         error: `Created org but failed to attach admin: ${memErr.message}. Rollback also failed; contact platform support to clean up org ${org.id}.`,
       };
+    }
+    // If we flipped the user's account_type up top, restore it so the
+    // user isn't left as an orphaned 'org' account with no membership.
+    if (flippedAccountType) {
+      const { error: revertErr } = await db
+        .from("profiles")
+        .update({ account_type: "creator" })
+        .eq("id", adminProfile.id);
+      if (revertErr) {
+        console.error(
+          `[createOrg] Failed to revert account_type for ${adminEmail} after rollback: ${revertErr.message}`
+        );
+      }
     }
     return {
       ok: false,

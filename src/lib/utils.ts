@@ -49,6 +49,7 @@ export function statusLabel(status: BriefStatus): string {
     approved: "Approved",
     paid: "Paid",
     archived: "Archived",
+    draft: "Draft",
   };
   return labels[status];
 }
@@ -61,6 +62,7 @@ export function statusColor(status: BriefStatus): string {
     approved: "bg-success/20 text-success",
     paid: "bg-muted/20 text-muted",
     archived: "bg-muted/20 text-muted",
+    draft: "bg-muted/20 text-muted",
   };
   return colors[status];
 }

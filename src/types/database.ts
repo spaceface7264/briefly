@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       brand_kits: {
@@ -103,7 +78,10 @@ export type Database = {
           is_ad_intended: boolean
           location: string | null
           org_id: string
+          overage_charge_dkk: number | null
+          overage_payment_intent_id: string | null
           price_dkk: number
+          published_at: string | null
           reference_urls: string[] | null
           status: Database["public"]["Enums"]["brief_status"]
           stripe_payment_intent_id: string | null
@@ -127,7 +105,10 @@ export type Database = {
           is_ad_intended?: boolean
           location?: string | null
           org_id: string
+          overage_charge_dkk?: number | null
+          overage_payment_intent_id?: string | null
           price_dkk: number
+          published_at?: string | null
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
           stripe_payment_intent_id?: string | null
@@ -151,7 +132,10 @@ export type Database = {
           is_ad_intended?: boolean
           location?: string | null
           org_id?: string
+          overage_charge_dkk?: number | null
+          overage_payment_intent_id?: string | null
           price_dkk?: number
+          published_at?: string | null
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
           stripe_payment_intent_id?: string | null
@@ -598,6 +582,7 @@ export type Database = {
       org_subscriptions: {
         Row: {
           billing_interval: string
+          briefs_published_this_period: number
           cancel_at_period_end: boolean
           canceled_at: string | null
           created_at: string
@@ -606,6 +591,7 @@ export type Database = {
           id: string
           org_id: string
           paused_until: string | null
+          period_anchor: string
           plan_id: string
           status: string
           stripe_customer_id: string | null
@@ -615,6 +601,7 @@ export type Database = {
         }
         Insert: {
           billing_interval?: string
+          briefs_published_this_period?: number
           cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
@@ -623,6 +610,7 @@ export type Database = {
           id?: string
           org_id: string
           paused_until?: string | null
+          period_anchor?: string
           plan_id: string
           status?: string
           stripe_customer_id?: string | null
@@ -632,6 +620,7 @@ export type Database = {
         }
         Update: {
           billing_interval?: string
+          briefs_published_this_period?: number
           cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
@@ -640,6 +629,7 @@ export type Database = {
           id?: string
           org_id?: string
           paused_until?: string | null
+          period_anchor?: string
           plan_id?: string
           status?: string
           stripe_customer_id?: string | null
@@ -1005,8 +995,10 @@ export type Database = {
           id: string
           legacy: boolean
           limits: Json
+          monthly_brief_allowance: number | null
           monthly_price_dkk: number
           name: string
+          overage_dkk_per_brief: number | null
           private_to_org_id: string | null
           slug: string
           stripe_annual_price_id: string | null
@@ -1024,8 +1016,10 @@ export type Database = {
           id?: string
           legacy?: boolean
           limits?: Json
+          monthly_brief_allowance?: number | null
           monthly_price_dkk?: number
           name: string
+          overage_dkk_per_brief?: number | null
           private_to_org_id?: string | null
           slug: string
           stripe_annual_price_id?: string | null
@@ -1043,8 +1037,10 @@ export type Database = {
           id?: string
           legacy?: boolean
           limits?: Json
+          monthly_brief_allowance?: number | null
           monthly_price_dkk?: number
           name?: string
+          overage_dkk_per_brief?: number | null
           private_to_org_id?: string | null
           slug?: string
           stripe_annual_price_id?: string | null
@@ -1195,6 +1191,13 @@ export type Database = {
         Args: { p_admin_id: string; p_application_id: string }
         Returns: boolean
       }
+      commit_brief_publish: {
+        Args: { p_org_id: string }
+        Returns: {
+          new_count: number
+          period_anchor: string
+        }[]
+      }
       create_notification_for_user:
         | {
             Args: {
@@ -1226,13 +1229,20 @@ export type Database = {
             Returns: undefined
           }
       current_account_type: { Args: never; Returns: string }
+      decrement_brief_publish: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
+      effective_brief_allowance: { Args: { p_org_id: string }; Returns: number }
       effective_org_limit: {
         Args: { p_limit_key: string; p_org_id: string }
         Returns: number
       }
+      effective_overage_rate: { Args: { p_org_id: string }; Returns: number }
       expire_stale_claims: { Args: never; Returns: number }
       get_active_claim_count: { Args: { brief_uuid: string }; Returns: number }
       is_admin: { Args: never; Returns: boolean }
+      is_org_account: { Args: never; Returns: boolean }
       is_org_admin: { Args: { p_org_id: string }; Returns: boolean }
       is_org_member: { Args: { p_org_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
@@ -1292,10 +1302,6 @@ export type Database = {
             }
             Returns: undefined
           }
-      use_invite_code: {
-        Args: { invite_code: string; user_uuid: string }
-        Returns: boolean
-      }
       release_escrow_slot: {
         Args: { p_brief_id: string; p_slot_dkk: number }
         Returns: {
@@ -1303,9 +1309,17 @@ export type Database = {
           new_status: Database["public"]["Enums"]["brief_funded_status"]
         }[]
       }
+      reset_brief_publish_period: {
+        Args: { p_anchor?: string; p_org_id: string }
+        Returns: undefined
+      }
       restore_escrow_slot: {
         Args: { p_brief_id: string; p_slot_dkk: number }
         Returns: undefined
+      }
+      use_invite_code: {
+        Args: { invite_code: string; user_uuid: string }
+        Returns: boolean
       }
       user_has_claimed: { Args: { brief_uuid: string }; Returns: boolean }
       user_not_in_reclaim_cooldown: {
@@ -1329,6 +1343,7 @@ export type Database = {
         | "approved"
         | "paid"
         | "archived"
+        | "draft"
       notification_event_type:
         | "claim_created"
         | "claim_submitted"
@@ -1469,9 +1484,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       brief_category: ["entertaining", "ad", "guide", "event", "community"],
@@ -1490,6 +1502,7 @@ export const Constants = {
         "approved",
         "paid",
         "archived",
+        "draft",
       ],
       notification_event_type: [
         "claim_created",
