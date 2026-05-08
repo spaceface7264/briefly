@@ -658,6 +658,7 @@ export type Database = {
         Row: {
           accent_color: string | null
           address: string | null
+          archived_at: string | null
           contact_email: string | null
           country: string
           created_at: string
@@ -674,13 +675,17 @@ export type Database = {
           sender_email: string | null
           sender_name: string | null
           slug: string
+          status: string
           stripe_customer_id: string | null
+          suspended_at: string | null
+          suspended_reason: string | null
           updated_at: string
           vat_number: string | null
         }
         Insert: {
           accent_color?: string | null
           address?: string | null
+          archived_at?: string | null
           contact_email?: string | null
           country?: string
           created_at?: string
@@ -697,13 +702,17 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           slug: string
+          status?: string
           stripe_customer_id?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
           updated_at?: string
           vat_number?: string | null
         }
         Update: {
           accent_color?: string | null
           address?: string | null
+          archived_at?: string | null
           contact_email?: string | null
           country?: string
           created_at?: string
@@ -720,7 +729,10 @@ export type Database = {
           sender_email?: string | null
           sender_name?: string | null
           slug?: string
+          status?: string
           stripe_customer_id?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
           updated_at?: string
           vat_number?: string | null
         }
@@ -761,9 +773,11 @@ export type Database = {
           platform_fee_dkk: number
           platform_name_snapshot: string | null
           platform_vat_snapshot: string | null
+          refunded_amount_dkk: number
           self_billing_agreement_version_snapshot: string | null
           status: Database["public"]["Enums"]["payment_status"]
           stripe_account_id: string
+          stripe_refund_id: string | null
           stripe_transfer_id: string | null
           subtotal_dkk: number | null
           total_dkk: number | null
@@ -798,9 +812,11 @@ export type Database = {
           platform_fee_dkk?: number
           platform_name_snapshot?: string | null
           platform_vat_snapshot?: string | null
+          refunded_amount_dkk?: number
           self_billing_agreement_version_snapshot?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           stripe_account_id: string
+          stripe_refund_id?: string | null
           stripe_transfer_id?: string | null
           subtotal_dkk?: number | null
           total_dkk?: number | null
@@ -835,9 +851,11 @@ export type Database = {
           platform_fee_dkk?: number
           platform_name_snapshot?: string | null
           platform_vat_snapshot?: string | null
+          refunded_amount_dkk?: number
           self_billing_agreement_version_snapshot?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           stripe_account_id?: string
+          stripe_refund_id?: string | null
           stripe_transfer_id?: string | null
           subtotal_dkk?: number | null
           total_dkk?: number | null
@@ -873,6 +891,150 @@ export type Database = {
             columns: ["paid_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          reason: string | null
+          target_org_id: string | null
+          target_row_id: string | null
+          target_table: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          target_org_id?: string | null
+          target_row_id?: string | null
+          target_table?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          target_org_id?: string | null
+          target_row_id?: string | null
+          target_table?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_audit_log_target_org_id_fkey"
+            columns: ["target_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_notice_dismissals: {
+        Row: {
+          dismissed_at: string
+          notice_id: string
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string
+          notice_id: string
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string
+          notice_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_notice_dismissals_notice_id_fkey"
+            columns: ["notice_id"]
+            isOneToOne: false
+            referencedRelation: "platform_notices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_notice_dismissals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_notices: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          created_by: string
+          dismissible: boolean
+          ends_at: string | null
+          id: string
+          severity: string
+          starts_at: string
+          target_org_id: string | null
+          title: string
+        }
+        Insert: {
+          audience: string
+          body: string
+          created_at?: string
+          created_by: string
+          dismissible?: boolean
+          ends_at?: string | null
+          id?: string
+          severity?: string
+          starts_at?: string
+          target_org_id?: string | null
+          title: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          created_by?: string
+          dismissible?: boolean
+          ends_at?: string | null
+          id?: string
+          severity?: string
+          starts_at?: string
+          target_org_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_notices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_notices_target_org_id_fkey"
+            columns: ["target_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1072,6 +1234,8 @@ export type Database = {
           country: string | null
           created_at: string
           cvr_number: string | null
+          disabled_at: string | null
+          disabled_reason: string | null
           email: string | null
           id: string
           instagram_handle: string | null
@@ -1091,6 +1255,7 @@ export type Database = {
           stripe_account_id: string | null
           stripe_details_submitted: boolean
           stripe_payouts_enabled: boolean
+          support_org_id: string | null
           tags: string[] | null
           updated_at: string
           vat_number: string | null
@@ -1108,6 +1273,8 @@ export type Database = {
           country?: string | null
           created_at?: string
           cvr_number?: string | null
+          disabled_at?: string | null
+          disabled_reason?: string | null
           email?: string | null
           id: string
           instagram_handle?: string | null
@@ -1127,6 +1294,7 @@ export type Database = {
           stripe_account_id?: string | null
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
+          support_org_id?: string | null
           tags?: string[] | null
           updated_at?: string
           vat_number?: string | null
@@ -1144,6 +1312,8 @@ export type Database = {
           country?: string | null
           created_at?: string
           cvr_number?: string | null
+          disabled_at?: string | null
+          disabled_reason?: string | null
           email?: string | null
           id?: string
           instagram_handle?: string | null
@@ -1163,6 +1333,7 @@ export type Database = {
           stripe_account_id?: string | null
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
+          support_org_id?: string | null
           tags?: string[] | null
           updated_at?: string
           vat_number?: string | null
@@ -1172,6 +1343,13 @@ export type Database = {
           {
             foreignKeyName: "profiles_active_org_id_fkey"
             columns: ["active_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_support_org_id_fkey"
+            columns: ["support_org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -1356,7 +1534,7 @@ export type Database = {
         | "application_received"
         | "application_approved"
         | "application_rejected"
-      payment_status: "pending" | "succeeded" | "failed"
+      payment_status: "pending" | "succeeded" | "failed" | "refunded"
       user_role: "creator" | "admin" | "member"
       vat_scheme: "none" | "standard" | "reverse_charge"
     }
@@ -1517,7 +1695,7 @@ export const Constants = {
         "application_approved",
         "application_rejected",
       ],
-      payment_status: ["pending", "succeeded", "failed"],
+      payment_status: ["pending", "succeeded", "failed", "refunded"],
       user_role: ["creator", "admin", "member"],
       vat_scheme: ["none", "standard", "reverse_charge"],
     },

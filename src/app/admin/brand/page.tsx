@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireActiveOrg, getOrgRole } from "@/lib/org";
 import { getBrandAssetSignedUrls } from "@/lib/storage/brand";
 import { BrandKitForm } from "./brand-kit-form";
 import type { BrandColor, BrandTypography } from "./types";
@@ -33,7 +33,11 @@ export default async function AdminBrandPage() {
       .maybeSingle(),
   ]);
 
-  const isAdmin = membership?.role === "admin";
+  // Membership lookup misses platform admins in support mode (they
+  // have no row); fall through to getOrgRole for the support path.
+  const isAdmin =
+    membership?.role === "admin" ||
+    (await getOrgRole(supabase)) === "admin";
 
   const signed = await getBrandAssetSignedUrls({
     logo_mark_url: kit?.logo_mark_url ?? null,

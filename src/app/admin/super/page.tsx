@@ -27,7 +27,11 @@ export default async function SuperOverviewPage() {
       .select("platform_fee_dkk, gross_dkk, status, created_at")
       .eq("status", "succeeded")
       .gte("created_at", sinceIso),
-    supabase.from("pricing_plans").select("slug, name, default_fee_bp, monthly_price_dkk, annual_price_dkk, visible, legacy"),
+    supabase
+      .from("pricing_plans")
+      .select(
+        "slug, name, default_fee_bp, monthly_price_dkk, annual_price_dkk, visible, legacy"
+      ),
   ]);
 
   const feeRevenue30d = (payouts30d ?? []).reduce(

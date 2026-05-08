@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
-export type AccountType = "creator" | "org";
+export type AccountType = "creator" | "org" | "platform";
 
 /**
  * Returns the authenticated user's account_type, or null if not
@@ -22,34 +22,37 @@ export async function getAccountType(
     .maybeSingle();
 
   const value = (data as { account_type?: string } | null)?.account_type;
-  return value === "org" ? "org" : value === "creator" ? "creator" : null;
+  if (value === "org") return "org";
+  if (value === "creator") return "creator";
+  if (value === "platform") return "platform";
+  return null;
 }
 
 /**
- * Server-side guard: redirects org users to /admin (their shell).
- * Use at the top of any creator-only page (browse briefs, claim,
- * my-briefs, payouts, etc.).
+ * Server-side guard for creator-only pages. Sends org users to /admin
+ * and platform users to /admin/super.
  */
 export async function requireCreatorAccount(
   supabase: SupabaseClient
 ): Promise<void> {
   const accountType = await getAccountType(supabase);
-  if (accountType === "org") {
-    redirect("/admin");
-  }
+  if (accountType === "org") redirect("/admin");
+  if (accountType === "platform") redirect("/admin/super");
 }
 
 /**
- * Server-side guard: redirects creator users to /briefs (their shell).
- * Use at the top of any org-only page (admin/* surface).
+ * Server-side guard for org-only pages. Sends creators to /briefs and
+ * platform users to /admin/super. Platform users in support mode are
+ * allowed through, see src/lib/platform.ts → getSupportOrg.
  */
 export async function requireOrgAccount(
   supabase: SupabaseClient
 ): Promise<void> {
   const accountType = await getAccountType(supabase);
-  if (accountType === "creator") {
-    redirect("/briefs");
-  }
+  if (accountType === "creator") redirect("/briefs");
+  // Platform users only see /admin (org-shell) when scoped into an
+  // org via support mode. The admin layout reads support_org_id and
+  // bounces them to /admin/super when it isn't set.
 }
 
 /**
@@ -59,5 +62,7 @@ export async function requireOrgAccount(
 export function landingPathForAccountType(
   accountType: AccountType | null
 ): string {
-  return accountType === "org" ? "/admin" : "/briefs";
+  if (accountType === "platform") return "/admin/super";
+  if (accountType === "org") return "/admin";
+  return "/briefs";
 }

@@ -211,7 +211,7 @@ export function GrantOverrideForm({ orgId }: { orgId: string }) {
           onChange={(e) => setReason(e.target.value)}
           required
           minLength={3}
-          placeholder="e.g. Partner deal — 2026 launch"
+          placeholder="e.g. Partner deal, 2026 launch"
           className="input"
         />
       </Labelled>

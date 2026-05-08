@@ -22,7 +22,16 @@ export async function setNotificationPreference(
   if (!def) return { ok: false, error: "Unknown notification type" };
 
   const accountType = await getAccountType(supabase);
-  if (!accountType || !def.audiences.includes(accountType)) {
+  if (
+    accountType !== "creator" &&
+    accountType !== "org"
+  ) {
+    return {
+      ok: false,
+      error: "This notification type does not apply to your account",
+    };
+  }
+  if (!def.audiences.includes(accountType)) {
     return {
       ok: false,
       error: "This notification type does not apply to your account",

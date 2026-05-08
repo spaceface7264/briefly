@@ -177,10 +177,10 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
     }
 
     // Route to the user's shell:
-    //   org account → /admin
-    //   creator account with at least one active membership → /briefs
-    //   creator account with no membership yet → /discover (so they
-    //     can apply to a discoverable org or redeem an invite)
+    //   platform account → /admin/super
+    //   org account      → /admin
+    //   creator with at least one active membership → /briefs
+    //   creator with no membership yet → /discover
     let nextPath = "/briefs";
     if (signInData.user) {
       const { data: profile } = await supabase
@@ -192,7 +192,9 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
       const accountType = (profile as { account_type?: string } | null)
         ?.account_type;
 
-      if (accountType === "org") {
+      if (accountType === "platform") {
+        nextPath = "/admin/super";
+      } else if (accountType === "org") {
         nextPath = "/admin";
       } else {
         const { count } = await supabase

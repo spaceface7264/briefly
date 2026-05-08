@@ -9,6 +9,7 @@ interface OrgListRow {
   name: string;
   slug: string;
   discoverable: boolean;
+  status: string;
   fee_bp: number;
   plan_name: string;
   override_count: number;
@@ -19,7 +20,7 @@ export default async function SuperOrgsPage() {
   const supabase = await createClient();
   const { data: orgs } = await supabase
     .from("organizations")
-    .select("id, name, slug, discoverable")
+    .select("id, name, slug, discoverable, status")
     .order("name", { ascending: true });
 
   const rows: OrgListRow[] = await Promise.all(
@@ -30,8 +31,9 @@ export default async function SuperOrgsPage() {
         name: org.name,
         slug: org.slug,
         discoverable: org.discoverable ?? false,
+        status: org.status ?? "active",
         fee_bp: pricing.fee_bp,
-        plan_name: pricing.plan?.name ?? "—",
+        plan_name: pricing.plan?.name ?? "-",
         override_count: pricing.applied_overrides.length,
         source: pricing.source,
       };
@@ -61,6 +63,7 @@ export default async function SuperOrgsPage() {
           <thead className="bg-surface-raised text-left">
             <tr>
               <Th>Name</Th>
+              <Th>Status</Th>
               <Th>Plan</Th>
               <Th>Effective fee</Th>
               <Th>Overrides</Th>
@@ -75,6 +78,9 @@ export default async function SuperOrgsPage() {
                   <p className="font-medium">{row.name}</p>
                   <p className="font-mono text-xs text-muted">{row.slug}</p>
                 </Td>
+                <Td>
+                  <StatusPill status={row.status} />
+                </Td>
                 <Td>{row.plan_name}</Td>
                 <Td>
                   <span
@@ -88,7 +94,7 @@ export default async function SuperOrgsPage() {
                   </span>
                 </Td>
                 <Td className="text-muted">
-                  {row.override_count > 0 ? row.override_count : "—"}
+                  {row.override_count > 0 ? row.override_count : "-"}
                 </Td>
                 <Td className="text-muted">{row.discoverable ? "Yes" : "No"}</Td>
                 <Td className="text-right">
@@ -103,7 +109,7 @@ export default async function SuperOrgsPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted">
                   No organisations.
                 </td>
               </tr>
@@ -131,4 +137,26 @@ function Td({
   className?: string;
 }) {
   return <td className={`px-4 py-3 ${className}`}>{children}</td>;
+}
+
+function StatusPill({ status }: { status: string }) {
+  if (status === "active") {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-success/15 text-success">
+        Active
+      </span>
+    );
+  }
+  if (status === "suspended") {
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-amber-400/15 text-amber-300">
+        Suspended
+      </span>
+    );
+  }
+  return (
+    <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-foreground/10 text-muted">
+      Archived
+    </span>
+  );
 }

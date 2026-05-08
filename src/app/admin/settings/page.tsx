@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { requireActiveOrg, getOrgRole } from "@/lib/org";
 import { redirect } from "next/navigation";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { preferencesFromProfile } from "@/lib/notifications";
@@ -54,7 +54,7 @@ export default async function AdminSettingsPage({
 
   const orgId = await requireActiveOrg(supabase);
 
-  // Settings is the personal-and-team surface — org identity / branding /
+  // Settings is the personal-and-team surface, org identity / branding /
   // discoverability live on /admin/organization. We only need the org's
   // display name here so the personal form can read "Member at <Org>".
   const { data: org } = await supabase
@@ -117,7 +117,7 @@ export default async function AdminSettingsPage({
       .eq("intended_account_type", "org")
       .is("used_by", null)
       .order("created_at", { ascending: false }),
-    // Recently redeemed teammate invites — surfaced underneath the active
+    // Recently redeemed teammate invites, surfaced underneath the active
     // table so admins can see "who joined via which code" without losing
     // the actionable list above. Capped at 20 most recent by used_at.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,9 +142,13 @@ export default async function AdminSettingsPage({
   // Single source of truth for "can this user mutate org-level settings?"
   // Server actions enforce the same check via `requireOrgAdmin()`; this
   // flag is for UI gating so members see read-only views instead of
-  // editable forms that fail on submit.
-  const isAdmin = myMembership?.role === "admin";
-  // Server component runs once per request — `Date.now()` here is a
+  // editable forms that fail on submit. Platform admins scoped into
+  // this org via support mode have no membership row, read the
+  // profile directly to grant them the same UI as a real admin.
+  const isAdmin =
+    myMembership?.role === "admin" ||
+    (await getOrgRole(supabase)) === "admin";
+  // Server component runs once per request, `Date.now()` here is a
   // deliberate, single-call snapshot used to derive `is_expired` so the
   // client component can stay pure. The lint rule about purity targets
   // client components.
@@ -182,7 +186,7 @@ export default async function AdminSettingsPage({
 
   // Coverage: how many admins *other than* the signed-in user currently
   // have submission alerts enabled? If this drops to zero and the user
-  // is about to turn theirs off, warn them — no one would be notified.
+  // is about to turn theirs off, warn them, no one would be notified.
   const otherAdminsWithSubmissionAlerts = (admins ?? []).filter(
     (a) => a.id !== user.id && a.notify_submissions
   ).length;

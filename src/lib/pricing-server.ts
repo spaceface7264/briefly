@@ -17,11 +17,14 @@ export async function requirePlatformAdmin() {
   if (!user) {
     return { ok: false as const, error: "Not authenticated" };
   }
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("is_platform_admin")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
+  if (profileError) {
+    return { ok: false as const, error: profileError.message };
+  }
   if (!profile?.is_platform_admin) {
     return { ok: false as const, error: "Platform admin access required" };
   }
