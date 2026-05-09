@@ -65,7 +65,7 @@ export default function TermsPage() {
         <p>
           {platform.name} issues invoices on your behalf under the separate{" "}
           <a
-            className="text-accent hover:underline"
+            className="text-accent-ink hover:underline"
             href="/legal/self-billing"
           >
             self-billing agreement

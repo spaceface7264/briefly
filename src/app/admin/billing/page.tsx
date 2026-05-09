@@ -134,7 +134,7 @@ export default async function BillingPage({
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">Billing</h1>
+        <h1 className="font-display tracking-tight text-3xl font-bold mb-1">Billing</h1>
         <p className="text-muted">
           Your plan, your fees, and your invoices.
         </p>
@@ -235,7 +235,7 @@ function CurrentPlanSection({
 
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold mb-4">Current plan</h2>
+      <h2 className="font-display tracking-tight text-xl font-semibold mb-4">Current plan</h2>
       <div className="bg-surface border border-border rounded-xl p-6 grid sm:grid-cols-3 gap-6">
         <Field label="Plan">
           <p className="text-2xl font-bold">{planName}</p>
@@ -244,7 +244,7 @@ function CurrentPlanSection({
         <Field label="Take rate on payouts">
           <p className="text-2xl font-bold">{formatFeeBp(pricing.fee_bp)}</p>
           {pricing.applied_overrides.some((o) => o.kind === "fee_bp") && (
-            <p className="text-xs text-warning mt-1">
+            <p className="text-xs text-warning-ink mt-1">
               Adjusted by override
             </p>
           )}
@@ -290,7 +290,7 @@ function PaymentMethodSection({
   const hasPm = paymentMethod !== null;
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold mb-2">
+      <h2 className="font-display tracking-tight text-xl font-semibold mb-2">
         Payment method for brief escrow
       </h2>
       <p className="text-sm text-muted mb-4">
@@ -340,7 +340,7 @@ function BriefUsageSection({ allowance }: { allowance: BriefAllowanceState }) {
 
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold mb-2">Briefs this period</h2>
+      <h2 className="font-display tracking-tight text-xl font-semibold mb-2">Briefs this period</h2>
       <p className="text-sm text-muted mb-4">
         Each plan includes a monthly publishing allowance. Drafts don&apos;t
         count; the count goes up when you publish.
@@ -391,7 +391,7 @@ function EscrowHeldSection({
 }) {
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold mb-2">Escrow held</h2>
+      <h2 className="font-display tracking-tight text-xl font-semibold mb-2">Escrow held</h2>
       <p className="text-sm text-muted mb-4">
         Funds you&apos;ve committed to active briefs but haven&apos;t yet
         released to creators. Released on approval, refunded on
@@ -420,7 +420,7 @@ function PlanCardsSection({
 }) {
   return (
     <section>
-      <h2 className="text-xl font-semibold mb-4">Available plans</h2>
+      <h2 className="font-display tracking-tight text-xl font-semibold mb-4">Available plans</h2>
       <div className="grid md:grid-cols-2 gap-4">
         {plans.map((p) => {
           const isCurrent = p.slug === currentPlanSlug;
@@ -441,7 +441,7 @@ function PlanCardsSection({
                   <h3 className="text-xl font-bold">{p.name}</h3>
                 </div>
                 {isCurrent && (
-                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent/10 text-accent">
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent/10 text-accent-ink">
                     Current
                   </span>
                 )}
@@ -520,7 +520,7 @@ function UpgradeForm({
 }) {
   if (!monthlyConfigured && !annualConfigured) {
     return (
-      <p className="text-xs text-warning">
+      <p className="text-xs text-warning-ink">
         Stripe price IDs aren&apos;t configured for this plan. A platform
         admin needs to set them up before this is purchasable.
       </p>
@@ -553,7 +553,7 @@ function PriceRow({
       <span className="font-medium">
         {amount === 0 ? "Free" : formatDkk(amount)}
         {!configured && amount > 0 && (
-          <span className="ml-2 text-xs text-warning">(price ID not set)</span>
+          <span className="ml-2 text-xs text-warning-ink">(price ID not set)</span>
         )}
       </span>
     </div>
@@ -563,7 +563,7 @@ function PriceRow({
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2">
-      <span className="text-accent shrink-0">·</span>
+      <span className="text-accent-ink shrink-0">·</span>
       <span>{children}</span>
     </li>
   );
@@ -597,7 +597,7 @@ function Banner({
 }) {
   const cls =
     tone === "success"
-      ? "bg-success-muted border-success/30 text-success"
+      ? "bg-success-muted border-success/30 text-success-ink"
       : "bg-surface border-border text-muted";
   return (
     <div className={`mb-6 border rounded-lg p-4 ${cls}`}>

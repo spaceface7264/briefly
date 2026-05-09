@@ -56,7 +56,7 @@ export default async function AdminBrandPage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Brand</h1>
+        <h1 className="font-display tracking-tight text-3xl font-bold mb-2">Brand</h1>
         <p className="text-muted">
           Logos, palette, typography, guidelines, and voice/tone notes
           shared with creators working on your briefs.

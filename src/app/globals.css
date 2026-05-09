@@ -2,65 +2,80 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Dark variant fires inside [data-theme="dark"] (the new attribute-based
+   theming) OR the legacy .dark class, so existing dark:* utilities keep
+   working through the migration. */
+@custom-variant dark (&:where([data-theme="dark"] *, .dark *));
 
+/* ──────────────────────────────────────────────────────────────
+   THEMING ARCHITECTURE — two tiers
+
+   Tier 1 (this @theme block): exposes semantic names as Tailwind
+   utilities (bg-surface, text-foreground, etc). Values are pulled
+   from CSS variables defined in :root, so themes can swap them.
+
+   Tier 2 (the :root block below): the single source of truth for
+   actual color values. Light theme will be added later under
+   [data-theme="light"], overriding the same names.
+
+   Components should consume tier 1 utilities and never reference
+   raw hex values directly.
+   ────────────────────────────────────────────────────────────── */
 @theme inline {
-  /* ──────────────────────────────────────────────
-     NEUTRALS — warm-tinted dark, four-tier elevation
-     ────────────────────────────────────────────── */
-  --color-background: #0B0B0F;
-  --color-foreground: #EDEDF0;
-  --color-surface: #14141A;
-  --color-surface-raised: #1C1C24;
-  --color-surface-hover: #22222C;
-  --color-border: #2A2A35;
-  --color-border-strong: #3D3D4A;
+  /* Surfaces & borders */
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
 
-  /* Text — split from single --color-muted into a real scale */
-  --color-text-secondary: #A8A8B8;  /* body text, descriptions */
-  --color-muted: #78788A;             /* captions, meta, timestamps */
-  --color-disabled: #4A4A55;
+  /* Text scale */
+  --color-foreground: var(--foreground);
+  --color-text-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-disabled: var(--text-disabled);
 
-  /* ──────────────────────────────────────────────
-     BRAND — Magenta. Identity, nav, links.
-     Tuned from pure #F0F so large fills don't vibrate.
-     ────────────────────────────────────────────── */
-  --color-brand: #FF2EFF;              /* primary brand, UI-safe */
-  --color-brand-hover: #FF5CFF;
-  --color-brand-fill: #E838DC;         /* large solid fills */
-  --color-brand-pure: #FF00FF;         /* logo, focus ring, tiny accents only */
-  --color-brand-muted: rgba(255, 46, 255, 0.12);
-  --color-brand-soft: rgba(255, 46, 255, 0.06);
+  /* Brand */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fill: var(--brand-fill);
+  --color-brand-pure: var(--brand-pure);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-muted: var(--brand-muted);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
 
-  /* ──────────────────────────────────────────────
-     ACCENT — Lime. Transactional only.
-     Signals money: claim, price, approved, last slot.
-     ────────────────────────────────────────────── */
-  --color-accent: #C8FF00;
-  --color-accent-hover: #B2E600;
-  --color-accent-muted: rgba(200, 255, 0, 0.12);
-  --color-accent-soft: rgba(200, 255, 0, 0.06);
+  /* Accent */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
 
-  /* ──────────────────────────────────────────────
-     STATUS — desaturated, independent of brand/accent
-     ────────────────────────────────────────────── */
-  --color-info: #7B9EFF;               /* Under Review */
-  --color-info-muted: rgba(123, 158, 255, 0.12);
-  --color-success: #34D399;
-  --color-success-muted: rgba(52, 211, 153, 0.12);
-  --color-warning: #FBBF24;            /* "Heads up" modal */
-  --color-warning-muted: rgba(251, 191, 36, 0.10);
-  --color-error: #F87171;
-  --color-error-muted: rgba(248, 113, 113, 0.12);
+  /* Status */
+  --color-info: var(--info);
+  --color-info-ink: var(--info-ink);
+  --color-info-muted: var(--info-muted);
+  --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
+  --color-success-muted: var(--success-muted);
+  --color-warning: var(--warning);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-muted: var(--warning-muted);
+  --color-error: var(--error);
+  --color-error-ink: var(--error-ink);
+  --color-error-muted: var(--error-muted);
 
-  /* ──────────────────────────────────────────────
-     FONTS
-     ────────────────────────────────────────────── */
+  /* Fonts — display + body + label + serif (loaded by root layout) */
   --font-sans: var(--font-plus-jakarta), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
-  --font-heading: var(--font-sans);
+  --font-mono: "Clear Sans", system-ui, sans-serif;
+  --font-display: var(--font-inter-tight), system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), ui-serif, serif;
+  --font-heading: var(--font-display);
 
-  /* Fluid type scale */
+  /* Fluid type scale (theme-independent) */
   --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.8rem);
   --text-sm: clamp(0.8rem, 0.75rem + 0.25vw, 0.875rem);
   --text-base: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
@@ -70,7 +85,7 @@
   --text-3xl: clamp(1.5rem, 1.25rem + 1.25vw, 1.875rem);
   --text-4xl: clamp(1.875rem, 1.5rem + 1.875vw, 2.25rem);
 
-  /* Radii */
+  /* Radii (theme-independent) */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -79,28 +94,28 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* shadcn bridge */
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
+  /* shadcn passthrough — utilities for shadcn-named tokens */
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 body {
@@ -116,7 +131,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Focus ring — pure magenta for max visibility */
+/* Focus ring — uses brand cyan in both themes (theme-aware via tokens) */
 *:focus-visible {
   outline: 2px solid var(--color-brand-pure);
   outline-offset: 2px;
@@ -128,9 +143,17 @@ body {
   outline: none;
 }
 
+/* Native form elements don't inherit font-family — fix that so the
+   platform's body font (Plus Jakarta) actually applies to buttons,
+   inputs, selects, textareas. Inheriting only font-family preserves
+   per-element size/weight utilities. */
+button, input, textarea, select, optgroup, option {
+  font-family: inherit;
+}
+
 ::selection {
-  background: rgba(255, 46, 255, 0.3);
-  color: var(--color-foreground);
+  background: color-mix(in oklab, var(--brand) 35%, transparent);
+  color: var(--foreground);
 }
 
 /* Scrollbars */
@@ -183,7 +206,7 @@ body {
 }
 .prose-brief a:hover { opacity: 0.8; }
 .prose-brief code {
-  font-family: var(--font-mono);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.9em;
   padding: 0.15em 0.4em;
   background: var(--color-surface-raised);
@@ -271,20 +294,89 @@ dialog[open]::backdrop {
   0% {
     opacity: 1;
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(204, 255, 0, 0.45);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 45%, transparent);
   }
   60% {
     opacity: 0.9;
     transform: scale(1.08);
-    box-shadow: 0 0 0 3px rgba(204, 255, 0, 0);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--success) 0%, transparent);
   }
   100% {
     opacity: 1;
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(204, 255, 0, 0);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 0%, transparent);
   }
 }
 .animate-status-pulse { animation: status-pulse 1.1s ease-out infinite; }
+
+/* ──────────────────────────────────────────────────────────────
+   Spinner — platform-wide. 8 fading leaves arranged radially,
+   inherits currentColor so it picks up its parent's text color.
+   0.85s linear cycle (faster than 1s feels snappier per Emil).
+   ────────────────────────────────────────────────────────────── */
+.spinner {
+  position: relative;
+  display: inline-block;
+  vertical-align: -0.125em;
+  color: currentColor;
+}
+.spinner-leaf {
+  position: absolute;
+  inset: 0;
+}
+.spinner-leaf::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 12%;
+  height: 28%;
+  background: currentColor;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  animation: spinner-fade 0.85s linear infinite;
+}
+.spinner-leaf:nth-child(1) { transform: rotate(0deg); }
+.spinner-leaf:nth-child(2) { transform: rotate(45deg); }
+.spinner-leaf:nth-child(3) { transform: rotate(90deg); }
+.spinner-leaf:nth-child(4) { transform: rotate(135deg); }
+.spinner-leaf:nth-child(5) { transform: rotate(180deg); }
+.spinner-leaf:nth-child(6) { transform: rotate(225deg); }
+.spinner-leaf:nth-child(7) { transform: rotate(270deg); }
+.spinner-leaf:nth-child(8) { transform: rotate(315deg); }
+.spinner-leaf:nth-child(1)::before { animation-delay: 0s; }
+.spinner-leaf:nth-child(2)::before { animation-delay: -0.10625s; }
+.spinner-leaf:nth-child(3)::before { animation-delay: -0.2125s; }
+.spinner-leaf:nth-child(4)::before { animation-delay: -0.31875s; }
+.spinner-leaf:nth-child(5)::before { animation-delay: -0.425s; }
+.spinner-leaf:nth-child(6)::before { animation-delay: -0.53125s; }
+.spinner-leaf:nth-child(7)::before { animation-delay: -0.6375s; }
+.spinner-leaf:nth-child(8)::before { animation-delay: -0.74375s; }
+@keyframes spinner-fade {
+  from { opacity: 1; }
+  to { opacity: 0.18; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner-leaf::before {
+    animation: none;
+    opacity: 0.4;
+  }
+  .spinner-leaf:nth-child(1)::before { opacity: 1; }
+}
+
+/* Theme switch view-transition crossfade — wrapped by ThemeToggle's
+   `document.startViewTransition` call. */
+::view-transition-old(theme-root),
+::view-transition-new(theme-root) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(theme-root),
+  ::view-transition-new(theme-root) {
+    animation-duration: 0ms;
+  }
+}
 
 /* Brief card text truncation with reliable multiline ellipsis */
 .brief-card-description-truncate {
@@ -312,42 +404,1560 @@ dialog[open]::backdrop {
   ::view-transition-new(root) { animation: none; }
 }
 
-/* ──────────────────────────────────────────────
-   shadcn bridge — wire shadcn tokens to brand system
-   (was previously dead oklch noise; now connected)
-   ────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   TIER 2 — semantic theme tokens (the real values)
+
+   :root holds the dark theme (default). [data-theme="light"]
+   below overrides the same names with light values. Both blocks
+   define every token; theme switching is just a data attribute
+   on <html>.
+
+   Brand identity moved from magenta to cyan (single-color system,
+   lime accent collapsed into brand). The `-ink` variants are
+   theme-aware text-safe versions of accent colors — vivid on dark,
+   darkened to AA contrast on cream in light theme.
+   ────────────────────────────────────────────────────────────── */
 :root {
-  --radius: 0.625rem;
-  --background: var(--color-background);
-  --foreground: var(--color-foreground);
-  --card: var(--color-surface);
-  --card-foreground: var(--color-foreground);
-  --popover: var(--color-surface-raised);
-  --popover-foreground: var(--color-foreground);
-  --primary: var(--color-brand);
-  --primary-foreground: var(--color-background);
-  --secondary: var(--color-surface-raised);
-  --secondary-foreground: var(--color-foreground);
-  --muted: var(--color-surface);
-  --muted-foreground: var(--color-muted);
-  --accent: var(--color-accent);
-  --accent-foreground: var(--color-background);
-  --destructive: var(--color-error);
-  --border: var(--color-border);
-  --input: var(--color-border);
-  --ring: var(--color-brand-pure);
-  --sidebar: var(--color-surface);
-  --sidebar-foreground: var(--color-foreground);
-  --sidebar-primary: var(--color-brand);
-  --sidebar-primary-foreground: var(--color-background);
-  --sidebar-accent: var(--color-surface-raised);
-  --sidebar-accent-foreground: var(--color-foreground);
-  --sidebar-border: var(--color-border);
-  --sidebar-ring: var(--color-brand-pure);
+  /* Surfaces — warm-tinted dark, four-tier elevation */
+  --background: #0E0E10;
+  --surface: #161618;
+  --surface-raised: #1D1D20;
+  --surface-hover: #28282C;
+  --border: #28282C;
+  --border-strong: #3D3D4A;
+
+  /* Text — full scale (foreground / secondary / muted / disabled) */
+  --foreground: #F4F1EA;          /* warm paper */
+  --text-secondary: #b5b2ab7f;
+  --text-muted: #75726C;
+  --text-disabled: #4A4A55;
+
+  /* Brand — Cyan. Identity, nav, links, CTAs, money signal.
+     Single-color system; lime accent collapsed in. */
+  --brand: #09D7D7;               /* vivid cyan, UI-safe */
+  --brand-hover: #0FE8E8;
+  --brand-fill: #09D7D7;
+  --brand-pure: #09D7D7;          /* same as brand in dark; ink in light */
+  --brand-ink: #09D7D7;           /* text-safe brand variant (theme-aware) */
+  --brand-muted: rgba(9, 215, 215, 0.12);
+  --brand-soft: rgba(9, 215, 215, 0.06);
+
+  /* Accent — alias of brand. Kept for backwards compatibility with
+     existing components that reference --accent (money pricing, etc).
+     Now resolves to the same cyan as --brand. */
+  --accent: #09D7D7;
+  --accent-hover: #0FE8E8;
+  --accent-ink: #09D7D7;
+  --accent-muted: rgba(9, 215, 215, 0.12);
+  --accent-soft: rgba(9, 215, 215, 0.06);
+
+  /* Status — desaturated, independent of brand */
+  --info: #7B9EFF;                /* Under Review */
+  --info-ink: #7B9EFF;
+  --info-muted: rgba(123, 158, 255, 0.12);
+  --success: #22DB14;             /* matches sandbox --live */
+  --success-ink: #22DB14;
+  --success-muted: rgba(34, 219, 20, 0.12);
+  --warning: #FBBF24;
+  --warning-ink: #FBBF24;
+  --warning-muted: rgba(251, 191, 36, 0.10);
+  --error: #F87171;
+  --error-ink: #F87171;
+  --error-muted: rgba(248, 113, 113, 0.12);
+
+  /* On-fill foreground — dark text used on top of the cyan brand,
+     since cyan is luminous and white-on-cyan fails contrast. */
+  --on-brand: #0C1618;
+  --on-accent: #0C1618;
+
+  /* shadcn bridge — maps shadcn names onto our semantic tokens.
+     Tier 1 exposes these as utilities (bg-card, text-primary, etc). */
+  --radius: 0.5rem;               /* 8px — sharper than previous 10px */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--foreground);
+  --primary: var(--brand);
+  --primary-foreground: var(--on-brand);
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: var(--on-accent);
+  --destructive: var(--error);
+  --input: var(--border);
+  --ring: var(--brand);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--on-brand);
+  --sidebar-accent: var(--surface-raised);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--brand);
+}
+
+/* Light theme — cream paper, dark ink. Same token names as :root,
+   different values. <html data-theme="light"> activates this block. */
+[data-theme="light"] {
+  --background: #F5F4F0;
+  --surface: #EDECE6;
+  --surface-raised: #E4E2DA;
+  --surface-hover: #D8D5CC;
+  --border: #D8D5CC;
+  --border-strong: #B5AFA0;
+
+  --foreground: #0E0E10;
+  --text-secondary: #56524A;
+  --text-muted: #0e0e10;
+  --text-disabled: #B5AFA0; 
+
+  /* Brand — vivid cyan stays as fill; ink darkens for text-on-cream
+     readability. Anything used as text should reference --brand-ink. */
+  --brand: #09D7D7;
+  --brand-hover: #0BC2C2;
+  --brand-fill: #09D7D7;
+  --brand-pure: #0E7490;
+  --brand-ink: #0E7490;           /* AAA contrast on cream */
+  --brand-muted: rgba(9, 215, 215, 0.16);
+  --brand-soft: rgba(9, 215, 215, 0.08);
+
+  --accent: #09D7D7;
+  --accent-hover: #0BC2C2;
+  --accent-ink: #0E7490;
+  --accent-muted: rgba(9, 215, 215, 0.16);
+  --accent-soft: rgba(9, 215, 215, 0.08);
+
+  --info: #7B9EFF;
+  --info-ink: #1E40AF;
+  --info-muted: rgba(30, 64, 175, 0.10);
+  --success: #49AF0E;
+  --success-ink: #166534;
+  --success-muted: rgba(73, 175, 14, 0.14);
+  --warning: #FBBF24;
+  --warning-ink: #92400E;
+  --warning-muted: rgba(146, 64, 14, 0.12);
+  --error: #F87171;
+  --error-ink: #991B1B;
+  --error-muted: rgba(153, 27, 27, 0.10);
+
+  --on-brand: #0C1618;
+  --on-accent: #0C1618;
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--foreground);
+  --primary: var(--brand);
+  --primary-foreground: var(--on-brand);
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: var(--on-accent);
+  --destructive: var(--error);
+  --input: var(--border);
+  --ring: var(--brand);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--on-brand);
+  --sidebar-accent: var(--surface-raised);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--brand);
+}
+
+/* Smooth theme crossfade. Limited to the body-level surface — child
+   elements snap so hover/focus transitions don't fight the theme
+   transition. */
+html[data-theme] body {
+  transition: background-color 280ms ease, color 280ms ease;
 }
 
 @layer base {
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; }
   html { @apply font-sans; }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SANDBOX THEME TOKENS — scoped, exploratory
+
+   These power the /sandbox playground. Selectors target any
+   element with [data-theme="..."] so the sandbox can host both
+   themes side-by-side. They do not touch the platform tokens
+   above; flipping them on a section flips the look only there.
+   ────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg: #0E0E10;
+  --bg-2: #161618;
+  --bg-3: #1D1D20;
+  --line: #28282C;
+  --line-soft: #1F1F22;
+  --paper: #F4F1EA;
+  --paper-2: #B5B2AB;
+  --paper-3: #75726C;
+  --punch: #09d7d7;
+  --on-punch: #0C1618;
+  --live: #22db14;
+  --warning: #FBBF24;
+  --error: #F87171;
+  /* -ink variants are the same as the vivid color in dark — bright
+     accents read fine as text on dark backgrounds. */
+  --punch-ink: var(--punch);
+  --live-ink: var(--live);
+  --warning-ink: var(--warning);
+  --error-ink: var(--error);
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+}
+
+[data-theme="light"] {
+  --bg: #F5F4F0;
+  --bg-2: #EDECE6;
+  --bg-3: #E4E2DA;
+  --line: #D8D5CC;
+  --line-soft: #E4E2DA;
+  --paper: #0E0E10;
+  --paper-2: #56524A;
+  --paper-3: #908A7C;
+  --punch: #09d7d7;
+  /* Cyan #09d7d7 is luminous in both themes — pair with dark text
+     in both. White on cyan was ~1.6:1 contrast (fails WCAG AA);
+     #0C1618 on cyan is ~12:1 (passes AAA). */
+  --on-punch: #0C1618;
+  --live: #49af0e;
+  --warning: #FBBF24;
+  --error: #F87171;
+  /* -ink variants — vivid colors fail contrast on cream when used as
+     text. Each is darkened to a value that passes WCAG AA (≥4.5:1)
+     on the --bg-2 cream surface so status pills, pay amounts, headline
+     accents, and modal labels remain legible. */
+  --punch-ink: #0E7490;
+  --live-ink: #166534;
+  --warning-ink: #92400E;
+  --error-ink: #991B1B;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SANDBOX MOTION — scoped to [data-sb]
+
+   Custom strong easings (built-in CSS curves are too weak).
+   Hover effects gated behind (hover: hover) so touch devices
+   don't get sticky :hover after tap. Reduced-motion respected
+   at the bottom of this block.
+   ────────────────────────────────────────────────────────────── */
+[data-sb] {
+  --sb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --sb-ease-inout: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* Sandbox font tokens — display: Inter Tight, body: Plus Jakarta
+     (from root), label: Clear Sans (replaces mono for UI labels),
+     serif: Instrument Serif. Display + serif loaded by sandbox layout;
+     Clear Sans loaded via fontsource CDN in the sandbox layout. */
+  --sb-font-display: var(--font-inter-tight), system-ui, sans-serif;
+  --sb-font-body: var(--font-plus-jakarta), system-ui, sans-serif;
+  --sb-font-mono: "Clear Sans", system-ui, sans-serif;
+  --sb-font-serif: var(--font-instrument-serif), ui-serif, serif;
+
+  font-family: var(--sb-font-body);
+  transition: background-color 280ms ease, color 280ms ease;
+}
+
+[data-sb] .sb-display {
+  font-family: var(--sb-font-display);
+}
+[data-sb] .sb-serif {
+  font-family: var(--sb-font-serif);
+}
+
+/* Override Tailwind's font-mono utility within the sandbox so every
+   existing `font-mono` className resolves to --sb-font-mono. Without
+   this, font-mono would still point at the platform's JetBrains Mono
+   because @theme inline bakes the value into the utility at build. */
+[data-sb] .font-mono {
+  font-family: var(--sb-font-mono);
+}
+
+/* Form elements don't inherit font-family by default — fix that
+   so buttons / inputs / selects / textareas pick up Hind. We
+   intentionally inherit only font-family (not the full `font`
+   shorthand) so per-element font-weight and font-size utilities
+   like font-semibold and text-[14px] still apply. */
+[data-sb] button,
+[data-sb] input,
+[data-sb] textarea,
+[data-sb] select,
+[data-sb] optgroup,
+[data-sb] option {
+  font-family: inherit;
+}
+
+/* Buttons — press feedback + arrow nudge */
+[data-sb] .sb-btn {
+  transition:
+    transform 120ms var(--sb-ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 200ms ease;
+}
+[data-sb] .sb-btn:active {
+  transform: scale(0.97);
+}
+[data-sb] .sb-arrow {
+  transition: transform 220ms var(--sb-ease-out);
+  display: inline-flex;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-btn:hover .sb-arrow {
+    transform: translateX(3px);
+  }
+}
+
+/* Brief sample cards — hover lift + press settle */
+[data-sb] .sb-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition:
+    border-color 220ms var(--sb-ease-out),
+    transform 220ms var(--sb-ease-out),
+    background-color 280ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-card:hover {
+    border-color: var(--punch);
+    transform: translateY(-3px);
+  }
+}
+[data-sb] .sb-card:active {
+  transform: translateY(-1px);
+  transition-duration: 100ms;
+}
+
+/* Live dot — pulsing ring, ease-out so the ring fades naturally */
+@keyframes sb-live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--live) 40%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--live) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--live) 0%, transparent);
+  }
+}
+[data-sb] .sb-live-dot {
+  animation: sb-live-pulse 2.2s var(--sb-ease-out) infinite;
+}
+
+/* Stagger entry — opacity + small translateY; never from scale(0) */
+@keyframes sb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+[data-sb] .sb-rise {
+  opacity: 0;
+  animation: sb-rise 480ms var(--sb-ease-out) forwards;
+}
+[data-sb] .sb-rise-1 { animation-delay: 60ms; }
+[data-sb] .sb-rise-2 { animation-delay: 130ms; }
+[data-sb] .sb-rise-3 { animation-delay: 200ms; }
+[data-sb] .sb-rise-4 { animation-delay: 270ms; }
+[data-sb] .sb-rise-5 { animation-delay: 340ms; }
+[data-sb] .sb-rise-6 { animation-delay: 410ms; }
+
+/* Theme toggle — sliding thumb under the active label */
+[data-sb] .sb-toggle-thumb {
+  transition: transform 240ms var(--sb-ease-out), background-color 280ms ease;
+}
+[data-sb] .sb-toggle[data-active="dark"] .sb-toggle-thumb {
+  transform: translateX(0);
+}
+[data-sb] .sb-toggle[data-active="light"] .sb-toggle-thumb {
+  transform: translateX(100%);
+}
+[data-sb] .sb-toggle-btn {
+  transition: color 240ms var(--sb-ease-out);
+}
+
+/* View Transitions for theme switch — graceful crossfade */
+::view-transition-old(sb-root),
+::view-transition-new(sb-root) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Focus ring — sandbox uses punch instead of platform magenta */
+[data-sb] *:focus-visible {
+  outline: 2px solid var(--punch);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+[data-sb] .sb-input:focus-visible,
+[data-sb] .sb-list-row:focus-visible {
+  outline: none;
+}
+
+/* List rows — Linear-style hover shift on the trailing arrow only,
+   so content stays put. Avoids layout-thrash from animating padding. */
+[data-sb] .sb-list {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+[data-sb] .sb-list-row {
+  display: grid;
+  grid-template-columns: 60px 1fr auto auto 14px;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  transition: background-color 160ms var(--sb-ease-out);
+  color: var(--paper);
+}
+[data-sb] .sb-list-row:last-child {
+  border-bottom: none;
+}
+[data-sb] .sb-list-arrow {
+  opacity: 0;
+  transform: translateX(-4px);
+  color: var(--paper-3);
+  transition:
+    transform 220ms var(--sb-ease-out),
+    opacity 180ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-list-row:hover {
+    background: var(--bg-2);
+  }
+  [data-sb] .sb-list-row:hover .sb-list-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+[data-sb] .sb-list-row:active {
+  background: var(--bg-3);
+}
+
+/* Tabs — sliding indicator under the active tab */
+[data-sb] .sb-tabs {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(120px, 1fr);
+  border-bottom: 1px solid var(--line);
+}
+[data-sb] .sb-tab {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--paper-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 200ms var(--sb-ease-out);
+  text-align: center;
+}
+[data-sb] .sb-tab[data-active="true"] {
+  color: var(--paper);
+}
+[data-sb] .sb-tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--punch);
+  transition: transform 280ms var(--sb-ease-out);
+  pointer-events: none;
+}
+
+/* Form inputs — focus ring transitions in (no global magenta override) */
+[data-sb] .sb-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--paper);
+  transition:
+    border-color 180ms var(--sb-ease-out),
+    box-shadow 180ms var(--sb-ease-out),
+    background-color 280ms ease;
+}
+[data-sb] .sb-input::placeholder {
+  color: var(--paper-3);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-input:hover:not(:focus) {
+    border-color: var(--paper-3);
+  }
+}
+[data-sb] .sb-input:focus-visible {
+  border-color: var(--punch);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--punch) 25%, transparent);
+}
+[data-sb] textarea.sb-input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+/* Switch toggle */
+[data-sb] .sb-switch {
+  --w: 36px;
+  --h: 20px;
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background-color 200ms var(--sb-ease-out), border-color 200ms var(--sb-ease-out);
+}
+[data-sb] .sb-switch[data-on="true"] {
+  background: var(--punch);
+  border-color: var(--punch);
+}
+[data-sb] .sb-switch-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: calc(var(--h) - 4px);
+  height: calc(var(--h) - 4px);
+  border-radius: 50%;
+  background: var(--paper);
+  transition: transform 220ms var(--sb-ease-out), background-color 200ms ease;
+}
+[data-sb] .sb-switch[data-on="true"] .sb-switch-thumb {
+  transform: translateX(calc(var(--w) - var(--h)));
+  background: var(--on-punch);
+}
+
+/* Modal — backdrop fade, panel scale-from-0.96 + opacity.
+   transform-origin: center is correct for modals (NOT origin-aware). */
+[data-sb] .sb-dialog {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+}
+[data-sb] .sb-dialog::backdrop {
+  background: color-mix(in oklab, #000 55%, transparent);
+  backdrop-filter: blur(8px);
+}
+[data-sb] .sb-dialog[open]::backdrop {
+  animation: sb-backdrop-in 180ms var(--sb-ease-out);
+}
+[data-sb] .sb-dialog-panel {
+  background: var(--bg-2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 28px;
+  max-width: 440px;
+  width: 90vw;
+  transform-origin: center;
+}
+[data-sb] .sb-dialog[open] .sb-dialog-panel {
+  animation: sb-modal-in 220ms var(--sb-ease-out);
+}
+@keyframes sb-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes sb-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Spinner — 8 fading leaves arranged radially. Pure CSS, color via
+   currentColor so it inherits whatever text color it sits in. Slightly
+   faster than 1s (0.85s) — a faster spinner perceptually = a faster app.
+   Linear easing because rotation is constant. */
+[data-sb] .sb-spinner {
+  position: relative;
+  display: inline-block;
+  vertical-align: -0.125em;
+  color: currentColor;
+}
+[data-sb] .sb-spinner-leaf {
+  position: absolute;
+  inset: 0;
+}
+[data-sb] .sb-spinner-leaf::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 12%;
+  height: 28%;
+  background: currentColor;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  animation: sb-spinner-fade 0.85s linear infinite;
+}
+[data-sb] .sb-spinner-leaf:nth-child(1) { transform: rotate(0deg); }
+[data-sb] .sb-spinner-leaf:nth-child(2) { transform: rotate(45deg); }
+[data-sb] .sb-spinner-leaf:nth-child(3) { transform: rotate(90deg); }
+[data-sb] .sb-spinner-leaf:nth-child(4) { transform: rotate(135deg); }
+[data-sb] .sb-spinner-leaf:nth-child(5) { transform: rotate(180deg); }
+[data-sb] .sb-spinner-leaf:nth-child(6) { transform: rotate(225deg); }
+[data-sb] .sb-spinner-leaf:nth-child(7) { transform: rotate(270deg); }
+[data-sb] .sb-spinner-leaf:nth-child(8) { transform: rotate(315deg); }
+[data-sb] .sb-spinner-leaf:nth-child(1)::before { animation-delay: 0s; }
+[data-sb] .sb-spinner-leaf:nth-child(2)::before { animation-delay: -0.10625s; }
+[data-sb] .sb-spinner-leaf:nth-child(3)::before { animation-delay: -0.2125s; }
+[data-sb] .sb-spinner-leaf:nth-child(4)::before { animation-delay: -0.31875s; }
+[data-sb] .sb-spinner-leaf:nth-child(5)::before { animation-delay: -0.425s; }
+[data-sb] .sb-spinner-leaf:nth-child(6)::before { animation-delay: -0.53125s; }
+[data-sb] .sb-spinner-leaf:nth-child(7)::before { animation-delay: -0.6375s; }
+[data-sb] .sb-spinner-leaf:nth-child(8)::before { animation-delay: -0.74375s; }
+@keyframes sb-spinner-fade {
+  from { opacity: 1; }
+  to { opacity: 0.18; }
+}
+
+/* Disabled button state — spinner-bearing buttons go through this. */
+[data-sb] .sb-btn:disabled {
+  cursor: not-allowed;
+}
+
+/* Claimed brief card — subtle highlight over the standard sb-card.
+   Tinted background + tinted border. On hover the existing sb-card
+   rule pushes the border to full --punch, completing the transition. */
+[data-sb] .sb-card-claimed {
+  background: color-mix(in oklab, var(--punch) 5%, var(--bg-2));
+  border-color: color-mix(in oklab, var(--punch) 28%, var(--line));
+}
+
+/* Skeleton — gentle ease-in-out pulse, color-only (no transform) */
+@keyframes sb-skel-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+[data-sb] .sb-skel {
+  background: var(--bg-3);
+  border-radius: var(--r-sm);
+  animation: sb-skel-pulse 1.6s ease-in-out infinite;
+}
+
+/* Empty state container */
+[data-sb] .sb-empty {
+  border: 1px dashed var(--line);
+  border-radius: var(--r-lg);
+  padding: 56px 24px;
+  text-align: center;
+  background: color-mix(in oklab, var(--bg-2) 50%, transparent);
+}
+
+/* Nav links — public pill nav, color-only hover. */
+[data-sb] .sb-nav-link {
+  color: var(--paper-2);
+  text-decoration: none;
+  transition: color 160ms var(--sb-ease-out);
+  position: relative;
+}
+[data-sb] .sb-nav-link[data-active="true"] {
+  color: var(--paper);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-nav-link:hover {
+    color: var(--paper);
+  }
+}
+
+/* Creator nav buttons — bg pill on hover/active, no width animation
+   (variable-width labels would need measurement for a sliding pill). */
+[data-sb] .sb-creator-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--paper-2);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 160ms var(--sb-ease-out),
+    background-color 160ms var(--sb-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-creator-nav-btn:hover {
+    color: var(--paper);
+    background: color-mix(in oklab, var(--paper) 6%, transparent);
+  }
+}
+[data-sb] .sb-creator-nav-btn[data-active="true"] {
+  color: var(--paper);
+  background: color-mix(in oklab, var(--paper) 9%, transparent);
+}
+
+/* Icon-only button — used for notification bell, search, etc. */
+[data-sb] .sb-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--paper-2);
+  cursor: pointer;
+  transition:
+    color 160ms var(--sb-ease-out),
+    background-color 160ms var(--sb-ease-out),
+    transform 120ms var(--sb-ease-out);
+  position: relative;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-icon-btn:hover {
+    color: var(--paper);
+    background: color-mix(in oklab, var(--paper) 6%, transparent);
+  }
+}
+[data-sb] .sb-icon-btn:active {
+  transform: scale(0.94);
+}
+
+/* Avatar — circular trigger, ring on hover */
+[data-sb] .sb-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  background: linear-gradient(
+    135deg,
+    var(--punch),
+    color-mix(in oklab, var(--punch) 50%, var(--bg))
+  );
+  color: var(--on-punch);
+  transition:
+    box-shadow 180ms var(--sb-ease-out),
+    transform 120ms var(--sb-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sb] .sb-avatar:hover {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--punch) 22%, transparent);
+  }
+}
+[data-sb] .sb-avatar:active {
+  transform: scale(0.96);
+}
+
+/* Toast — sandbox-native, themes with sandbox tokens.
+   Enter: rises from below + fades in. Exit: fades + lifts.
+   Direction is intentional — incoming toast pushes from the
+   bottom of the stack, fits the bottom-right anchor. */
+[data-sb] .sb-toast-stack {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+[data-sb] .sb-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 260px;
+  max-width: 400px;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, #000 30%, transparent),
+    0 8px 24px -8px color-mix(in oklab, #000 35%, transparent);
+  animation: sb-toast-in 280ms var(--sb-ease-out);
+}
+[data-sb] .sb-toast[data-leaving="true"] {
+  animation: sb-toast-out 220ms var(--sb-ease-out) forwards;
+}
+@keyframes sb-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes sb-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sb] .sb-rise {
+    opacity: 1;
+    animation: none;
+  }
+  [data-sb] .sb-live-dot,
+  [data-sb] .sb-skel,
+  [data-sb] .sb-spinner-leaf::before {
+    animation: none;
+  }
+  /* Spinner falls back to the strongest leaf only — gives a static
+     visual cue that something is loading without motion. */
+  [data-sb] .sb-spinner-leaf::before {
+    opacity: 0.4;
+  }
+  [data-sb] .sb-spinner-leaf:nth-child(1)::before {
+    opacity: 1;
+  }
+  [data-sb] .sb-card,
+  [data-sb] .sb-btn,
+  [data-sb] .sb-arrow,
+  [data-sb] .sb-toggle-thumb,
+  [data-sb] .sb-list-row,
+  [data-sb] .sb-list-arrow,
+  [data-sb] .sb-tab,
+  [data-sb] .sb-tab-indicator,
+  [data-sb] .sb-input,
+  [data-sb] .sb-switch,
+  [data-sb] .sb-switch-thumb,
+  [data-sb] .sb-nav-link,
+  [data-sb] .sb-creator-nav-btn,
+  [data-sb] .sb-icon-btn,
+  [data-sb] .sb-avatar {
+    transition: none;
+  }
+  [data-sb] .sb-dialog[open] .sb-dialog-panel,
+  [data-sb] .sb-dialog[open]::backdrop,
+  [data-sb] .sb-toast,
+  [data-sb] .sb-toast[data-leaving="true"] {
+    animation: none;
+  }
+  ::view-transition-old(sb-root),
+  ::view-transition-new(sb-root) {
+    animation-duration: 0ms;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SANDBOX-EDITORIAL — paper-and-ink playground.
+
+   Scoped to [data-sbe]. Single restrained accent (terracotta),
+   serif display via Fraunces, no monospace (sans-serif label
+   replaces it). Themes carry on the same data-theme attribute as
+   the main sandbox; selectors below combine [data-sbe] +
+   [data-theme=…] so light and dark coexist without the platform
+   tokens leaking in.
+   ────────────────────────────────────────────────────────────── */
+[data-sbe][data-theme="light"] {
+  --bg: #FAFAF7;
+  --bg-elevated: #FFFFFF;
+  --bg-2: #F2F0E9;
+  --bg-3: #E8E5DC;
+  --ink: #0E0F12;
+  --ink-2: #3A3B40;
+  --ink-3: #6B6C72;
+  --rule: #E6E4DD;
+  --rule-soft: #EFEDE6;
+  --accent: #B8482E;
+  --accent-soft: rgba(184, 72, 46, 0.08);
+  --accent-muted: rgba(184, 72, 46, 0.14);
+  --on-accent: #FFFFFF;
+  --success: #2F7D32;
+  --success-soft: rgba(47, 125, 50, 0.10);
+  --warning: #B45309;
+  --warning-soft: rgba(180, 83, 9, 0.10);
+  --error: #B91C1C;
+  --error-soft: rgba(185, 28, 28, 0.10);
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+}
+
+[data-sbe][data-theme="dark"] {
+  --bg: #18171A;
+  --bg-elevated: #1F1E20;
+  --bg-2: #232024;
+  --bg-3: #2C292E;
+  --ink: #F4F1EA;
+  --ink-2: #B5B2AB;
+  --ink-3: #75726C;
+  --rule: #2E2B27;
+  --rule-soft: #25221E;
+  --accent: #D9614A;
+  --accent-soft: rgba(217, 97, 74, 0.10);
+  --accent-muted: rgba(217, 97, 74, 0.16);
+  --on-accent: #18171A;
+  --success: #5BB55E;
+  --success-soft: rgba(91, 181, 94, 0.12);
+  --warning: #E8A04A;
+  --warning-soft: rgba(232, 160, 74, 0.10);
+  --error: #E27676;
+  --error-soft: rgba(226, 118, 118, 0.10);
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+}
+
+[data-sbe] {
+  --sbe-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --sbe-ease-inout: cubic-bezier(0.77, 0, 0.175, 1);
+  --sbe-font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --sbe-font-body: var(--font-pj-editorial), system-ui, sans-serif;
+  --sbe-font-label: var(--font-pj-editorial), system-ui, sans-serif;
+  font-family: var(--sbe-font-body);
+  background: var(--bg);
+  color: var(--ink);
+  transition: background-color 280ms ease, color 280ms ease;
+}
+
+/* Inherit font-family on form elements (UA defaults break inheritance). */
+[data-sbe] button,
+[data-sbe] input,
+[data-sbe] textarea,
+[data-sbe] select,
+[data-sbe] optgroup,
+[data-sbe] option {
+  font-family: inherit;
+}
+
+[data-sbe] .sbe-display {
+  font-family: var(--sbe-font-display);
+  font-feature-settings: "ss01";
+  letter-spacing: -0.02em;
+}
+[data-sbe] .sbe-display em {
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+/* Focus ring — accent terracotta */
+[data-sbe] *:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+[data-sbe] .sbe-input:focus-visible,
+[data-sbe] .sbe-list-row:focus-visible,
+[data-sbe] .sbe-toggle-btn:focus-visible {
+  outline: none;
+}
+
+/* Buttons — ink solid (default), ghost outline, accent variant.
+   Editorial: --r-md radius (8px), NOT pill. */
+[data-sbe] .sbe-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition:
+    transform 120ms var(--sbe-ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 200ms ease;
+}
+[data-sbe] .sbe-btn:active {
+  transform: translateY(1px);
+}
+[data-sbe] .sbe-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+[data-sbe] .sbe-btn-sm {
+  padding: 7px 13px;
+  font-size: 13px;
+  gap: 6px;
+}
+
+/* Variants */
+[data-sbe] .sbe-btn-primary {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+[data-sbe] .sbe-btn-primary:hover:not(:disabled) {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+}
+[data-sbe] .sbe-btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--rule);
+}
+[data-sbe] .sbe-btn-ghost:hover:not(:disabled) {
+  background: var(--bg-2);
+  border-color: var(--ink-3);
+}
+[data-sbe] .sbe-btn-accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+[data-sbe] .sbe-btn-accent:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--ink));
+  border-color: color-mix(in oklab, var(--accent) 88%, var(--ink));
+}
+[data-sbe] .sbe-btn-naked {
+  background: transparent;
+  color: var(--ink);
+  border-color: transparent;
+}
+[data-sbe] .sbe-btn-naked:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+[data-sbe] .sbe-arrow {
+  display: inline-flex;
+  transition: transform 220ms var(--sbe-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-btn:hover .sbe-arrow {
+    transform: translateX(3px);
+  }
+}
+
+/* Cards — bg-elevated paper with rule border, generous radius. */
+[data-sbe] .sbe-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  transition:
+    border-color 220ms var(--sbe-ease-out),
+    transform 220ms var(--sbe-ease-out),
+    background-color 280ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-card:hover {
+    border-color: var(--ink-3);
+    transform: translateY(-2px);
+  }
+}
+[data-sbe] .sbe-card:active {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+[data-sbe] .sbe-card-claimed {
+  background: color-mix(in oklab, var(--accent) 4%, var(--bg-elevated));
+  border-color: color-mix(in oklab, var(--accent) 22%, var(--rule));
+}
+
+/* List — numbered briefs, the editorial signature pattern. */
+[data-sbe] .sbe-list {
+  border-top: 1px solid var(--rule);
+}
+[data-sbe] .sbe-list-row {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 24px;
+  width: 100%;
+  align-items: start;
+  padding: 24px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  transition: opacity 160ms var(--sbe-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-list-row:hover {
+    opacity: 0.72;
+  }
+}
+[data-sbe] .sbe-list-num {
+  font-family: var(--sbe-font-display);
+  font-size: 26px;
+  color: var(--ink-3);
+  font-weight: 400;
+  font-feature-settings: "tnum";
+}
+
+/* Tabs — underline indicator, like editorial section headers. */
+[data-sbe] .sbe-tabs {
+  position: relative;
+  display: inline-flex;
+  border-bottom: 1px solid var(--rule);
+  gap: 0;
+}
+[data-sbe] .sbe-tab {
+  padding: 12px 18px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 200ms var(--sbe-ease-out);
+}
+[data-sbe] .sbe-tab[data-active="true"] {
+  color: var(--ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-tab:hover {
+    color: var(--ink);
+  }
+}
+[data-sbe] .sbe-tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--ink);
+  transition: transform 280ms var(--sbe-ease-out), width 280ms var(--sbe-ease-out);
+  pointer-events: none;
+}
+
+/* Form inputs */
+[data-sbe] .sbe-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  padding: 11px 13px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  transition:
+    border-color 180ms var(--sbe-ease-out),
+    box-shadow 180ms var(--sbe-ease-out),
+    background-color 280ms ease;
+}
+[data-sbe] .sbe-input::placeholder {
+  color: var(--ink-3);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-input:hover:not(:focus) {
+    border-color: var(--ink-3);
+  }
+}
+[data-sbe] .sbe-input:focus-visible {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ink) 12%, transparent);
+}
+[data-sbe] textarea.sbe-input {
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.5;
+}
+
+/* Switch */
+[data-sbe] .sbe-switch {
+  --w: 36px;
+  --h: 20px;
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--rule);
+  cursor: pointer;
+  transition: background-color 200ms var(--sbe-ease-out), border-color 200ms var(--sbe-ease-out);
+}
+[data-sbe] .sbe-switch[data-on="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+[data-sbe] .sbe-switch-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: calc(var(--h) - 4px);
+  height: calc(var(--h) - 4px);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  transition: transform 220ms var(--sbe-ease-out);
+}
+[data-sbe] .sbe-switch[data-on="true"] .sbe-switch-thumb {
+  transform: translateX(calc(var(--w) - var(--h)));
+  background: var(--bg);
+}
+
+/* Modal */
+[data-sbe] .sbe-dialog {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+}
+[data-sbe] .sbe-dialog::backdrop {
+  background: color-mix(in oklab, #000 45%, transparent);
+  backdrop-filter: blur(6px);
+}
+[data-sbe] .sbe-dialog[open]::backdrop {
+  animation: sbe-backdrop-in 180ms var(--sbe-ease-out);
+}
+[data-sbe] .sbe-dialog-panel {
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 32px;
+  max-width: 480px;
+  width: 90vw;
+  transform-origin: center;
+}
+[data-sbe] .sbe-dialog[open] .sbe-dialog-panel {
+  animation: sbe-modal-in 220ms var(--sbe-ease-out);
+}
+@keyframes sbe-modal-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes sbe-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Skeleton */
+@keyframes sbe-skel-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.9; }
+}
+[data-sbe] .sbe-skel {
+  background: var(--bg-2);
+  border-radius: var(--r-sm);
+  animation: sbe-skel-pulse 1.6s ease-in-out infinite;
+}
+
+/* Empty state */
+[data-sbe] .sbe-empty {
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-lg);
+  padding: 56px 24px;
+  text-align: center;
+  background: var(--bg-elevated);
+}
+
+/* Toast — same engine as sandbox; cleaner ink-on-paper styling. */
+[data-sbe] .sbe-toast-stack {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+[data-sbe] .sbe-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 280px;
+  max-width: 420px;
+  padding: 14px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--rule);
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 8px 24px -8px rgba(0,0,0,0.10);
+  animation: sbe-toast-in 280ms var(--sbe-ease-out);
+}
+[data-sbe] .sbe-toast[data-leaving="true"] {
+  animation: sbe-toast-out 220ms var(--sbe-ease-out) forwards;
+}
+@keyframes sbe-toast-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sbe-toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* Live dot — green pulse */
+@keyframes sbe-live-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 40%, transparent); }
+  70% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--success) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 0%, transparent); }
+}
+[data-sbe] .sbe-live-dot {
+  animation: sbe-live-pulse 2.2s var(--sbe-ease-out) infinite;
+}
+
+/* Stagger entry */
+@keyframes sbe-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+[data-sbe] .sbe-rise {
+  opacity: 0;
+  animation: sbe-rise 480ms var(--sbe-ease-out) forwards;
+}
+[data-sbe] .sbe-rise-1 { animation-delay: 60ms; }
+[data-sbe] .sbe-rise-2 { animation-delay: 130ms; }
+[data-sbe] .sbe-rise-3 { animation-delay: 200ms; }
+[data-sbe] .sbe-rise-4 { animation-delay: 270ms; }
+[data-sbe] .sbe-rise-5 { animation-delay: 340ms; }
+
+/* Theme toggle (sliding thumb) */
+[data-sbe] .sbe-toggle-thumb {
+  transition: transform 240ms var(--sbe-ease-out), background-color 280ms ease;
+}
+[data-sbe] .sbe-toggle[data-active="dark"] .sbe-toggle-thumb {
+  transform: translateX(0);
+}
+[data-sbe] .sbe-toggle[data-active="light"] .sbe-toggle-thumb {
+  transform: translateX(100%);
+}
+[data-sbe] .sbe-toggle-btn {
+  transition: color 240ms var(--sbe-ease-out);
+}
+
+/* Nav links — underline-only active state */
+[data-sbe] .sbe-nav-link {
+  position: relative;
+  color: var(--ink-2);
+  text-decoration: none;
+  padding-bottom: 6px;
+  transition: color 160ms var(--sbe-ease-out);
+}
+[data-sbe] .sbe-nav-link[data-active="true"] {
+  color: var(--ink);
+}
+[data-sbe] .sbe-nav-link[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-nav-link:hover {
+    color: var(--ink);
+  }
+}
+
+/* Icon button (notifications etc.) */
+[data-sbe] .sbe-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  position: relative;
+  transition:
+    color 160ms var(--sbe-ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 120ms var(--sbe-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-icon-btn:hover {
+    color: var(--ink);
+    background: var(--bg-2);
+  }
+}
+[data-sbe] .sbe-icon-btn:active {
+  transform: scale(0.94);
+}
+
+/* Avatar */
+[data-sbe] .sbe-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  background: linear-gradient(135deg, #C9B8A8, #8A7560);
+  cursor: pointer;
+  transition:
+    box-shadow 180ms var(--sbe-ease-out),
+    transform 120ms var(--sbe-ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-sbe] .sbe-avatar:hover {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ink) 8%, transparent);
+  }
+}
+[data-sbe] .sbe-avatar:active {
+  transform: scale(0.96);
+}
+
+/* Section label — small caps with rule below, count on right */
+[data-sbe] .sbe-section-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+[data-sbe] .sbe-section-label .count {
+  font-family: var(--sbe-font-display);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Stat row inside cards */
+[data-sbe] .sbe-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+[data-sbe] .sbe-stat:last-child {
+  border-bottom: none;
+}
+
+/* Spinner — same 8-leaf primitive, theme-aware via currentColor */
+@keyframes sbe-spinner-fade {
+  from { opacity: 1; }
+  to { opacity: 0.18; }
+}
+[data-sbe] .sbe-spinner {
+  position: relative;
+  display: inline-block;
+  vertical-align: -0.125em;
+  color: currentColor;
+}
+[data-sbe] .sbe-spinner-leaf {
+  position: absolute;
+  inset: 0;
+}
+[data-sbe] .sbe-spinner-leaf::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 12%;
+  height: 28%;
+  background: currentColor;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  animation: sbe-spinner-fade 0.85s linear infinite;
+}
+[data-sbe] .sbe-spinner-leaf:nth-child(1) { transform: rotate(0deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(2) { transform: rotate(45deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(3) { transform: rotate(90deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(4) { transform: rotate(135deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(5) { transform: rotate(180deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(6) { transform: rotate(225deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(7) { transform: rotate(270deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(8) { transform: rotate(315deg); }
+[data-sbe] .sbe-spinner-leaf:nth-child(1)::before { animation-delay: 0s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(2)::before { animation-delay: -0.10625s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(3)::before { animation-delay: -0.2125s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(4)::before { animation-delay: -0.31875s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(5)::before { animation-delay: -0.425s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(6)::before { animation-delay: -0.53125s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(7)::before { animation-delay: -0.6375s; }
+[data-sbe] .sbe-spinner-leaf:nth-child(8)::before { animation-delay: -0.74375s; }
+
+/* View transition for theme toggle */
+::view-transition-old(sbe-root),
+::view-transition-new(sbe-root) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-sbe] .sbe-rise {
+    opacity: 1;
+    animation: none;
+  }
+  [data-sbe] .sbe-live-dot,
+  [data-sbe] .sbe-skel,
+  [data-sbe] .sbe-spinner-leaf::before {
+    animation: none;
+  }
+  [data-sbe] .sbe-spinner-leaf::before { opacity: 0.4; }
+  [data-sbe] .sbe-spinner-leaf:nth-child(1)::before { opacity: 1; }
+  [data-sbe] .sbe-card,
+  [data-sbe] .sbe-btn,
+  [data-sbe] .sbe-arrow,
+  [data-sbe] .sbe-toggle-thumb,
+  [data-sbe] .sbe-list-row,
+  [data-sbe] .sbe-tab,
+  [data-sbe] .sbe-tab-indicator,
+  [data-sbe] .sbe-input,
+  [data-sbe] .sbe-switch,
+  [data-sbe] .sbe-switch-thumb,
+  [data-sbe] .sbe-nav-link,
+  [data-sbe] .sbe-icon-btn,
+  [data-sbe] .sbe-avatar {
+    transition: none;
+  }
+  [data-sbe] .sbe-dialog[open] .sbe-dialog-panel,
+  [data-sbe] .sbe-dialog[open]::backdrop,
+  [data-sbe] .sbe-toast,
+  [data-sbe] .sbe-toast[data-leaving="true"] {
+    animation: none;
+  }
+  ::view-transition-old(sbe-root),
+  ::view-transition-new(sbe-root) {
+    animation-duration: 0ms;
+  }
 }

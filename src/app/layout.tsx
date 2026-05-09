@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono, Geist } from "next/font/google";
+import {
+  Plus_Jakarta_Sans,
+  Inter_Tight,
+  Instrument_Serif,
+} from "next/font/google";
 import { Suspense } from "react";
 import { Footer } from "@/components/footer";
 import { FooterGate } from "@/components/footer-gate";
@@ -8,10 +12,9 @@ import { OrgProvider } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrg } from "@/lib/org";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -19,10 +22,18 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains",
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600", "700", "800"],
+  style: ["normal", "italic"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
 });
 
 const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
@@ -49,19 +60,45 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("dark", "h-full", "antialiased", plusJakarta.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
+      className={cn(
+        "h-full",
+        "antialiased",
+        plusJakarta.variable,
+        interTight.variable,
+        instrumentSerif.variable,
+        "font-sans",
+      )}
     >
+      <head>
+        {/* Clear Sans — label/mono font; fontsource CDN since it's
+            not on Google Fonts. Loaded only the weights we use. */}
+        <link
+          rel="preconnect"
+          href="https://cdn.jsdelivr.net"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@fontsource/clear-sans@5/400.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@fontsource/clear-sans@5/500.css"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <Suspense fallback={null}>
-          <ScrollToTopOnRouteChange />
-        </Suspense>
-        <OrgProvider orgId={orgId}>
-          {children}
-        </OrgProvider>
-        <FooterGate>
-          <Footer />
-        </FooterGate>
-        <Toaster position="bottom-right" richColors />
+        <ThemeProvider>
+          <Suspense fallback={null}>
+            <ScrollToTopOnRouteChange />
+          </Suspense>
+          <OrgProvider orgId={orgId}>
+            {children}
+          </OrgProvider>
+          <FooterGate>
+            <Footer />
+          </FooterGate>
+          <Toaster position="bottom-right" richColors />
+        </ThemeProvider>
       </body>
     </html>
   );

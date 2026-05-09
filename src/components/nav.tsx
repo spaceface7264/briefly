@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar } from "@/components/avatar";
 import { NotificationCenter } from "@/components/notification-center";
+import { ModeToggle } from "@/components/mode-toggle";
+import { ThemeMenuItems } from "@/components/theme-menu-items";
+import { buttonVariants } from "@/components/ui/button";
 import type { NotificationRow } from "@/lib/notification-center";
 
 const creatorNavItems = [
@@ -178,7 +181,7 @@ export function Nav() {
                     href={item.href}
                     className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                       isActive
-                        ? "text-brand"
+                        ? "text-brand-ink"
                         : "text-muted hover:text-foreground"
                     }`}
                   >
@@ -186,9 +189,10 @@ export function Nav() {
                   </Link>
                 );
               })}
+              <ModeToggle />
               <Link
                 href="/login"
-                className="ml-2 px-4 py-1.5 rounded-md bg-accent hover:bg-accent-hover text-background text-sm font-semibold transition-colors whitespace-nowrap"
+                className={buttonVariants({ variant: "default" })}
               >
                 Login
               </Link>
@@ -202,7 +206,7 @@ export function Nav() {
             <nav className="flex items-center gap-3 overflow-visible">
               <Link
                 href="/admin"
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-accent/40 text-accent hover:bg-accent hover:text-background transition-all whitespace-nowrap ${
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border border-brand-ink/40 text-accent-ink hover:bg-accent hover:text-background transition-all whitespace-nowrap ${
                   accountChecked ? "opacity-100" : "opacity-0"
                 }`}
               >
@@ -222,6 +226,7 @@ export function Nav() {
                 </svg>
                 Back to dashboard
               </Link>
+              <ModeToggle />
               <button
                 type="button"
                 onClick={handleLogout}
@@ -257,7 +262,7 @@ export function Nav() {
                   href={item.href}
                   className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
-                      ? "text-brand"
+                      ? "text-brand-ink"
                       : "text-muted hover:text-foreground"
                   }`}
                 >
@@ -315,13 +320,14 @@ export function Nav() {
                   return (
                     <DropdownMenuItem
                       key={item.href}
-                      className={isActive ? "text-brand" : ""}
+                      className={isActive ? "text-brand-ink" : ""}
                       onClick={() => router.push(item.href)}
                     >
                       {item.label}
                     </DropdownMenuItem>
                   );
                 })}
+                <ThemeMenuItems />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}

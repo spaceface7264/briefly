@@ -58,7 +58,7 @@ export default async function AdminCreatorsPage() {
     <div>
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold mb-1">Creators</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold mb-1">Creators</h1>
           <p className="text-muted">
             {creatorsWithCounts.length} creator
             {creatorsWithCounts.length !== 1 ? "s" : ""}
@@ -162,7 +162,7 @@ export default async function AdminCreatorsPage() {
                           {previewSkills.map((slug) => (
                             <span
                               key={slug}
-                              className="px-2 py-0.5 text-xs font-medium rounded-full bg-brand-muted text-brand"
+                              className="px-2 py-0.5 text-xs font-medium rounded-full bg-brand-muted text-brand-ink"
                             >
                               {skillLabel(slug)}
                             </span>
@@ -193,12 +193,12 @@ export default async function AdminCreatorsPage() {
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-accent hover:underline"
+                            className="text-accent-ink hover:underline"
                           >
                             @{display}
                           </a>
                         ) : (
-                          <span className="text-accent">@{display}</span>
+                          <span className="text-accent-ink">@{display}</span>
                         );
                       })()}
                     </td>
@@ -206,7 +206,7 @@ export default async function AdminCreatorsPage() {
                       {creator.activeClaims > 0 ? (
                         <Link
                           href={`/admin/claims?status=active`}
-                          className="text-accent hover:underline"
+                          className="text-accent-ink hover:underline"
                         >
                           {creator.activeClaims}
                         </Link>
@@ -216,7 +216,7 @@ export default async function AdminCreatorsPage() {
                     </td>
                     <td className="px-4 py-3 font-mono text-sm">
                       {creator.completedClaims > 0 ? (
-                        <span className="text-success">
+                        <span className="text-success-ink">
                           {creator.completedClaims}
                         </span>
                       ) : (
@@ -229,7 +229,7 @@ export default async function AdminCreatorsPage() {
                     <td className="px-4 py-3 text-right">
                       <Link
                         href={`/admin/creators/${creator.id}`}
-                        className="text-accent hover:underline text-sm"
+                        className="text-accent-ink hover:underline text-sm"
                       >
                         View
                       </Link>

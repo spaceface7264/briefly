@@ -106,13 +106,13 @@ export function MyBriefsClient({ claims }: Props) {
       <main className="flex-1">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">My Briefs</h1>
+            <h1 className="font-display tracking-tight text-2xl sm:text-3xl font-bold mb-1">My Briefs</h1>
             <p className="text-sm text-text-secondary">Track your claimed briefs and submissions</p>
           </div>
 
           {!hasAnyClaims ? (
             <div className="bg-surface border border-border rounded-xl p-8 sm:p-12 text-center">
-              <h2 className="text-xl font-semibold mb-2">
+              <h2 className="font-display tracking-tight text-xl font-semibold mb-2">
                 Nothing here yet
               </h2>
               <p className="text-text-secondary max-w-md mx-auto mb-6">
@@ -121,7 +121,7 @@ export function MyBriefsClient({ claims }: Props) {
               </p>
               <Link
                 href="/briefs"
-                className="inline-flex px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
+                className="inline-flex px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-full transition-colors"
               >
                 Browse Available Briefs
               </Link>
@@ -167,7 +167,7 @@ export function MyBriefsClient({ claims }: Props) {
                 {groupedClaims.map((group) => (
                   <section key={group.status}>
                     <div className="flex items-baseline gap-2 mb-3">
-                      <h2 className="text-lg font-semibold">{group.title}</h2>
+                      <h2 className="font-display tracking-tight text-lg font-semibold">{group.title}</h2>
                       <span className="value-text text-muted text-xs">
                         {group.claims.length}
                       </span>
@@ -200,7 +200,7 @@ export function MyBriefsClient({ claims }: Props) {
                             className={`relative border rounded-xl px-4 py-3.5 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${statusTheme[claim.status as ClaimStatus].rowCard}`}
                           >
                             <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
-                              <h3 className="font-semibold text-[1.05rem] leading-tight">
+                              <h3 className="font-display tracking-tight font-semibold text-[1.05rem] leading-tight">
                                 {claim.brief.title}
                               </h3>
 
@@ -228,7 +228,7 @@ export function MyBriefsClient({ claims }: Props) {
                                 </span>
                               )}
 
-                              <span className="ml-auto value-text text-xl text-accent font-bold whitespace-nowrap">
+                              <span className="ml-auto value-text text-xl text-accent-ink font-bold whitespace-nowrap">
                                 {formatPrice(claim.brief.price_dkk)}
                               </span>
 
@@ -238,7 +238,7 @@ export function MyBriefsClient({ claims }: Props) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="relative inline-flex items-center gap-1.5 text-xs text-accent hover:underline basis-full"
+                                  className="relative inline-flex items-center gap-1.5 text-xs text-accent-ink hover:underline basis-full"
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />

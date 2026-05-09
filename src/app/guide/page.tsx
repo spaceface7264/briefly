@@ -8,13 +8,13 @@ export default function GuidePage() {
       <main className="flex-1">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Content Guide</h1>
+            <h1 className="font-display tracking-tight text-3xl font-bold mb-2">Content Guide</h1>
             <p className="text-text-secondary">
               Tips and guidelines for creating great content
             </p>
             <p className="text-sm text-muted mt-2">
               Looking for claim, review, and payout process?{" "}
-              <Link href="/how-it-works" className="text-brand hover:underline">
+              <Link href="/how-it-works" className="text-brand-ink hover:underline">
                 See How it works
               </Link>
               .
@@ -26,19 +26,19 @@ export default function GuidePage() {
             <section className="bg-surface border border-border rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-brand-muted rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-brand-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold">Why great content matters</h2>
+                  <h2 className="font-display tracking-tight text-xl font-bold">Why great content matters</h2>
                   <p className="text-text-secondary text-sm">Stand out with authentic, engaging work</p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-medium text-brand mb-2">What makes content perform:</p>
+                  <p className="text-sm font-medium text-brand-ink mb-2">What makes content perform:</p>
                   <ul className="text-sm text-text-secondary space-y-1">
                     <li>• Authenticity — real people in real settings beat polished stock</li>
                     <li>• Strong hook in the first 2-3 seconds</li>
@@ -55,12 +55,12 @@ export default function GuidePage() {
             <section className="bg-surface border border-border rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-brand-muted rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-brand-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold">Content types</h2>
+                  <h2 className="font-display tracking-tight text-xl font-bold">Content types</h2>
                   <p className="text-text-secondary text-sm">What you&apos;ll typically create</p>
                 </div>
               </div>
@@ -97,12 +97,12 @@ export default function GuidePage() {
             <section className="bg-surface border border-border rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-brand-muted rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-brand-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold">Working with briefs</h2>
+                  <h2 className="font-display tracking-tight text-xl font-bold">Working with briefs</h2>
                   <p className="text-text-secondary text-sm">How to deliver great work every time</p>
                 </div>
               </div>
@@ -123,12 +123,12 @@ export default function GuidePage() {
             <section className="bg-warning/10 border border-warning/30 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="w-10 h-10 bg-warning/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-warning-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </span>
                 <div>
-                  <h2 className="text-xl font-bold text-warning">Important for paid content</h2>
+                  <h2 className="font-display tracking-tight text-xl font-bold text-warning-ink">Important for paid content</h2>
                   <p className="text-text-secondary text-sm">Applies to all ad-intended briefs</p>
                 </div>
               </div>
@@ -143,7 +143,7 @@ export default function GuidePage() {
                 <div className="bg-background/50 rounded-lg p-4">
                   <p className="text-sm font-medium mb-2">Length</p>
                   <p className="text-sm text-text-secondary">
-                    <span className="text-brand font-mono">8-15 sec</span> is ideal for ads.
+                    <span className="text-brand-ink font-mono">8-15 sec</span> is ideal for ads.
                     <br />Max 30 seconds.
                   </p>
                 </div>

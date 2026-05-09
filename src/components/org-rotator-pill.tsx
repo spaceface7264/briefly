@@ -64,7 +64,7 @@ export function OrgRotatorPill({
       className="inline-flex items-center gap-2.5 rounded-full border border-border bg-surface/40 px-3.5 py-1.5 backdrop-blur-sm shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]"
       style={{ transitionDuration: `${transitionMs}ms` }}
     >
-      <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent shrink-0">
+      <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent-ink shrink-0">
         Join
       </span>
 
@@ -88,7 +88,7 @@ export function OrgRotatorPill({
             />
           ) : (
             <span
-              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-background"
+              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-on-brand"
               style={{ backgroundColor: accent }}
               aria-hidden="true"
             >

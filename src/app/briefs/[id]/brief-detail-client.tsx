@@ -223,9 +223,9 @@ export function BriefDetailClient({
               {hasClaim && userClaim && (
                 <>
                   <span className="text-border">·</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-ink/30 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-ink">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full bg-accent ${isActiveClaim ? "animate-status-pulse" : ""}`}
+                      className={`w-1.5 h-1.5 rounded-full bg-accent-ink ${isActiveClaim ? "animate-status-pulse" : ""}`}
                       aria-hidden="true"
                     />
                     {claimStatusLabel}
@@ -235,18 +235,18 @@ export function BriefDetailClient({
               {brief.is_ad_intended && (
                 <>
                   <span className="text-border">·</span>
-                  <span className="text-warning font-medium">For Ads</span>
+                  <span className="text-warning-ink font-medium">For Ads</span>
                 </>
               )}
             </div>
 
             {/* Title + Price row */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-6">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+              <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
                 {brief.title}
               </h1>
               <div className="shrink-0 sm:text-right">
-                <p className="value-text text-2xl sm:text-3xl text-accent font-bold leading-none">
+                <p className="value-text text-2xl sm:text-3xl text-accent-ink font-bold leading-none">
                   {formatPrice(brief.price_dkk)}
                 </p>
                 <p className="mt-2 text-xs font-medium text-info">
@@ -317,7 +317,7 @@ export function BriefDetailClient({
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-brand hover:text-brand-hover text-sm break-all transition-colors group/ref"
+                        className="flex items-center gap-2 text-brand-ink hover:text-brand-hover text-sm break-all transition-colors group/ref"
                       >
                         <svg className="w-3 h-3 shrink-0 opacity-40 group-hover/ref:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -363,27 +363,27 @@ export function BriefDetailClient({
                         {!showConfirm ? (
                           <button
                             onClick={() => setShowConfirm(true)}
-                            className="w-full min-h-11 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold text-sm rounded-md transition-colors"
+                            className="w-full min-h-11 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold text-sm rounded-full transition-colors"
                           >
                             Claim Brief
                           </button>
                         ) : (
                           <div className="space-y-2.5 bg-warning/5 border border-warning/20 rounded-md p-3">
                             <p className="text-sm text-text-secondary">
-                              <span className="font-medium text-warning">Heads up:</span>{" "}
+                              <span className="font-medium text-warning-ink">Heads up:</span>{" "}
                               reserves for 7 days. Release anytime.
                             </p>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setShowConfirm(false)}
-                                className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors"
+                                className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors"
                               >
                                 Cancel
                               </button>
                               <button
                                 onClick={handleClaim}
                                 disabled={claiming}
-                                className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-md transition-colors"
+                                className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-full transition-colors"
                               >
                                 {claiming ? "Claiming..." : "Confirm"}
                               </button>
@@ -392,7 +392,7 @@ export function BriefDetailClient({
                         )}
                       </>
                     ) : (
-                      <p className="text-warning text-sm text-center py-2">
+                      <p className="text-warning-ink text-sm text-center py-2">
                         {isReclaimBlocked && reclaimBlockedUntil
                           ? `Reclaim available ${formatDeadline(reclaimBlockedUntil)} (${reclaimCooldownDays} day cooldown after release)`
                           : brief.status !== "open"
@@ -611,13 +611,13 @@ function ClaimedState({
         <p className="text-muted text-sm mb-3">{stateConfig.desc}</p>
         <button
           onClick={() => setShowSubmission(true)}
-          className="block w-full min-h-11 py-2 mb-1.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-md transition-colors"
+          className="block w-full min-h-11 py-2 mb-1.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors"
         >
           View your submission
         </button>
         <Link
           href="/my-briefs"
-          className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
+          className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors text-center"
         >
           My Briefs
         </Link>
@@ -637,11 +637,11 @@ function ClaimedState({
       {!showSubmitForm && (
         <>
           <div className="flex items-center justify-between mb-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-accent">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-status-pulse" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-ink">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-ink animate-status-pulse" />
               Claimed
             </span>
-            <span className="value-text text-muted text-sm">
+            <span className="value-text font-mono text-muted text-sm">
               exp {formatDeadline(claim.expires_at)}
             </span>
           </div>
@@ -653,13 +653,13 @@ function ClaimedState({
           <div className="space-y-1.5">
             <button
               onClick={() => setShowSubmitForm(true)}
-              className="w-full min-h-11 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-md transition-colors"
+              className="w-full min-h-11 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors"
             >
               Submit work
             </button>
             <Link
               href="/my-briefs"
-              className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors text-center"
+              className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors text-center"
             >
               My Briefs
             </Link>
@@ -767,14 +767,14 @@ function ClaimedState({
             <button
               type="button"
               onClick={() => setShowSubmitForm(false)}
-              className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-md transition-colors"
+              className="flex-1 min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-md transition-colors"
+              className="flex-1 min-h-11 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-background text-sm font-semibold rounded-full transition-colors"
             >
               {submitting ? "Submitting..." : "Submit"}
             </button>
@@ -876,7 +876,7 @@ function MySubmissionModal({
       footer={
         <button
           onClick={onClose}
-          className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+          className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-full transition-colors"
         >
           Close
         </button>
@@ -893,7 +893,7 @@ function MySubmissionModal({
                 href={claim.submission_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-accent hover:underline break-all font-mono text-sm"
+                className="inline-flex items-center gap-1.5 text-accent-ink hover:underline break-all font-mono text-sm"
               >
                 {claim.submission_url}
                 <svg
@@ -980,7 +980,7 @@ function SubmissionAttachmentPreview({
             href={attachment.signed_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-accent hover:underline"
+            className="text-xs text-accent-ink hover:underline"
           >
             Download
           </a>

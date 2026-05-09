@@ -59,7 +59,7 @@ export default function HowItWorksPage() {
       <main className="flex-1">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">How it works</h1>
+            <h1 className="font-display tracking-tight text-3xl font-bold mb-2">How it works</h1>
             <p className="text-text-secondary">
               End-to-end process from claiming a brief to getting paid.
             </p>
@@ -110,19 +110,19 @@ export default function HowItWorksPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/profile/payouts"
-                className="px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors"
+                className="px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors"
               >
                 Open Payout settings
               </Link>
               <Link
                 href="/legal/self-billing"
-                className="px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors"
               >
                 Read self-billing agreement
               </Link>
               <Link
                 href="/guide"
-                className="px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors"
               >
                 Open content guide
               </Link>

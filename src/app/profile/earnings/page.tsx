@@ -85,7 +85,7 @@ export default async function EarningsPage() {
     <>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Earnings</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold mb-2">Earnings</h1>
           <p className="text-muted">
             Your platform receipts across every org you create for. Use
             the CSV export for tax filings.
@@ -93,7 +93,7 @@ export default async function EarningsPage() {
         </div>
         <a
           href="/api/earnings/export.csv"
-          className="px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+          className="px-4 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors"
         >
           Download CSV
         </a>
@@ -183,9 +183,9 @@ function KpiCard({
 }) {
   const accent =
     tone === "brand"
-      ? "text-accent"
+      ? "text-accent-ink"
       : tone === "info"
-        ? "text-info"
+        ? "text-info-ink"
         : "text-foreground";
   return (
     <div className="bg-surface border border-border rounded-xl p-4">

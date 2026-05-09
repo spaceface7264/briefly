@@ -45,7 +45,7 @@ export default async function MyApplicationsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1">My applications</h1>
+        <h1 className="font-display tracking-tight text-2xl font-bold mb-1">My applications</h1>
         <p className="text-muted text-sm">
           Status of every org you&apos;ve applied to join.
         </p>
@@ -102,10 +102,10 @@ function ApplicationCard({ application }: { application: ApplicationRow }) {
   const status = application.status;
   const statusTone =
     status === "approved"
-      ? "bg-accent/10 text-accent"
+      ? "bg-accent/10 text-accent-ink"
       : status === "rejected"
         ? "bg-surface-raised text-muted"
-        : "bg-warning/10 text-warning";
+        : "bg-warning/10 text-warning-ink";
   const statusLabel =
     status === "approved"
       ? "Approved"
@@ -126,7 +126,7 @@ function ApplicationCard({ application }: { application: ApplicationRow }) {
         ) : (
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center text-background font-bold text-lg shrink-0"
-            style={{ backgroundColor: org?.accent_color || "#C8FF00" }}
+            style={{ backgroundColor: org?.accent_color || "#09D7D7" }}
           >
             {org?.name?.charAt(0).toUpperCase() ?? "?"}
           </div>
@@ -172,7 +172,7 @@ function EmptyState() {
       <p className="text-muted">You haven&apos;t applied to any orgs yet.</p>
       <Link
         href="/discover"
-        className="inline-block mt-4 px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors"
+        className="inline-block mt-4 px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors"
       >
         Browse organisations
       </Link>

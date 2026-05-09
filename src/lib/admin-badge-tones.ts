@@ -9,36 +9,39 @@ import type {
 export type BriefPlatform = "instagram" | "tiktok" | "youtube";
 
 export const badgeToneByStatus: Record<BriefStatus | ClaimStatus, string> = {
-  open: "bg-success/20 text-success",
-  claimed: "bg-accent-muted text-accent",
-  submitted: "bg-info-muted text-info",
-  approved: "bg-success/20 text-success",
-  paid: "bg-success-muted text-success",
+  open: "bg-success/20 text-success-ink",
+  claimed: "bg-accent-muted text-accent-ink",
+  submitted: "bg-info-muted text-info-ink",
+  approved: "bg-success/20 text-success-ink",
+  paid: "bg-success-muted text-success-ink",
   archived: "bg-muted/20 text-muted",
   draft: "bg-muted/20 text-muted",
-  active: "bg-accent-muted text-accent",
-  cancelled: "bg-error/20 text-error",
+  active: "bg-accent-muted text-accent-ink",
+  cancelled: "bg-error/20 text-error-ink",
 };
 
+// Categorical colors — these are deliberately distinct (not brand-aligned).
+// Bg uses the vivid color at 15% alpha (works on both themes).
+// Text uses a Tailwind ~600/700 shade that passes contrast on cream.
 export const badgeToneByDurationClass: Record<BriefDurationClass, string> = {
-  short: "bg-[#22D3EE]/15 text-[#22D3EE]",
-  medium: "bg-[#8B5CF6]/15 text-[#8B5CF6]",
-  long: "bg-[#F97316]/15 text-[#F97316]",
-  static: "bg-[#10B981]/15 text-[#10B981]",
+  short: "bg-[#22D3EE]/15 text-[#0E7490]",
+  medium: "bg-[#8B5CF6]/15 text-[#6D28D9]",
+  long: "bg-[#F97316]/15 text-[#C2410C]",
+  static: "bg-[#10B981]/15 text-[#047857]",
 };
 
 export const badgeToneByPlatform: Record<BriefPlatform, string> = {
-  instagram: "bg-[#E4405F]/15 text-[#E4405F]",
-  tiktok: "bg-[#25F4EE]/15 text-[#25F4EE]",
-  youtube: "bg-[#FF0033]/15 text-[#FF0033]",
+  instagram: "bg-[#E4405F]/15 text-[#BE185D]",
+  tiktok: "bg-[#25F4EE]/15 text-[#0E7490]",
+  youtube: "bg-[#FF0033]/15 text-[#BE123C]",
 };
 
 export const badgeToneByCategory: Record<BriefCategory, string> = {
-  ad: "bg-warning/15 text-warning",
-  event: "bg-info/15 text-info",
-  guide: "bg-success/15 text-success",
-  entertaining: "bg-[#EC4899]/15 text-[#EC4899]",
-  community: "bg-[#A855F7]/15 text-[#A855F7]",
+  ad: "bg-warning/15 text-warning-ink",
+  event: "bg-info/15 text-info-ink",
+  guide: "bg-success/15 text-success-ink",
+  entertaining: "bg-[#EC4899]/15 text-[#BE185D]",
+  community: "bg-[#A855F7]/15 text-[#7E22CE]",
 };
 
 export const claimStatusLabel: Record<ClaimStatus, string> = {
@@ -57,10 +60,10 @@ export const claimStatusLabel: Record<ClaimStatus, string> = {
 export const badgeToneByFundedStatus: Partial<
   Record<BriefFundedStatus, string>
 > = {
-  funded: "bg-accent-muted text-accent",
-  partially_released: "bg-info-muted text-info",
+  funded: "bg-accent-muted text-accent-ink",
+  partially_released: "bg-info-muted text-info-ink",
   released: "bg-muted/20 text-muted",
-  refunded: "bg-error/15 text-error",
+  refunded: "bg-error/15 text-error-ink",
 };
 
 export const fundedStatusLabel: Partial<Record<BriefFundedStatus, string>> = {

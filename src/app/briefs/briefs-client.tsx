@@ -167,7 +167,7 @@ export function BriefsClient({
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex items-baseline justify-between gap-4">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="text-2xl font-bold tracking-tight">Briefs</h1>
+                <h1 className="font-display text-2xl font-bold tracking-tight">Briefs</h1>
                 {org && (
                   <span className="inline-flex items-center gap-2 text-base text-muted">
                     <span>by</span>
@@ -301,7 +301,7 @@ export function BriefsClient({
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex px-3 py-1.5 border border-border-strong hover:bg-surface-hover text-xs font-medium rounded-md transition-colors"
+                    className="inline-flex px-3 py-1.5 border border-border-strong hover:bg-surface-hover text-xs font-medium rounded-full transition-colors"
                   >
                     Clear filters
                   </button>
@@ -371,7 +371,7 @@ function FilterGroup({
           type="button"
           onClick={() => onChange(opt.value)}
           className={[
-            "px-2 py-1 text-xs rounded-md transition-all duration-100",
+            "px-2 py-1 text-xs rounded-full transition-all duration-100",
             value === opt.value
               ? "bg-surface-raised text-foreground font-medium border border-border-strong"
               : "text-muted hover:text-text-secondary border border-transparent",

@@ -24,7 +24,7 @@ export default async function NewBriefPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Create Brief</h1>
+      <h1 className="font-display tracking-tight text-3xl font-bold mb-8">Create Brief</h1>
       <BriefForm
         hasPaymentMethod={Boolean(org?.default_payment_method_id)}
         allowance={allowance}

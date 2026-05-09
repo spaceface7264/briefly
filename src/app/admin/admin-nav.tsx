@@ -41,6 +41,7 @@ import {
   UserIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { ThemeMenuItems } from "@/components/theme-menu-items";
 
 const LEGAL_LINKS = [
   { href: "/legal/terms", label: "Terms" },
@@ -280,7 +281,7 @@ export function AdminNav({
               <SidebarMenuButton
                 tooltip="Platform admin"
                 isActive={platformAdminActive}
-                className="text-accent/90 data-active:bg-accent/10 data-active:text-accent"
+                className="text-accent-ink/90 data-active:bg-accent/10 data-active:text-accent-ink"
                 render={<Link href="/admin/super" />}
               >
                 <SparklesIcon />
@@ -323,7 +324,7 @@ function OrgIdentity({
   isSupportMode: boolean;
 }) {
   const orgInitial = org.name.charAt(0).toUpperCase();
-  const orgAccent = org.accentColor ?? "#C8FF00";
+  const orgAccent = org.accentColor ?? "#09D7D7";
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -334,7 +335,7 @@ function OrgIdentity({
   const chip = isSupportMode
     ? { label: "Support", className: "text-amber-400" }
     : isOrgAdmin
-      ? { label: "Admin", className: "text-accent" }
+      ? { label: "Admin", className: "text-accent-ink" }
       : { label: "Member", className: "text-muted" };
 
   return (
@@ -483,6 +484,7 @@ function UserMenu({
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        <ThemeMenuItems />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOutIcon />
@@ -537,7 +539,7 @@ function NavRow({
         <span>{item.label}</span>
       </SidebarMenuButton>
       {item.href === "/admin/claims" && claimUnread > 0 && (
-        <SidebarMenuBadge className="bg-accent/15 text-accent">
+        <SidebarMenuBadge className="bg-accent/15 text-accent-ink">
           {claimUnread > 99 ? "99+" : claimUnread}
         </SidebarMenuBadge>
       )}

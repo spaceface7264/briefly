@@ -384,7 +384,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
                 htmlFor="inviteCode"
                 className="block text-sm font-medium mb-2"
               >
-                Invite code <span className="text-error">*</span>
+                Invite code <span className="text-error-ink">*</span>
               </label>
               <input
                 id="inviteCode"
@@ -445,7 +445,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
           {error && (
             <div className="flex items-start gap-2 bg-error-muted border border-error/30 rounded-lg p-3">
               <svg
-                className="w-4 h-4 text-error shrink-0 mt-0.5"
+                className="w-4 h-4 text-error-ink shrink-0 mt-0.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -457,14 +457,14 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
                   d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"
                 />
               </svg>
-              <p className="text-error text-sm">{error}</p>
+              <p className="text-error-ink text-sm">{error}</p>
             </div>
           )}
 
           {success && (
             <div className="flex items-start gap-2 bg-success-muted border border-success/30 rounded-lg p-3">
               <svg
-                className="w-4 h-4 text-success shrink-0 mt-0.5"
+                className="w-4 h-4 text-success-ink shrink-0 mt-0.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -476,14 +476,14 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <p className="text-success text-sm">{success}</p>
+              <p className="text-success-ink text-sm">{success}</p>
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
+            className="w-full py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-full transition-colors"
           >
             {loading
               ? mode === "login"
@@ -509,7 +509,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
             <button
               type="button"
               onClick={() => switchMode("signup-creator")}
-              className="text-accent hover:underline"
+              className="text-accent-ink hover:underline"
             >
               Sign up as a creator instead
             </button>

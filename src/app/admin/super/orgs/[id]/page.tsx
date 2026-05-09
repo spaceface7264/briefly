@@ -159,7 +159,7 @@ export default async function SuperOrgDetailPage({
   const activeOverrides = overrides.filter((o) => o.active);
   const revokedOverrides = overrides.filter((o) => !o.active);
 
-  const orgAccent = org.accent_color ?? "#C8FF00";
+  const orgAccent = org.accent_color ?? "#09D7D7";
   const orgInitial = org.name.charAt(0).toUpperCase();
 
   return (

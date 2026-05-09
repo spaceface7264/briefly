@@ -18,28 +18,28 @@ interface StatusPillProps {
 
 const toneStyles: Record<StatusTone, { pill: string; dot: string }> = {
   info: {
-    pill: "bg-info-muted text-info",
-    dot: "bg-info",
+    pill: "bg-info-muted text-info-ink",
+    dot: "bg-info-ink",
   },
   success: {
-    pill: "bg-success-muted text-success",
-    dot: "bg-success",
+    pill: "bg-success-muted text-success-ink",
+    dot: "bg-success-ink",
   },
   warning: {
-    pill: "bg-warning-muted text-warning",
-    dot: "bg-warning",
+    pill: "bg-warning-muted text-warning-ink",
+    dot: "bg-warning-ink",
   },
   danger: {
-    pill: "bg-error-muted text-error",
-    dot: "bg-error",
+    pill: "bg-error-muted text-error-ink",
+    dot: "bg-error-ink",
   },
   neutral: {
     pill: "bg-surface-raised text-muted border border-border",
     dot: "bg-muted",
   },
   brand: {
-    pill: "bg-accent-muted text-accent",
-    dot: "bg-accent",
+    pill: "bg-accent-muted text-accent-ink",
+    dot: "bg-accent-ink",
   },
 };
 

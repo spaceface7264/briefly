@@ -94,7 +94,7 @@ export function OrgDetailModal({
     });
   }
 
-  const accent = org.accent_color || "#C8FF00";
+  const accent = org.accent_color || "#09D7D7";
 
   return (
     <dialog
@@ -227,7 +227,7 @@ function DetailView({
         {isMember ? (
           <button
             onClick={onViewBriefs}
-            className="px-5 py-2.5 border border-border hover:border-border-strong text-sm font-medium rounded-lg transition-colors"
+            className="px-5 py-2.5 border border-border hover:border-border-strong text-sm font-medium rounded-full transition-colors"
           >
             {canApply ? "View briefs →" : "Open dashboard →"}
           </button>
@@ -235,7 +235,7 @@ function DetailView({
           // Org accounts can browse but not apply to other brands.
           null
         ) : applicationStatus === "pending" ? (
-          <p className="text-sm text-warning">
+          <p className="text-sm text-warning-ink">
             Application pending — you&apos;ll get an email when it&apos;s reviewed.
           </p>
         ) : applicationStatus === "rejected" ? (
@@ -243,7 +243,7 @@ function DetailView({
         ) : (
           <button
             onClick={onApply}
-            className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors"
+            className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors"
           >
             {isAuthenticated ? "Apply to join" : "Log in to apply"}
           </button>
@@ -307,7 +307,7 @@ function ApplyView({
             autoFocus
           />
         </label>
-        {error && <p className="mt-3 text-sm text-error">{error}</p>}
+        {error && <p className="mt-3 text-sm text-error-ink">{error}</p>}
       </div>
 
       <footer className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-surface/40 shrink-0">
@@ -323,7 +323,7 @@ function ApplyView({
           type="button"
           onClick={onSend}
           disabled={pending}
-          className="px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+          className="px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors disabled:opacity-50"
         >
           {pending ? "Sending…" : "Send application"}
         </button>
