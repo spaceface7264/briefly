@@ -45,14 +45,11 @@ export default async function SuperAdminLayout({
         userAvatarUrl={profile?.avatar_url ?? null}
       />
       <SidebarInset>
-        {/* Compact page-shell header that hosts the sidebar toggle.
-            Same affordance as the org admin shell so the collapsible
-            rail behaves the same way on both surfaces. */}
-        <header className="flex h-12 items-center gap-2 px-4 md:px-6 border-b border-border/60 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <SidebarTrigger />
-        </header>
-        {/* Cap the content width to match what the old top-tab shell
-            rendered. Tables and forms get unreadable past ~1100px. */}
+        {/* Sidebar toggle lives inside PlatformNav's SidebarHeader
+            on desktop; on mobile the off-canvas drawer needs a
+            visible fallback to reopen. Cap content width at ~1100px
+            since tables and forms get unreadable past that. */}
+        <SidebarTrigger className="md:hidden fixed top-3 left-3 z-40 bg-background/80 backdrop-blur-sm border border-border/60" />
         <div className="p-6 md:p-8 max-w-6xl w-full mx-auto">{children}</div>
       </SidebarInset>
     </SidebarProvider>
