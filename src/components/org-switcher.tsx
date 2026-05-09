@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ChevronDownIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { switchOrg } from "@/app/admin/settings/org-actions";
+import { switchOrg } from "@/app/admin/(org)/settings/org-actions";
 import {
   DropdownMenu,
   DropdownMenuContent,

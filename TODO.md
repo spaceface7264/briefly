@@ -223,8 +223,9 @@ shell at `/admin/super/*`. Memory entry:
   audit-logged
 - ✅ `SupportModeBanner` across `/admin/*` when scoped in;
   `AdminNav` role chip = amber `Support`
-- ✅ Admin layout bypasses its shell on `/admin/super/*` via
-  middleware-set `x-pathname` so the platform shell takes over
+- ✅ Org and platform shells live in sibling Next.js subtrees
+  (`src/app/admin/(org)/` and `src/app/admin/super/`) so neither
+  layout wraps the other
 - ✅ Platform shell at `/admin/super/*` with collapsible sidebar
   (mirrors org admin shell muscle memory)
 - ✅ Login form + landing routes send platform users to
@@ -1896,3 +1897,9 @@ org
 - Eventually: pgvector for semantic search ("looking for cooking
 content creators") — defer until search-by-keyword feels insufficient
 
+
+Dev's future ideas:
+-add "requires approval" functiion on briefs, when org want to determine if a creator can be allowed to claim a brief. claim is held in suspense until decided, with a deadline. 
+-creator monthly fee and/or take rate and/or limit
+-fix/enhance hover effect on login btn
+-all btn hover effects

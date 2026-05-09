@@ -12,7 +12,7 @@ import type { BrandKitPanelData } from "./brand-kit-panel";
 import type {
   BrandColor,
   BrandTypography,
-} from "@/app/admin/brand/types";
+} from "@/app/admin/(org)/brand/types";
 
 interface Props {
   params: Promise<{ id: string }>;
