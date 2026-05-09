@@ -145,12 +145,11 @@ export default async function AdminLayout({
             }}
           />
         )}
-        {/* Compact page-shell header that hosts the sidebar toggle.
-            On desktop it lets the user collapse the nav to icons; on
-            mobile it's the only way to open the off-canvas drawer. */}
-        <header className="flex h-12 items-center gap-2 px-4 md:px-6 border-b border-border/60 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <SidebarTrigger />
-        </header>
+        {/* Sidebar toggle lives inside AdminNav's SidebarHeader on
+            desktop. On mobile the sidebar collapses to an off-canvas
+            drawer with no visible trigger, so render a small fixed
+            fallback that only appears below the md breakpoint. */}
+        <SidebarTrigger className="md:hidden fixed top-3 left-3 z-40 bg-background/80 backdrop-blur-sm border border-border/60" />
         <div className="p-6 md:p-8">{children}</div>
       </SidebarInset>
     </SidebarProvider>

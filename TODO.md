@@ -1976,8 +1976,11 @@ re-examine when the related surface comes up.
 - ❌ Audit and standardise hover effects across all buttons
 - ❌ Implement strong icons or some other visual cue to convey
   hierarchy and purpose (today the icon set is mixed-weight)
-- ❌ Align the collapse-sidebar button into the sidebar itself and
-  remove the standalone header bar across `/admin/*`
+- ✅ Align the collapse-sidebar button into the sidebar itself and
+  remove the standalone header bar across `/admin/*` — trigger
+  moved into AdminNav + PlatformNav `SidebarHeader`, sticky page
+  header gone, `md:hidden` fallback trigger covers mobile drawer
+  reopen — shipped 2026-05-10
 - ❌ Replace static input fields with edit-in-place pattern (click
   to edit, save on blur or explicit confirm)
 

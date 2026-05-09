@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -120,7 +121,16 @@ export function PlatformNav({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-2">
-        <PlatformIdentity />
+        {/* Brand on the left, sidebar collapse toggle on the right.
+            Mirrors AdminNav: in icon-collapsed mode the brand hides
+            and the trigger centres so users can re-expand from
+            inside the sidebar without a separate header bar. */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+            <PlatformIdentity />
+          </div>
+          <SidebarTrigger className="shrink-0" />
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
