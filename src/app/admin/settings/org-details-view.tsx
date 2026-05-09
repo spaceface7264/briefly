@@ -137,12 +137,12 @@ export function OrgDetailsView({ activeTab, org }: Props) {
                 <div
                   className="h-10 w-14 rounded border border-border"
                   style={{
-                    backgroundColor: org.accent_color ?? "#C8FF00",
+                    backgroundColor: org.accent_color ?? "#09D7D7",
                   }}
                   aria-hidden
                 />
                 <span className="font-mono text-sm">
-                  {org.accent_color ?? "#C8FF00"}
+                  {org.accent_color ?? "#09D7D7"}
                 </span>
               </div>
             </div>

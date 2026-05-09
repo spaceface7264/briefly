@@ -20,9 +20,9 @@ const categoryAccent: Record<string, string> = {
 
 const categoryDot: Record<string, string> = {
   entertaining: "bg-muted",
-  ad: "bg-warning",
-  guide: "bg-info",
-  event: "bg-success",
+  ad: "bg-warning-ink",
+  guide: "bg-info-ink",
+  event: "bg-success-ink",
   community: "bg-muted",
 };
 
@@ -54,7 +54,7 @@ export function BriefCard({ brief }: BriefCardProps) {
       className={[
         "group relative flex h-full flex-col rounded-lg border transition-all duration-150",
         userHasClaimed
-          ? "bg-brand-soft border-brand/20 hover:border-brand/30 ring-1 ring-brand/10"
+          ? "bg-brand-soft border-brand-ink/20 hover:border-brand-ink/30 ring-1 ring-brand-ink/10"
           : isFull
             ? "bg-surface/40 border-border/50 opacity-50 hover:opacity-70"
             : `${categoryAccent[brief.category] || "bg-surface border-border hover:border-border-strong"}`,
@@ -72,18 +72,18 @@ export function BriefCard({ brief }: BriefCardProps) {
           <span className="whitespace-nowrap">{durationClassLabel(brief.duration_class)}</span>
         </div>
         {brief.is_ad_intended && (
-          <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-warning">
+          <span className="inline-flex items-center rounded-full border border-warning-ink/30 bg-warning/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-warning-ink">
             Ad
           </span>
         )}
-        <span className="value-text inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-1.5 py-px text-accent text-xs font-semibold whitespace-nowrap">
+        <span className="value-text inline-flex items-center rounded-full border border-accent-ink/30 bg-accent/10 px-1.5 py-px text-accent-ink text-xs font-semibold whitespace-nowrap">
           {formatPrice(brief.price_dkk)}
         </span>
       </div>
 
       {/* Title */}
       <div className="px-4 pb-1.5">
-        <h3 className="font-semibold text-[0.95rem] leading-snug truncate group-hover:text-foreground transition-colors">
+        <h3 className="font-display tracking-tight font-semibold text-[0.95rem] leading-snug truncate group-hover:text-foreground transition-colors">
           {brief.title}
         </h3>
       </div>
@@ -101,7 +101,7 @@ export function BriefCard({ brief }: BriefCardProps) {
       <div className="mt-auto flex items-center justify-between px-4 py-2.5 border-t border-border/60 text-xs">
         <div className="flex items-center gap-2">
           {brief.deadline ? (
-            <span className="value-text text-muted text-[0.7rem]">
+            <span className="value-text font-mono text-muted text-[0.7rem]">
               Due {formatDeadline(brief.deadline)}
             </span>
           ) : (
@@ -111,11 +111,9 @@ export function BriefCard({ brief }: BriefCardProps) {
 
         <div className="flex items-center gap-2">
           {userHasClaimed ? (
-            <span className="text-brand font-semibold flex items-center gap-1">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 font-mono uppercase tracking-[0.08em] text-[10px] rounded-full bg-brand/15 border border-brand-ink/30 text-brand-ink">
+              <span aria-hidden className="w-1 h-1 rounded-full bg-brand-ink" />
               Claimed
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-              </svg>
             </span>
           ) : isFull ? (
             <span className="text-disabled">Full</span>

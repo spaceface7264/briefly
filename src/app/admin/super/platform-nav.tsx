@@ -44,6 +44,7 @@ import {
   WalletIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { ThemeMenuItems } from "@/components/theme-menu-items";
 
 const LEGAL_LINKS = [
   { href: "/legal/terms", label: "Terms" },
@@ -304,6 +305,7 @@ function UserMenu({
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        <ThemeMenuItems />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOutIcon />

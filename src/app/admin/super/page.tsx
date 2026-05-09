@@ -45,7 +45,7 @@ export default async function SuperOverviewPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-2">Overview</h1>
+      <h1 className="font-display tracking-tight text-3xl font-bold mb-2">Overview</h1>
       <p className="text-muted mb-8">
         Platform-wide pricing state. Numbers are last 30 days.
       </p>
@@ -58,7 +58,7 @@ export default async function SuperOverviewPage() {
       </div>
 
       <section>
-        <h2 className="text-xl font-semibold mb-4">Plan catalogue</h2>
+        <h2 className="font-display tracking-tight text-xl font-semibold mb-4">Plan catalogue</h2>
         <div className="bg-surface border border-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-surface-raised">
@@ -95,16 +95,16 @@ export default async function SuperOverviewPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-xl font-semibold mb-4">Quick links</h2>
+        <h2 className="font-display tracking-tight text-xl font-semibold mb-4">Quick links</h2>
         <ul className="space-y-2 text-sm">
           <li>
-            <Link href="/admin/super/orgs" className="text-accent hover:underline">
+            <Link href="/admin/super/orgs" className="text-accent-ink hover:underline">
               All organisations →
             </Link>
             {" "}grant fee waivers, comp plans, raise limits.
           </li>
           <li>
-            <Link href="/admin/super/audit" className="text-accent hover:underline">
+            <Link href="/admin/super/audit" className="text-accent-ink hover:underline">
               Audit log →
             </Link>
             {" "}every grant and revoke.

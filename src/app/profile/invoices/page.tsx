@@ -25,7 +25,7 @@ export default async function InvoicesPage() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Invoice History</h1>
+        <h1 className="font-display tracking-tight text-3xl font-bold mb-2">Invoice History</h1>
         <p className="text-muted">Your payment and invoice records</p>
       </div>
 
@@ -78,9 +78,9 @@ export default async function InvoicesPage() {
 
 function InvoiceStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    succeeded: "bg-success/20 text-success",
-    pending: "bg-warning/20 text-warning",
-    failed: "bg-error/20 text-error",
+    succeeded: "bg-success/20 text-success-ink",
+    pending: "bg-warning/20 text-warning-ink",
+    failed: "bg-error/20 text-error-ink",
   };
 
   const labels: Record<string, string> = {

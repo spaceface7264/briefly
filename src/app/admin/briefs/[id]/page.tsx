@@ -123,7 +123,7 @@ export default function EditBriefPage() {
     return (
       <div className="text-center py-12">
         <p className="text-muted mb-4">Brief not found</p>
-        <Link href="/admin/briefs" className="text-accent hover:underline">
+        <Link href="/admin/briefs" className="text-accent-ink hover:underline">
           Back to Briefs
         </Link>
       </div>
@@ -141,7 +141,7 @@ export default function EditBriefPage() {
             &larr; Back to Briefs
           </Link>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold">Edit Brief</h1>
+            <h1 className="font-display tracking-tight text-3xl font-bold">Edit Brief</h1>
             <FundedHeaderBadge
               status={brief.funded_status as BriefFundedStatus | null}
               heldDkk={brief.escrow_held_dkk}
@@ -154,7 +154,7 @@ export default function EditBriefPage() {
             <button
               onClick={handleReopen}
               disabled={archiving}
-              className="px-4 py-2 border border-accent text-accent hover:bg-accent-muted disabled:opacity-50 rounded-lg transition-colors"
+              className="px-4 py-2 border border-accent text-accent-ink hover:bg-accent-muted disabled:opacity-50 rounded-full transition-colors"
             >
               {archiving ? "Reopening..." : "Reopen Brief"}
             </button>
@@ -162,7 +162,7 @@ export default function EditBriefPage() {
             <button
               onClick={handleArchive}
               disabled={archiving}
-              className="px-4 py-2 border border-error text-error hover:bg-error/10 disabled:opacity-50 rounded-lg transition-colors"
+              className="px-4 py-2 border border-error text-error-ink hover:bg-error/10 disabled:opacity-50 rounded-full transition-colors"
             >
               {archiving ? "Archiving..." : "Archive Brief"}
             </button>
@@ -212,7 +212,7 @@ export default function EditBriefPage() {
                     </div>
                     <Link
                       href={`/admin/claims?claim=${claim.id}`}
-                      className="text-accent text-sm hover:underline shrink-0"
+                      className="text-accent-ink text-sm hover:underline shrink-0"
                     >
                       View
                     </Link>
@@ -227,7 +227,7 @@ export default function EditBriefPage() {
           {/* Pending Submissions */}
           {submittedClaims.length > 0 && (
             <div className="bg-warning/10 border border-warning/30 rounded-xl p-5">
-              <h2 className="font-semibold text-warning mb-4">
+              <h2 className="font-semibold text-warning-ink mb-4">
                 Pending Review ({submittedClaims.length})
               </h2>
               <ul className="space-y-3">
@@ -252,7 +252,7 @@ export default function EditBriefPage() {
                     </div>
                     <Link
                       href={`/admin/claims?claim=${claim.id}`}
-                      className="text-warning text-sm hover:underline font-medium shrink-0"
+                      className="text-warning-ink text-sm hover:underline font-medium shrink-0"
                     >
                       Review
                     </Link>
@@ -323,11 +323,11 @@ function FundedHeaderBadge({
 
 function ClaimStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    active: "bg-accent-muted text-accent",
-    submitted: "bg-warning/20 text-warning",
-    approved: "bg-success/20 text-success",
+    active: "bg-accent-muted text-accent-ink",
+    submitted: "bg-warning/20 text-warning-ink",
+    approved: "bg-success/20 text-success-ink",
     paid: "bg-muted/20 text-muted",
-    cancelled: "bg-error/20 text-error",
+    cancelled: "bg-error/20 text-error-ink",
   };
 
   return (

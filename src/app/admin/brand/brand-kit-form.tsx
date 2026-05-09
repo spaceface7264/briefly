@@ -356,7 +356,7 @@ function ColorsSection({
                 type="text"
                 value={color.hex}
                 onChange={(e) => update(index, { hex: e.target.value })}
-                placeholder="#C8FF00"
+                placeholder="#09D7D7"
                 disabled={!canEdit}
                 className="font-mono"
                 maxLength={9}

@@ -62,12 +62,12 @@ export default async function AdminBriefsPage({
       </Suspense>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Briefs</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold">Briefs</h1>
           <p className="text-muted text-sm mt-1">Showing {briefsWithCounts.length} total</p>
         </div>
         <Link
           href="/admin/briefs/new"
-          className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
+          className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold rounded-full transition-colors"
         >
           Create Brief
         </Link>

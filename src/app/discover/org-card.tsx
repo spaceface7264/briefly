@@ -43,12 +43,12 @@ export function OrgCard({
         : null;
 
   const statusToneClass = isMember
-    ? "bg-accent/10 text-accent"
+    ? "bg-accent/10 text-accent-ink"
     : effectiveStatus === "pending"
-      ? "bg-warning/10 text-warning"
+      ? "bg-warning/10 text-warning-ink"
       : "bg-surface-raised text-muted";
 
-  const accent = org.accent_color || "#C8FF00";
+  const accent = org.accent_color || "#09D7D7";
 
   return (
     <>
@@ -99,7 +99,7 @@ export function OrgCard({
           <span className="text-xs text-muted font-mono">
             {openBriefs} open brief{openBriefs !== 1 ? "s" : ""}
           </span>
-          <span className="text-xs font-medium text-muted group-hover:text-accent transition-colors">
+          <span className="text-xs font-medium text-muted group-hover:text-accent-ink transition-colors">
             Read more →
           </span>
         </div>

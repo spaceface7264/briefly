@@ -68,7 +68,7 @@ export default async function AdminClaimsPage({
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Claims</h1>
+      <h1 className="font-display tracking-tight text-3xl font-bold mb-8">Claims</h1>
 
       {/* Status filter tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -82,7 +82,7 @@ export default async function AdminClaimsPage({
             <Link
               key={group.status || "all"}
               href={group.status ? `/admin/claims?status=${group.status}` : "/admin/claims"}
-              className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 border rounded-full text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-surface-raised text-foreground border-border-strong"
                   : "bg-surface border-border hover:border-brand/40"
@@ -121,7 +121,7 @@ export default async function AdminClaimsPage({
                     }`}
                   >
                     <td className="px-4 py-3">
-                      <Link href={`/admin/briefs/${claim.brief?.id}`} className="font-medium hover:text-accent">
+                      <Link href={`/admin/briefs/${claim.brief?.id}`} className="font-medium hover:text-accent-ink">
                         {claim.brief?.title || "Unknown Brief"}
                       </Link>
                       <p className="text-muted text-sm font-mono">{formatPrice(claim.brief?.price_dkk)}</p>
@@ -145,7 +145,7 @@ export default async function AdminClaimsPage({
                           {claim.creator?.instagram_handle && (
                             <InstagramLink
                               handle={claim.creator.instagram_handle}
-                              className="text-accent text-sm truncate hover:underline"
+                              className="text-accent-ink text-sm truncate hover:underline"
                             />
                           )}
                         </div>
@@ -154,7 +154,7 @@ export default async function AdminClaimsPage({
                     <td className="px-4 py-3">
                       <ClaimStatusBadge status={claim.status} />
                       {isExpired && (
-                        <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-error/20 text-error">
+                        <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-error/20 text-error-ink">
                           Expired
                         </span>
                       )}

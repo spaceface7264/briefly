@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountType, landingPathForAccountType } from "@/lib/account";
 import { OrgRotatorPill, type OrgRotatorOrg } from "@/components/org-rotator-pill";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
 
@@ -62,6 +63,11 @@ export default async function Home() {
 
   return (
     <main className="flex-1 relative overflow-hidden">
+      {/* Theme toggle — home has no Nav, so a standalone control sits
+          top-right of the hero so users can find light/dark. */}
+      <div className="absolute top-4 right-4 z-10">
+        <ModeToggle />
+      </div>
       {/* Ambient brand glow */}
       <div
         aria-hidden="true"
@@ -75,7 +81,7 @@ export default async function Home() {
               <OrgRotatorPill orgs={orgs} />
             </div>
           )}
-          <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
+          <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">
             {platformName} <span className="text-brand-pure">Creators</span>
           </h1>
           <p className="text-lg text-muted max-w-lg mx-auto leading-relaxed">
@@ -85,19 +91,19 @@ export default async function Home() {
           <div className="flex flex-wrap gap-3 justify-center pt-4">
             <Link
               href="/login"
-              className="px-6 py-3 bg-accent hover:bg-accent-hover text-background font-bold rounded-lg transition-colors text-sm"
+              className="px-6 py-3 bg-accent hover:bg-accent-hover text-background font-bold rounded-full transition-colors text-sm"
             >
               Log in
             </Link>
             <Link
               href="/login?mode=signup"
-              className="px-6 py-3 border border-border-strong hover:border-foreground/30 hover:bg-surface-hover font-semibold rounded-lg transition-colors text-sm"
+              className="px-6 py-3 border border-border-strong hover:border-foreground/30 hover:bg-surface-hover font-semibold rounded-full transition-colors text-sm"
             >
               Redeem invite code
             </Link>
             <Link
               href="/discover"
-              className="px-6 py-3 text-muted hover:text-foreground font-semibold rounded-lg transition-colors text-sm"
+              className="px-6 py-3 text-muted hover:text-foreground font-semibold rounded-full transition-colors text-sm"
             >
               Browse organisations →
             </Link>
@@ -110,8 +116,8 @@ export default async function Home() {
               key={step.number}
               className="relative bg-surface border border-border rounded-xl p-6 hover:border-border-strong transition-colors"
             >
-              <p className="font-mono text-accent text-xs mb-4 tracking-wider">{step.number}</p>
-              <h2 className="font-semibold mb-2">{step.title}</h2>
+              <p className="font-mono text-accent-ink text-xs mb-4 tracking-wider">{step.number}</p>
+              <h2 className="font-display tracking-tight font-semibold mb-2">{step.title}</h2>
               <p className="text-muted text-sm leading-relaxed">{step.body}</p>
             </div>
           ))}

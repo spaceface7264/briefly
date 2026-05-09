@@ -20,7 +20,7 @@ interface SupportModeBannerProps {
  * don't ship hydration cost for what's mostly an audit signal.
  */
 export function SupportModeBanner({ org }: SupportModeBannerProps) {
-  const accent = org.accentColor ?? "#C8FF00";
+  const accent = org.accentColor ?? "#09D7D7";
   const initial = org.name.charAt(0).toUpperCase();
 
   return (

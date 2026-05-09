@@ -82,7 +82,7 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+      <h1 className="font-display tracking-tight text-3xl font-bold mb-8">Dashboard</h1>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
@@ -95,7 +95,7 @@ export default async function AdminDashboard() {
             }`}
           >
             <p className="text-muted text-sm mb-1">{stat.label}</p>
-            <p className={`font-mono text-3xl font-bold ${stat.highlight ? "text-accent" : ""}`}>
+            <p className={`font-mono text-3xl font-bold ${stat.highlight ? "text-accent-ink" : ""}`}>
               {stat.value}
             </p>
           </Link>
@@ -106,14 +106,14 @@ export default async function AdminDashboard() {
       <div className="flex gap-4 mb-10">
         <Link
           href="/admin/briefs/new"
-          className="px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-lg transition-colors"
+          className="px-6 py-3 bg-accent hover:bg-accent-hover text-background font-semibold rounded-full transition-colors"
         >
           Create New Brief
         </Link>
         {(pendingCount || 0) > 0 && (
           <Link
             href="/admin/claims?status=submitted"
-            className="px-6 py-3 border border-accent text-accent hover:bg-accent-muted font-semibold rounded-lg transition-colors"
+            className="px-6 py-3 border border-accent text-accent-ink hover:bg-accent-muted font-semibold rounded-full transition-colors"
           >
             Review Submissions ({pendingCount})
           </Link>
@@ -122,7 +122,7 @@ export default async function AdminDashboard() {
 
       {/* Recent Claims */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Recent Claims</h2>
+        <h2 className="font-display tracking-tight text-xl font-semibold mb-4">Recent Claims</h2>
         {recentClaims && recentClaims.length > 0 ? (
           <div className="bg-surface border border-border rounded-xl overflow-hidden">
             <table className="w-full">
@@ -138,7 +138,7 @@ export default async function AdminDashboard() {
                 {recentClaims.map((claim: any) => (
                   <tr key={claim.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3">
-                      <Link href={`/admin/briefs/${claim.brief_id}`} className="hover:text-accent">
+                      <Link href={`/admin/briefs/${claim.brief_id}`} className="hover:text-accent-ink">
                         {claim.brief?.title || "Unknown"}
                       </Link>
                     </td>

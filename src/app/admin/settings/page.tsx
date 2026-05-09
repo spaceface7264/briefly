@@ -205,7 +205,7 @@ export default async function AdminSettingsPage({
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Settings</h1>
+        <h1 className="font-display tracking-tight text-3xl font-bold mb-2">Settings</h1>
         <p className="text-muted">{activeTabMeta.description}</p>
       </div>
 

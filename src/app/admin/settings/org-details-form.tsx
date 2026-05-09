@@ -36,7 +36,7 @@ export function OrgDetailsForm({ activeTab, orgId, org }: Props) {
   const [description, setDescription] = useState(org.description ?? "");
   const [industry, setIndustry] = useState(org.industry ?? "");
   const [logoUrl, setLogoUrl] = useState(org.logo_url ?? "");
-  const [accentColor, setAccentColor] = useState(org.accent_color ?? "#C8FF00");
+  const [accentColor, setAccentColor] = useState(org.accent_color ?? "#09D7D7");
   const [contactEmail, setContactEmail] = useState(org.contact_email ?? "");
   const [address, setAddress] = useState(org.address ?? "");
   const [cvr, setCvr] = useState(org.cvr ?? "");
@@ -289,7 +289,7 @@ export function OrgDetailsForm({ activeTab, orgId, org }: Props) {
                 type="text"
                 value={accentColor}
                 onChange={(e) => setAccentColor(e.target.value)}
-                placeholder="#C8FF00"
+                placeholder="#09D7D7"
                 className="input font-mono flex-1"
               />
             </div>

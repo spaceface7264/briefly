@@ -1,14 +1,28 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useTheme } from "next-themes";
 
 type Theme = "dark" | "light";
 type ToastTone = "default" | "success" | "error";
 type SbToast = { id: number; tone: ToastTone; msg: string; leaving: boolean };
 
 export default function SandboxPage() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  // Sandbox shares theme state with the rest of the app via next-themes.
+  // Toggling here flips the global data-theme; nav dropdowns stay in sync.
+  const { resolvedTheme, setTheme: setNextTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // Hydration gate for next-themes — see ThemeMenuItems for context.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+  const theme: Theme =
+    mounted && (resolvedTheme === "light" || resolvedTheme === "dark")
+      ? resolvedTheme
+      : "dark";
+
   const [toasts, setToasts] = useState<SbToast[]>([]);
   const idRef = useRef(0);
 
@@ -21,10 +35,10 @@ export default function SandboxPage() {
       (document as Document & {
         startViewTransition: (cb: () => void) => void;
       }).startViewTransition(() => {
-        flushSync(() => setTheme(next));
+        flushSync(() => setNextTheme(next));
       });
     } else {
-      setTheme(next);
+      setNextTheme(next);
     }
   };
 

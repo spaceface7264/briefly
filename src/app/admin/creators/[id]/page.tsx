@@ -78,7 +78,7 @@ export default async function CreatorDetailPage({
             alt=""
           />
           <div className="min-w-0">
-            <h1 className="text-3xl font-bold truncate">
+            <h1 className="font-display tracking-tight text-3xl font-bold truncate">
               {profile.name || "Unnamed Creator"}
             </h1>
             <p className="text-muted truncate">{profile.email}</p>
@@ -91,12 +91,12 @@ export default async function CreatorDetailPage({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent hover:underline"
+                  className="text-accent-ink hover:underline"
                 >
                   @{display}
                 </a>
               ) : (
-                <span className="text-accent">@{display}</span>
+                <span className="text-accent-ink">@{display}</span>
               );
             })()}
           </div>
@@ -114,11 +114,11 @@ export default async function CreatorDetailPage({
         </div>
         <div className="bg-surface border border-border rounded-xl p-4">
           <p className="text-muted text-sm mb-1">Pending Review</p>
-          <p className="text-2xl font-bold font-mono text-warning">{submittedClaims.length}</p>
+          <p className="text-2xl font-bold font-mono text-warning-ink">{submittedClaims.length}</p>
         </div>
         <div className="bg-surface border border-border rounded-xl p-4">
           <p className="text-muted text-sm mb-1">Total Earned</p>
-          <p className="text-2xl font-bold font-mono text-success">{formatPrice(totalEarned)}</p>
+          <p className="text-2xl font-bold font-mono text-success-ink">{formatPrice(totalEarned)}</p>
         </div>
         <div className="bg-surface border border-border rounded-xl p-4">
           <p className="text-muted text-sm mb-1">Pending Payout</p>
@@ -127,7 +127,7 @@ export default async function CreatorDetailPage({
       </div>
 
       {/* Claims History */}
-      <h2 className="text-xl font-semibold mb-4">Claims History ({claims?.length || 0})</h2>
+      <h2 className="font-display tracking-tight text-xl font-semibold mb-4">Claims History ({claims?.length || 0})</h2>
       {claims && claims.length > 0 ? (
         <div className="bg-surface border border-border rounded-xl overflow-hidden">
           <table className="w-full">
@@ -144,12 +144,12 @@ export default async function CreatorDetailPage({
               {claims.map((claim: any) => (
                 <tr key={claim.id} className="border-b border-border last:border-0 hover:bg-surface-hover">
                   <td className="px-4 py-3">
-                    <Link href={`/admin/briefs/${claim.brief?.id}`} className="font-medium hover:text-accent">
+                    <Link href={`/admin/briefs/${claim.brief?.id}`} className="font-medium hover:text-accent-ink">
                       {claim.brief?.title || "Unknown Brief"}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2.5 py-1 bg-accent-muted text-accent text-xs font-medium rounded-full capitalize">
+                    <span className="px-2.5 py-1 bg-accent-muted text-accent-ink text-xs font-medium rounded-full capitalize">
                       {claim.brief?.category}
                     </span>
                   </td>
@@ -264,8 +264,8 @@ function SummaryChips({
 }) {
   const chipClass =
     tone === "brand"
-      ? "px-2 py-0.5 text-xs font-medium rounded-full bg-brand-muted text-brand"
-      : "px-2 py-0.5 text-xs font-medium rounded-full bg-accent-muted text-accent";
+      ? "px-2 py-0.5 text-xs font-medium rounded-full bg-brand-muted text-brand-ink"
+      : "px-2 py-0.5 text-xs font-medium rounded-full bg-accent-muted text-accent-ink";
 
   return (
     <div>
@@ -292,8 +292,8 @@ function SummaryChips({
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, string> = {
     admin: "bg-accent text-background",
-    member: "bg-accent-muted text-accent",
-    creator: "bg-accent-muted text-accent",
+    member: "bg-accent-muted text-accent-ink",
+    creator: "bg-accent-muted text-accent-ink",
   };
 
   return (
@@ -307,11 +307,11 @@ function RoleBadge({ role }: { role: string }) {
 
 function ClaimStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    active: "bg-accent-muted text-accent",
-    submitted: "bg-warning/20 text-warning",
-    approved: "bg-success/20 text-success",
+    active: "bg-accent-muted text-accent-ink",
+    submitted: "bg-warning/20 text-warning-ink",
+    approved: "bg-success/20 text-success-ink",
     paid: "bg-muted/20 text-muted",
-    cancelled: "bg-error/20 text-error",
+    cancelled: "bg-error/20 text-error-ink",
   };
 
   return (

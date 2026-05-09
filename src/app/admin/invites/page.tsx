@@ -22,7 +22,7 @@ export default async function AdminInvitesPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Invite Codes</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold">Invite Codes</h1>
           <p className="text-muted mt-1">
             {unusedCount} available, {usedCount} used
           </p>
@@ -61,11 +61,11 @@ export default async function AdminInvitesPage() {
                           Used
                         </span>
                       ) : isExpired ? (
-                        <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-error/20 text-error">
+                        <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-error/20 text-error-ink">
                           Expired
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-success/20 text-success">
+                        <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-success/20 text-success-ink">
                           Available
                         </span>
                       )}

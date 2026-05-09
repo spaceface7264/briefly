@@ -24,7 +24,7 @@ export default async function AdminApplicationsPage() {
     <div>
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold mb-1">Applications</h1>
+          <h1 className="font-display tracking-tight text-3xl font-bold mb-1">Applications</h1>
           <p className="text-muted">
             {pending.length} pending application
             {pending.length !== 1 ? "s" : ""}

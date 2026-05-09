@@ -73,7 +73,7 @@ export function Modal({
       >
         <header className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-border">
           <div className="min-w-0">
-            <h2 id="modal-title" className="text-lg font-semibold truncate">
+            <h2 id="modal-title" className="font-display text-lg font-semibold truncate">
               {title}
             </h2>
             {description && (
@@ -126,13 +126,13 @@ interface ConfirmDialogProps {
 
 const toneButtonClasses: Record<ConfirmTone, string> = {
   danger:
-    "bg-error hover:bg-error/80 text-white focus-visible:ring-error/50",
+    "bg-error hover:bg-error/90 text-on-brand rounded-full focus-visible:ring-error/50",
   success:
-    "bg-success hover:bg-success/80 text-background focus-visible:ring-success/50",
+    "bg-success hover:bg-success/90 text-on-brand rounded-full focus-visible:ring-success/50",
   brand:
-    "bg-accent hover:bg-accent-hover text-background focus-visible:ring-accent/50",
+    "bg-primary hover:bg-primary/90 text-primary-foreground rounded-full focus-visible:ring-primary/50",
   warning:
-    "bg-warning hover:bg-warning/80 text-background focus-visible:ring-warning/50",
+    "bg-warning hover:bg-warning/90 text-on-brand rounded-full focus-visible:ring-warning/50",
 };
 
 export function ConfirmDialog({
@@ -164,7 +164,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 border border-border-strong hover:bg-surface-hover disabled:opacity-50 text-sm font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-border-strong focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
+            className="px-4 py-2 border border-border-strong hover:bg-surface-hover disabled:opacity-50 text-sm font-medium rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-border-strong focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
           >
             {cancelLabel}
           </button>

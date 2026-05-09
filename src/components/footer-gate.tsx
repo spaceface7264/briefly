@@ -26,5 +26,6 @@ export function FooterGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   if (pathname.startsWith("/admin")) return null;
   if (pathname.startsWith("/sandbox")) return null;
+  if (pathname.startsWith("/sandbox-editorial")) return null;
   return <>{children}</>;
 }
