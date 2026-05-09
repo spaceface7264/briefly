@@ -175,15 +175,21 @@ export function Nav() {
                 const isActive =
                   pathname === item.href ||
                   pathname.startsWith(item.href + "/");
-                return (
+                const baseCls =
+                  "relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap";
+                return isActive ? (
+                  <span
+                    key={item.href}
+                    aria-current="page"
+                    className={`${baseCls} text-brand-ink cursor-default`}
+                  >
+                    {item.label}
+                  </span>
+                ) : (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                      isActive
-                        ? "text-brand-ink"
-                        : "text-muted hover:text-foreground"
-                    }`}
+                    className={`${baseCls} text-muted hover:text-foreground`}
                   >
                     {item.label}
                   </Link>
@@ -256,15 +262,21 @@ export function Nav() {
               const isActive =
                 pathname === item.href ||
                 pathname.startsWith(item.href + "/");
-              return (
+              const baseCls =
+                "relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap";
+              return isActive ? (
+                <span
+                  key={item.href}
+                  aria-current="page"
+                  className={`${baseCls} text-brand-ink cursor-default`}
+                >
+                  {item.label}
+                </span>
+              ) : (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                    isActive
-                      ? "text-brand-ink"
-                      : "text-muted hover:text-foreground"
-                  }`}
+                  className={`${baseCls} text-muted hover:text-foreground`}
                 >
                   {item.label}
                 </Link>
@@ -320,8 +332,15 @@ export function Nav() {
                   return (
                     <DropdownMenuItem
                       key={item.href}
-                      className={isActive ? "text-brand-ink" : ""}
-                      onClick={() => router.push(item.href)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={
+                        isActive
+                          ? "text-brand-ink cursor-default"
+                          : ""
+                      }
+                      onClick={
+                        isActive ? undefined : () => router.push(item.href)
+                      }
                     >
                       {item.label}
                     </DropdownMenuItem>
