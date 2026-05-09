@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { requireActiveOrg } from "@/lib/org";
@@ -17,16 +17,10 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // /admin/super has its own platform shell with a different sidebar.
-  // Hand children through bare so the platform layout doesn't render
-  // inside the org admin sidebar. Pathname comes from middleware via
-  // x-pathname; Next 16 does not expose it server-side otherwise.
-  const headerList = await headers();
-  const pathname = headerList.get("x-pathname") ?? "";
-  if (pathname.startsWith("/admin/super")) {
-    return <>{children}</>;
-  }
-
+  // This layout wraps the (org) route group only. /admin/super lives
+  // in a sibling subtree (src/app/admin/super/) with its own layout,
+  // so the URLs are routed through completely separate layout chains
+  // and we don't need a runtime pathname guard here.
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,10 +32,9 @@ export default async function AdminLayout({
   // Three account types route here:
   //   * org     , their own shell, normal admin/member gating
   //   * platform, only when scoped into an org via support mode;
-  //                a platform admin without support_org_id is allowed
-  //                through to /admin/super (handled by its own gate)
-  //                or bounced from the org dashboard to /admin/super
-  //                (handled by /admin/page.tsx)
+  //                a platform admin without support_org_id is bounced
+  //                from the dashboard route to /admin/super (handled
+  //                by (org)/page.tsx)
   //   * creator , never; sent to /briefs
   const accountType = await getAccountType(supabase);
   if (accountType === "creator") redirect("/briefs");
@@ -65,10 +58,9 @@ export default async function AdminLayout({
     : await requireActiveOrg(supabase);
 
   // Platform admin without a support session: render the children bare.
-  // /admin/super has its own platform shell layout; /admin (the
-  // dashboard root) bounces to /admin/super from inside its own
-  // page.tsx, so we don't redirect here, that would loop on
-  // /admin/super itself, since this layout wraps both.
+  // The dashboard route's page.tsx redirects them to /admin/super; for
+  // any other (org) route they'd hit, we just skip the org shell so
+  // we don't try to render AdminNav with no org context.
   if (!orgId) {
     return <>{children}</>;
   }

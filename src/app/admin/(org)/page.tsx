@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
 import { getAccountType } from "@/lib/account";
+import { getSupportOrg } from "@/lib/platform";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { badgeToneByStatus, claimStatusLabel } from "@/lib/admin-badge-tones";
@@ -9,14 +10,14 @@ import type { ClaimStatus } from "@/types/database";
 export default async function AdminDashboard() {
   const supabase = await createClient();
 
-  // Platform admins land here when they hit /admin without a support
-  // session. Send them to the platform shell. The admin layout
-  // intentionally does NOT redirect for them (that would loop on
-  // /admin/super, which shares this layout), so the redirect lives
-  // here on the dashboard route only.
+  // Platform admins without a support session belong on the platform
+  // shell. With a support session, they land here acting as the org
+  // they entered support mode for, so let the request fall through to
+  // the org dashboard render below.
   const accountType = await getAccountType(supabase);
   if (accountType === "platform") {
-    redirect("/admin/super");
+    const support = await getSupportOrg(supabase);
+    if (!support) redirect("/admin/super");
   }
 
   const orgId = await requireActiveOrg(supabase);

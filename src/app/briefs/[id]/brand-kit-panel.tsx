@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import type { BrandColor, BrandTypography } from "@/app/admin/brand/types";
+import type { BrandColor, BrandTypography } from "@/app/admin/(org)/brand/types";
 
 export type BrandKitPanelData = {
   logos: {
