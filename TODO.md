@@ -1898,8 +1898,103 @@ org
 content creators") — defer until search-by-keyword feels insufficient
 
 
-Dev's future ideas:
--add "requires approval" functiion on briefs, when org want to determine if a creator can be allowed to claim a brief. claim is held in suspense until decided, with a deadline. 
--creator monthly fee and/or take rate and/or limit
--fix/enhance hover effect on login btn
--all btn hover effects
+### Backlog (dev brain dump 2026-05-09)
+
+Raw items captured from a working session, grouped by theme. None
+are scoped or sized yet, treat each as a one-line prompt to
+re-examine when the related surface comes up.
+
+**Briefs and claims**
+
+- ❌ Add "requires approval" gate on briefs: when an org wants to
+  vet a creator before letting them claim, the claim sits in
+  suspense (new status?) with a decision deadline; auto-released
+  or auto-rejected on timeout
+- ❌ Add CTA on brief cards (the whole card is a Link today, but
+  an explicit affordance reads more clickable)
+- ❌ Refine and enhance brief detail pages: replace the generic
+  Tips block with platform-specific, contextual guidance; add
+  helpful descriptions and example UI; add legal / explainer
+  copy where questions naturally arise during creation
+- ❌ Show org logo on brief cards (lights up once the "All orgs"
+  feed lands; on single-org `/briefs` the page-level org chip is
+  enough)
+- ❌ "Briefs by All" filter on `/briefs` and `/my-briefs` so a
+  creator in multiple orgs can see one combined feed
+
+**Creator surfaces**
+
+- ❌ Implement creator dashboard front page: summaries, claimed
+  briefs, suggested briefs, updates, stats
+- ❌ Replace `/applications` with an Orgs view that surfaces active
+  memberships, pending applications, and recommended orgs in one
+  place
+- ❌ Add `/billing` to the creator surface (parallel to org-side,
+  for payouts / earnings / tax / invoices)
+- ❌ Refine creator signup flow: remove (or relocate) the invite
+  gate, open signup for creators, lean on onboarding instead of a
+  closed-loop invite
+
+**Org surfaces**
+
+- ❌ Refine org signup flow: decide explicitly how much
+  handholding / customer success is required vs. self-serve
+- ❌ Design a public org page that uses the org's brand colors and
+  logo (consume brand_kits)
+- ❌ Make `/admin/dashboard` interesting and interactive (today
+  it's a static stats grid + recent claims table)
+
+**Pricing and billing**
+
+- ❌ Creator-side monetisation: monthly fee and/or take rate and/or
+  usage limit. Decide model and ship.
+- ❌ Remove the "Available plans" block from `/admin/billing` and
+  spin up a dedicated pricing page that presents all plans, with
+  feature explanations and the current plan highlighted
+- ❌ Make the active-plan pill on `/admin/billing` use the
+  success-green tone instead of the lime accent
+
+**IA and navigation**
+
+- ❌ Remove "How it works" and "Guide" from primary nav, move to
+  footer; reassess what we keep at all once landing redesign lands
+- ❌ Update nav bar per `docs/landing-inspo.md`
+- ❌ Add account termination flow to `/settings`
+- ❌ Hide email from UI everywhere except `/settings` (privacy /
+  noise)
+
+**Communication**
+
+- ❌ Chat system between org and creator (and vice versa) — scope
+  unclear, may need its own design pass
+- ❌ Add a chat-bot for support / triage
+- ❌ Bug report affordance (creator + org-side)
+
+**UI polish**
+
+- ❌ Fix / enhance hover effect on the login button
+- ❌ Audit and standardise hover effects across all buttons
+- ❌ Implement strong icons or some other visual cue to convey
+  hierarchy and purpose (today the icon set is mixed-weight)
+- ❌ Align the collapse-sidebar button into the sidebar itself and
+  remove the standalone header bar across `/admin/*`
+- ❌ Replace static input fields with edit-in-place pattern (click
+  to edit, save on blur or explicit confirm)
+
+**Performance / perceived performance**
+
+- 🟡 Skeleton screens on slow surfaces, target <100ms response,
+  prioritise above-the-fold rendering. Initial pass added
+  page-shaped `loading.tsx` skeletons for `/admin/super/orgs` (list
+  + detail), `/admin/super/health`, `/admin/super/users`,
+  `/admin/(org)/applications`, `/admin/(org)/billing`,
+  `/admin/(org)/organization`, `/discover`, and `/notifications`
+  (2026-05-09). Still missing: rest of `/admin/super/*`
+  (audit/money/notices/users-detail), creator profile sub-pages,
+  brand kit form. Spinner inventory not yet attempted.
+- ❌ Lazy-load off-screen assets, audit CDN delivery, browser
+  caching, minify
+- ✅ Disable redundant clicks on active nav links: AdminNav,
+  PlatformNav, and the public/creator top Nav now render the
+  active row as an inert `<span aria-current="page">` instead of
+  a Link, killing the soft refetch on re-click — shipped 2026-05-09

@@ -533,7 +533,18 @@ function NavRow({
       <SidebarMenuButton
         tooltip={item.label}
         isActive={isActive}
-        render={<Link href={item.href} />}
+        // When active, render an inert <span> instead of a Link so a
+        // second click on the current row doesn't trigger a redundant
+        // soft refetch. aria-current makes the active state legible
+        // to screen readers; cursor-default telegraphs that the row
+        // isn't actionable.
+        render={
+          isActive ? (
+            <span aria-current="page" className="cursor-default" />
+          ) : (
+            <Link href={item.href} />
+          )
+        }
       >
         {item.icon}
         <span>{item.label}</span>
