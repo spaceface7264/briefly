@@ -1983,8 +1983,15 @@ re-examine when the related surface comes up.
 
 **Performance / perceived performance**
 
-- ❌ Skeleton screens or subtle spinners on slow surfaces, target
-  <100ms response, prioritise above-the-fold rendering
+- 🟡 Skeleton screens on slow surfaces, target <100ms response,
+  prioritise above-the-fold rendering. Initial pass added
+  page-shaped `loading.tsx` skeletons for `/admin/super/orgs` (list
+  + detail), `/admin/super/health`, `/admin/super/users`,
+  `/admin/(org)/applications`, `/admin/(org)/billing`,
+  `/admin/(org)/organization`, `/discover`, and `/notifications`
+  (2026-05-09). Still missing: rest of `/admin/super/*`
+  (audit/money/notices/users-detail), creator profile sub-pages,
+  brand kit form. Spinner inventory not yet attempted.
 - ❌ Lazy-load off-screen assets, audit CDN delivery, browser
   caching, minify
 - ✅ Disable redundant clicks on active nav links: AdminNav,
