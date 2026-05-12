@@ -13,6 +13,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AvatarPenDialog,
+  AvatarPenTile,
+  RowPenButton,
+  SettingsReadRow,
+} from "@/components/settings-fields";
+import {
   AVATAR_ALLOWED_MIME_TYPES,
   AVATAR_MAX_BYTES,
 } from "@/lib/creator-profile";
@@ -46,9 +52,12 @@ export function PersonalAccountForm({
 
   const [name, setName] = useState(initialName);
   const [savingName, setSavingName] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameSnapshot, setNameSnapshot] = useState<string | null>(null);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
   const [avatarPending, startAvatar] = useTransition();
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [pwOpen, setPwOpen] = useState(false);
@@ -85,6 +94,7 @@ export function PersonalAccountForm({
         return;
       }
       toast.success("Avatar updated");
+      setAvatarDialogOpen(false);
       router.refresh();
     });
   }
@@ -98,8 +108,20 @@ export function PersonalAccountForm({
       }
       setAvatarUrl(null);
       toast.success("Avatar removed");
+      setAvatarDialogOpen(false);
       router.refresh();
     });
+  }
+
+  function startEditName() {
+    setNameSnapshot(name);
+    setEditingName(true);
+  }
+
+  function cancelEditName() {
+    if (nameSnapshot !== null) setName(nameSnapshot);
+    setNameSnapshot(null);
+    setEditingName(false);
   }
 
   const initialLetter =
@@ -139,6 +161,8 @@ export function PersonalAccountForm({
     }
 
     toast.success("Name saved");
+    setEditingName(false);
+    setNameSnapshot(null);
     router.refresh();
   }
 
@@ -151,59 +175,17 @@ export function PersonalAccountForm({
         </p>
       </div>
 
-      <div className="bg-surface border border-border rounded-xl p-6 space-y-6">
-        {/* Avatar tile — sits above the name form because it's the
-            most visually anchoring field on the card. Uploads go
-            through a server action (see `personal-actions.ts`); the
-            tile shows an optimistic blob: preview while the request
-            is in flight. */}
-        <div className="flex items-center gap-4">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-border bg-background">
-            {avatarUrl ? (
-              // Plain <img> by convention — same reasoning as the
-              // org-logo and creator-side avatar tile: avoids
-              // maintaining a `next/image` remotePatterns allow-list
-              // for every Supabase project URL, and keeps blob:
-              // optimistic previews working without loader config.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-muted">
-                {initialLetter}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={pickAvatar}
-              disabled={avatarPending}
-              className="px-3 py-1.5 text-sm font-medium border border-border-strong hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-            >
-              {avatarPending
-                ? "Working…"
-                : avatarUrl
-                  ? "Replace"
-                  : "Upload"}
-            </button>
-            {avatarUrl && (
-              <button
-                type="button"
-                onClick={clearAvatar}
-                disabled={avatarPending}
-                className="px-3 py-1.5 text-sm text-muted hover:text-error disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Remove
-              </button>
-            )}
-            <p className="text-xs text-muted sm:ml-2">
-              PNG, JPEG, or WebP. Up to 2 MB.
-            </p>
-          </div>
+      <div className="bg-surface border border-border rounded-xl p-6 space-y-5">
+        <div>
+          <span className="block text-sm font-medium mb-2">
+            Profile picture
+          </span>
+          <AvatarPenTile
+            avatarUrl={avatarUrl}
+            initial={initialLetter}
+            size="md"
+            onOpen={() => setAvatarDialogOpen(true)}
+          />
         </div>
         <input
           ref={fileInputRef}
@@ -212,48 +194,69 @@ export function PersonalAccountForm({
           className="hidden"
           onChange={onFileChosen}
         />
+        <AvatarPenDialog
+          open={avatarDialogOpen}
+          onOpenChange={setAvatarDialogOpen}
+          hasAvatar={Boolean(avatarUrl)}
+          pending={avatarPending}
+          onPick={pickAvatar}
+          onClear={clearAvatar}
+        />
 
-        {/* Name — the only editable field on this card. Static rows
-            (email, role, password) live below as label/value pairs so
-            the form input is the focal point. */}
-        <form onSubmit={handleSaveName} className="space-y-4">
-          <div>
-            <label
-              htmlFor="personal-name"
-              className="block text-sm font-medium mb-2"
-            >
-              Display name
-            </label>
-            <input
-              id="personal-name"
-              type="text"
-              value={name}
-              onChange={(ev) => setName(ev.target.value)}
-              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-              placeholder="Your name"
-              autoComplete="name"
-            />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              type="submit"
-              disabled={savingName || name.trim() === initialName.trim()}
-              className="px-4 py-2 bg-accent hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors text-sm"
-            >
-              {savingName ? "Saving…" : "Save name"}
-            </button>
-          </div>
-        </form>
-
-        <div className="border-t border-border pt-6 space-y-4">
-          <StaticRow
-            label="Email"
-            value={email}
-            hint="Sign-in email. Contact support to change it."
+        {/* Inline-edit row for the name — the only editable text
+            field on this card. The pen sits on the right of the row;
+            click flips the value into an input with Save/Cancel. */}
+        {editingName ? (
+          <form onSubmit={handleSaveName} className="space-y-3">
+            <div>
+              <label
+                htmlFor="personal-name"
+                className="block text-sm font-medium mb-2"
+              >
+                Display name
+              </label>
+              <input
+                id="personal-name"
+                type="text"
+                value={name}
+                onChange={(ev) => setName(ev.target.value)}
+                className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                placeholder="Your name"
+                autoComplete="name"
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelEditName}
+                disabled={savingName}
+                className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingName || name.trim() === initialName.trim()}
+                className="px-4 py-2 text-sm bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
+              >
+                {savingName ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <SettingsReadRow
+            label="Display name"
+            value={name || null}
+            action={
+              <RowPenButton onClick={startEditName} label="display name" />
+            }
           />
+        )}
 
-          <StaticRow
+        <div className="border-t border-border pt-5 space-y-5">
+          <SettingsReadRow label="Email" value={email} />
+          <SettingsReadRow
             label="Role"
             value={
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-raised border border-border text-sm">
@@ -262,8 +265,7 @@ export function PersonalAccountForm({
               </span>
             }
           />
-
-          <StaticRow
+          <SettingsReadRow
             label="Password"
             value="••••••••"
             action={
@@ -285,29 +287,6 @@ export function PersonalAccountForm({
         supabase={supabase}
       />
     </section>
-  );
-}
-
-function StaticRow({
-  label,
-  value,
-  hint,
-  action,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-sm font-medium mb-1">{label}</p>
-        <div className="text-sm text-muted break-words">{value}</div>
-        {hint && <p className="text-muted text-xs mt-1">{hint}</p>}
-      </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
   );
 }
 
