@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveOrg } from "@/lib/org";
-import { requireCreatorAccount } from "@/lib/account";
+import { requireOnboardedCreator } from "@/lib/account";
 import { redirect } from "next/navigation";
 import { MyBriefsClient } from "./my-briefs-client";
 import type { Brief, Claim } from "@/types/database";
@@ -24,7 +24,7 @@ export default async function MyBriefsPage() {
     redirect("/login");
   }
 
-  await requireCreatorAccount(supabase);
+  await requireOnboardedCreator(supabase);
   const orgId = await requireActiveOrg(supabase);
 
   // Fetch claims with brief info

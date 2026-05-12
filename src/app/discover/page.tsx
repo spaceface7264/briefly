@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { getAccountType } from "@/lib/account";
 import { OrgCard } from "./org-card";
@@ -12,6 +13,20 @@ export default async function DiscoverPage() {
 
   const accountType = await getAccountType(supabase);
   const isOrgUser = accountType === "org";
+
+  // First-time creators get walked through onboarding before they can
+  // browse orgs. /discover is otherwise accessible to anyone (incl.
+  // anonymous and org users), so we only gate the creator branch.
+  if (user && accountType === "creator") {
+    const { data } = await supabase
+      .from("profiles")
+      .select("onboarded_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!(data as { onboarded_at?: string | null } | null)?.onboarded_at) {
+      redirect("/onboarding");
+    }
+  }
 
   // Get all discoverable orgs
   const { data: orgs } = await supabase

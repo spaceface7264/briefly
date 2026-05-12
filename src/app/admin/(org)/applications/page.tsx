@@ -11,7 +11,7 @@ export default async function AdminApplicationsPage() {
   const { data } = await supabase
     .from("org_applications")
     .select(
-      "id, message, status, created_at, reviewed_at, applicant:profiles!org_applications_user_id_fkey(id, name, email, instagram_handle)"
+      "id, message, status, created_at, reviewed_at, applicant:profiles!org_applications_user_id_fkey(id, name, email, social_handles)"
     )
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });

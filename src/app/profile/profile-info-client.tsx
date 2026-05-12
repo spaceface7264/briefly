@@ -14,18 +14,22 @@ import {
   AVATAR_MAX_BYTES,
   BIO_MAX,
   COUNTRIES,
-  LANGUAGES,
-  LANGUAGES_MAX,
   SKILLS,
   SKILLS_MAX,
   countryLabel,
   languageLabel,
   skillLabel,
 } from "@/lib/creator-profile";
+import { LanguagePicker } from "@/components/language-picker";
 import {
-  instagramProfileUrl,
-  normalizeInstagramHandle,
-} from "@/lib/instagram";
+  normalizeSocialHandle,
+  readSocialHandles,
+  socialDisplayHandle,
+  socialLabel,
+  socialProfileUrl,
+  SOCIAL_PLATFORMS,
+  type SocialPlatform,
+} from "@/lib/socials";
 import {
   removeAvatar,
   saveCreatorProfile,
@@ -57,8 +61,14 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(profile?.name ?? "");
-  const [instagram, setInstagram] = useState(profile?.instagram_handle ?? "");
+  // socials is a slug→raw-input map. Pre-seed with the existing
+  // stored values so the inputs render the current handles; empty
+  // entries are visible but collapsed via "Add a profile" below.
+  const [socials, setSocials] = useState<
+    Partial<Record<SocialPlatform, string>>
+  >(() => readSocialHandles(profile?.social_handles));
   const [bio, setBio] = useState(profile?.bio ?? "");
+  const [city, setCity] = useState<string>(profile?.city ?? "");
   const [country, setCountry] = useState<string | null>(
     profile?.country ?? null
   );
@@ -74,10 +84,11 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
   const [editing, setEditing] = useState<Section | null>(null);
   const [identitySnap, setIdentitySnap] = useState<{
     name: string;
-    instagram: string;
+    socials: Partial<Record<SocialPlatform, string>>;
   } | null>(null);
   const [publicSnap, setPublicSnap] = useState<{
     bio: string;
+    city: string;
     country: string | null;
     languages: string[];
     skills: string[];
@@ -143,38 +154,47 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
     );
   }
 
-  function toggleLanguage(code: string) {
-    setLanguages((prev) =>
-      prev.includes(code)
-        ? prev.filter((l) => l !== code)
-        : prev.length < LANGUAGES_MAX
-        ? [...prev, code]
-        : prev
-    );
-  }
-
   function startEditIdentity() {
-    setIdentitySnap({ name, instagram });
+    setIdentitySnap({ name, socials: { ...socials } });
     setEditing("identity");
   }
 
   function cancelEditIdentity() {
     if (identitySnap) {
       setName(identitySnap.name);
-      setInstagram(identitySnap.instagram);
+      setSocials({ ...identitySnap.socials });
     }
     setIdentitySnap(null);
     setEditing(null);
   }
 
+  function setSocial(platform: SocialPlatform, value: string) {
+    setSocials((prev) => ({ ...prev, [platform]: value }));
+  }
+
+  function removeSocial(platform: SocialPlatform) {
+    setSocials((prev) => {
+      const next = { ...prev };
+      delete next[platform];
+      return next;
+    });
+  }
+
   function startEditPublic() {
-    setPublicSnap({ bio, country, languages: [...languages], skills: [...skills] });
+    setPublicSnap({
+      bio,
+      city,
+      country,
+      languages: [...languages],
+      skills: [...skills],
+    });
     setEditing("public");
   }
 
   function cancelEditPublic() {
     if (publicSnap) {
       setBio(publicSnap.bio);
+      setCity(publicSnap.city);
       setCountry(publicSnap.country);
       setLanguages(publicSnap.languages);
       setSkills(publicSnap.skills);
@@ -190,8 +210,9 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
     startSave(async () => {
       const result = await saveCreatorProfile({
         name,
-        instagram,
+        socials,
         bio,
+        city,
         country,
         languages,
         skills,
@@ -220,10 +241,11 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
   // still counts as clean.
   const identityDirty =
     identitySnap !== null &&
-    (name !== identitySnap.name || instagram !== identitySnap.instagram);
+    (name !== identitySnap.name || !sameSocials(socials, identitySnap.socials));
   const publicDirty =
     publicSnap !== null &&
     (bio !== publicSnap.bio ||
+      city !== publicSnap.city ||
       country !== publicSnap.country ||
       !sameSet(languages, publicSnap.languages) ||
       !sameSet(skills, publicSnap.skills));
@@ -277,9 +299,10 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
                 className={INPUT_CLASS}
               />
             </div>
-            <InstagramField
-              value={instagram}
-              onChange={setInstagram}
+            <SocialsEditor
+              values={socials}
+              onChange={setSocial}
+              onRemove={removeSocial}
               inputClassName={INPUT_CLASS}
             />
           </>
@@ -287,8 +310,8 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
           <>
             <SettingsReadRow label="Display name" value={name || null} />
             <SettingsReadRow
-              label="Instagram handle"
-              value={renderInstagram(instagram)}
+              label="Social profiles"
+              value={renderSocials(socials)}
             />
           </>
         )}
@@ -326,40 +349,58 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
               />
             </div>
 
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium mb-2">
-                Country
-              </label>
-              <select
-                id="country"
-                value={country ?? ""}
-                onChange={(e) => setCountry(e.target.value || null)}
-                className={`${INPUT_CLASS} appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
-                style={{
-                  backgroundImage:
-                    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
-                }}
-              >
-                <option value="">Not set</option>
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.label}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-[2fr_3fr] gap-3">
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium mb-2">
+                  City
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value.slice(0, 100))}
+                  placeholder="Copenhagen"
+                  autoCapitalize="words"
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium mb-2">
+                  Country
+                </label>
+                <select
+                  id="country"
+                  value={country ?? ""}
+                  onChange={(e) => setCountry(e.target.value || null)}
+                  className={`${INPUT_CLASS} appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
+                  style={{
+                    backgroundImage:
+                      "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
+                  }}
+                >
+                  <option value="">Not set</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <ChipPicker
-              label="Languages"
-              helper="Languages you can create content in."
-              options={LANGUAGES.map((l) => ({
-                value: l.code,
-                label: l.label,
-              }))}
-              selected={languages}
-              max={LANGUAGES_MAX}
-              onToggle={toggleLanguage}
-            />
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Languages
+              </label>
+              <p className="text-muted text-sm mb-2">
+                Languages you can create content in.
+              </p>
+              <LanguagePicker
+                selected={languages}
+                onChange={setLanguages}
+                inputClassName={INPUT_CLASS}
+              />
+            </div>
 
             <ChipPicker
               label="Skills"
@@ -380,7 +421,10 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
                 ) : null
               }
             />
-            <SettingsReadRow label="Country" value={countryLabel(country)} />
+            <SettingsReadRow
+              label="Location"
+              value={formatLocation(city, country)}
+            />
             <SettingsReadRow
               label="Languages"
               value={
@@ -411,6 +455,16 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
   );
 }
 
+function formatLocation(
+  city: string,
+  country: string | null
+): string | null {
+  const parts = [city.trim(), countryLabel(country)].filter(
+    (p): p is string => Boolean(p)
+  );
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 function sameSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   const sortedA = [...a].sort();
@@ -433,93 +487,181 @@ function ChipList({ items }: { items: string[] }) {
   );
 }
 
-function renderInstagram(value: string): React.ReactNode {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const normalized = normalizeInstagramHandle(trimmed);
-  if (!normalized) return trimmed;
-  const url = instagramProfileUrl(normalized);
-  if (!url) return `@${normalized}`;
+function sameSocials(
+  a: Partial<Record<SocialPlatform, string>>,
+  b: Partial<Record<SocialPlatform, string>>
+): boolean {
+  const keysA = Object.keys(a) as SocialPlatform[];
+  const keysB = Object.keys(b) as SocialPlatform[];
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k) => a[k] === b[k]);
+}
+
+function renderSocials(
+  values: Partial<Record<SocialPlatform, string>>
+): React.ReactNode {
+  const entries = SOCIAL_PLATFORMS.filter(
+    (p) => typeof values[p] === "string" && values[p]!.trim().length > 0
+  );
+  if (entries.length === 0) return null;
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-accent hover:underline"
-    >
-      @{normalized}
-    </a>
+    <ul className="space-y-1.5">
+      {entries.map((platform) => {
+        const stored = values[platform]!.trim();
+        const url = socialProfileUrl(platform, stored);
+        const display = socialDisplayHandle(platform, stored) ?? stored;
+        return (
+          <li key={platform} className="flex items-baseline gap-2 text-sm">
+            <span className="text-muted w-20 shrink-0">
+              {socialLabel(platform)}
+            </span>
+            {url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:underline truncate"
+              >
+                {display}
+              </a>
+            ) : (
+              <span className="truncate">{display}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function InstagramField({
-  value,
+function SocialsEditor({
+  values,
   onChange,
+  onRemove,
   inputClassName,
 }: {
-  value: string;
-  onChange: (next: string) => void;
+  values: Partial<Record<SocialPlatform, string>>;
+  onChange: (platform: SocialPlatform, value: string) => void;
+  onRemove: (platform: SocialPlatform) => void;
   inputClassName: string;
 }) {
-  const trimmed = value.trim();
-  const normalized = normalizeInstagramHandle(trimmed);
-  const profileUrl = normalized ? instagramProfileUrl(normalized) : null;
-  const showInvalidHint = trimmed.length > 0 && !normalized;
+  // Inputs always render in the canonical SOCIAL_PLATFORMS order so
+  // the UI is stable as the user adds/removes handles. Empty inputs
+  // are visible only for platforms the user has expanded (i.e. has
+  // any value, even if it's just whitespace). Other platforms hide
+  // behind the "Add another profile" picker below.
+  const visiblePlatforms = SOCIAL_PLATFORMS.filter(
+    (p) => typeof values[p] === "string"
+  );
+  const hiddenPlatforms = SOCIAL_PLATFORMS.filter(
+    (p) => typeof values[p] !== "string"
+  );
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <label htmlFor="instagram" className="block text-sm font-medium">
-          Instagram handle
-        </label>
-        {profileUrl && (
-          <a
-            href={profileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-          >
-            Visit profile
-            <svg
-              className="w-3 h-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14 3h7v7m0-7L10 14m-7 0v7h7"
-              />
-            </svg>
-          </a>
+      <label className="block text-sm font-medium mb-2">Social profiles</label>
+      <p className="text-muted text-sm mb-3">
+        Add the platforms where you create. Paste a username or full URL —
+        we&apos;ll tidy it up.
+      </p>
+      <div className="space-y-2">
+        {visiblePlatforms.length === 0 ? (
+          <p className="text-xs text-muted">No profiles added yet.</p>
+        ) : (
+          visiblePlatforms.map((platform) => (
+            <SocialInput
+              key={platform}
+              platform={platform}
+              value={values[platform] ?? ""}
+              onChange={(v) => onChange(platform, v)}
+              onRemove={() => onRemove(platform)}
+              inputClassName={inputClassName}
+            />
+          ))
         )}
       </div>
-      <div className="relative">
-        <span
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm"
-          aria-hidden
+      {hiddenPlatforms.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {hiddenPlatforms.map((platform) => (
+            <button
+              key={platform}
+              type="button"
+              onClick={() => onChange(platform, "")}
+              className="px-2.5 py-1 rounded-full text-xs font-medium border border-border text-muted hover:border-border-strong hover:text-foreground transition-colors"
+            >
+              + {socialLabel(platform)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SocialInput({
+  platform,
+  value,
+  onChange,
+  onRemove,
+  inputClassName,
+}: {
+  platform: SocialPlatform;
+  value: string;
+  onChange: (next: string) => void;
+  onRemove: () => void;
+  inputClassName: string;
+}) {
+  const trimmed = value.trim();
+  const normalized = trimmed ? normalizeSocialHandle(platform, trimmed) : null;
+  const showInvalidHint = trimmed.length > 0 && !normalized;
+  const profileUrl = normalized ? socialProfileUrl(platform, normalized) : null;
+  const inputId = `social-${platform}`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label
+          htmlFor={inputId}
+          className="block text-xs font-medium text-muted"
         >
-          @
-        </span>
-        <input
-          id="instagram"
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="yourhandle"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          className={`${inputClassName} pl-8`}
-        />
+          {socialLabel(platform)}
+        </label>
+        <div className="flex items-center gap-3">
+          {profileUrl && (
+            <a
+              href={profileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              Visit
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-muted hover:text-foreground"
+          >
+            Remove
+          </button>
+        </div>
       </div>
+      <input
+        id={inputId}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={
+          platform === "website" ? "https://your-site.com" : "yourhandle"
+        }
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        className={inputClassName}
+      />
       {showInvalidHint && (
-        <p className="mt-1.5 text-xs text-warning">
-          Use just your username — letters, numbers, periods, and underscores.
-          We&apos;ll strip any @, URL, or extra spaces for you.
+        <p className="mt-1 text-xs text-warning">
+          That doesn&apos;t look right. Use your username or full profile URL.
         </p>
       )}
     </div>

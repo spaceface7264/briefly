@@ -198,6 +198,48 @@ export type Database = {
           },
         ]
       }
+      claim_comments: {
+        Row: {
+          author_id: string | null
+          author_role: string
+          body: string
+          claim_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_role: string
+          body: string
+          claim_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_role?: string
+          body?: string
+          claim_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_comments_claim_id_fkey"
+            columns: ["claim_id"]
+            isOneToOne: false
+            referencedRelation: "claims"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claims: {
         Row: {
           brief_id: string
@@ -1231,6 +1273,7 @@ export type Database = {
           billing_city: string | null
           billing_postal_code: string | null
           bio: string | null
+          city: string | null
           country: string | null
           created_at: string
           cvr_number: string | null
@@ -1238,7 +1281,6 @@ export type Database = {
           disabled_reason: string | null
           email: string | null
           id: string
-          instagram_handle: string | null
           is_platform_admin: boolean
           languages: string[]
           name: string | null
@@ -1248,10 +1290,12 @@ export type Database = {
           notify_new_briefs: boolean
           notify_payments: boolean
           notify_submissions: boolean
+          onboarded_at: string | null
           role: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at: string | null
           self_billing_agreement_version: string | null
           skills: string[]
+          social_handles: Json
           stripe_account_id: string | null
           stripe_details_submitted: boolean
           stripe_payouts_enabled: boolean
@@ -1270,6 +1314,7 @@ export type Database = {
           billing_city?: string | null
           billing_postal_code?: string | null
           bio?: string | null
+          city?: string | null
           country?: string | null
           created_at?: string
           cvr_number?: string | null
@@ -1277,7 +1322,6 @@ export type Database = {
           disabled_reason?: string | null
           email?: string | null
           id: string
-          instagram_handle?: string | null
           is_platform_admin?: boolean
           languages?: string[]
           name?: string | null
@@ -1287,10 +1331,12 @@ export type Database = {
           notify_new_briefs?: boolean
           notify_payments?: boolean
           notify_submissions?: boolean
+          onboarded_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null
           skills?: string[]
+          social_handles?: Json
           stripe_account_id?: string | null
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
@@ -1309,6 +1355,7 @@ export type Database = {
           billing_city?: string | null
           billing_postal_code?: string | null
           bio?: string | null
+          city?: string | null
           country?: string | null
           created_at?: string
           cvr_number?: string | null
@@ -1316,7 +1363,6 @@ export type Database = {
           disabled_reason?: string | null
           email?: string | null
           id?: string
-          instagram_handle?: string | null
           is_platform_admin?: boolean
           languages?: string[]
           name?: string | null
@@ -1326,10 +1372,12 @@ export type Database = {
           notify_new_briefs?: boolean
           notify_payments?: boolean
           notify_submissions?: boolean
+          onboarded_at?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           self_billing_agreement_accepted_at?: string | null
           self_billing_agreement_version?: string | null
           skills?: string[]
+          social_handles?: Json
           stripe_account_id?: string | null
           stripe_details_submitted?: boolean
           stripe_payouts_enabled?: boolean
@@ -1421,6 +1469,7 @@ export type Database = {
       get_active_claim_count: { Args: { brief_uuid: string }; Returns: number }
       is_admin: { Args: never; Returns: boolean }
       is_org_account: { Args: never; Returns: boolean }
+      is_org_active_for_writes: { Args: { p_org_id: string }; Returns: boolean }
       is_org_admin: { Args: { p_org_id: string }; Returns: boolean }
       is_org_member: { Args: { p_org_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
@@ -1534,6 +1583,7 @@ export type Database = {
         | "application_received"
         | "application_approved"
         | "application_rejected"
+        | "claim_revision_requested"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       user_role: "creator" | "admin" | "member"
       vat_scheme: "none" | "standard" | "reverse_charge"
@@ -1694,6 +1744,7 @@ export const Constants = {
         "application_received",
         "application_approved",
         "application_rejected",
+        "claim_revision_requested",
       ],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       user_role: ["creator", "admin", "member"],
@@ -1716,6 +1767,7 @@ export type BrandKit = Tables<"brand_kits">;
 export type Brief = Tables<"briefs">;
 export type Claim = Tables<"claims">;
 export type ClaimAttachment = Tables<"claim_attachments">;
+export type ClaimComment = Tables<"claim_comments">;
 export type Notification = Tables<"notifications">;
 export type NotificationOutbox = Tables<"notification_outbox">;
 export type Payment = Tables<"payments">;
@@ -1732,7 +1784,13 @@ export type PaymentStatus = Enums<"payment_status">;
 export type NotificationEventType = Enums<"notification_event_type">;
 export type VatScheme = Enums<"vat_scheme">;
 export type UserRole = Enums<"user_role">;
-export type ClaimStatus = "active" | "submitted" | "approved" | "paid" | "cancelled";
+export type ClaimStatus =
+  | "active"
+  | "submitted"
+  | "revision_requested"
+  | "approved"
+  | "paid"
+  | "cancelled";
 
 // Brief enriched with per-user/per-list claim metadata for display.
 export type BriefWithClaims = Brief & {
