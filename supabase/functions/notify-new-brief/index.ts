@@ -23,7 +23,7 @@ interface WebhookPayload {
     description: string;
     category: string;
     duration_class: string;
-    payout_amount: number;
+    price_dkk: number;
     location: string | null;
     org_id: string;
     status: string;
@@ -79,7 +79,7 @@ serve(async (req) => {
       style: "currency",
       currency: "DKK",
       minimumFractionDigits: 0,
-    }).format(payload.record.payout_amount);
+    }).format(payload.record.price_dkk);
 
     // Send email via Resend
     const res = await fetch("https://api.resend.com/emails", {
@@ -112,8 +112,16 @@ serve(async (req) => {
     });
 
     const resendData = await res.json();
-    console.log("Resend response:", resendData);
 
+    if (!res.ok) {
+      console.error("Resend rejected:", res.status, resendData);
+      return new Response(
+        JSON.stringify({ success: false, status: res.status, resend: resendData }),
+        { status: 502 }
+      );
+    }
+
+    console.log("Resend response:", resendData);
     return new Response(JSON.stringify({ success: true, resend: resendData }), {
       status: 200,
     });

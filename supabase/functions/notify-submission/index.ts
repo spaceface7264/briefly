@@ -110,8 +110,16 @@ serve(async (req) => {
       });
 
       const resendData = await res.json();
-      console.log("Resend response:", resendData);
 
+      if (!res.ok) {
+        console.error("Resend rejected:", res.status, resendData);
+        return new Response(
+          JSON.stringify({ success: false, status: res.status, resend: resendData }),
+          { status: 502 }
+        );
+      }
+
+      console.log("Resend response:", resendData);
       return new Response(JSON.stringify({ success: true, resend: resendData }), {
         status: 200,
       });
