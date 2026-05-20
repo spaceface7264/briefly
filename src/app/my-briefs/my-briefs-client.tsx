@@ -33,6 +33,12 @@ const statusGroups: {
     tone: "brand",
   },
   {
+    status: "revision_requested",
+    title: "Changes Requested",
+    description: "The org has feedback — open the brief to see it and re-upload",
+    tone: "warning",
+  },
+  {
     status: "submitted",
     title: "Under Review",
     description: "Waiting for admin approval",
@@ -64,6 +70,11 @@ const statusTheme: Record<
     summaryCard: "bg-accent/6 border-accent/20",
     rowCard: "bg-accent/6 border-accent/22 hover:border-accent/38",
     dot: "bg-accent",
+  },
+  revision_requested: {
+    summaryCard: "bg-warning/8 border-warning/22",
+    rowCard: "bg-warning/8 border-warning/24 hover:border-warning/40",
+    dot: "bg-warning",
   },
   submitted: {
     summaryCard: "bg-info/8 border-info/22",
@@ -129,7 +140,7 @@ export function MyBriefsClient({ claims }: Props) {
           ) : (
             <>
               {/* Status summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-8">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-8">
                 {groupedClaims.map((group) => {
                   const count = group.claims.length;
                   const isEmpty = count === 0;
