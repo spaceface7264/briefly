@@ -242,10 +242,10 @@ export async function prepareSubmissionUploads(
   if (claim.user_id !== user.id) {
     return { ok: false, error: "Not your claim" };
   }
-  if (claim.status !== "active") {
+  if (claim.status !== "active" && claim.status !== "revision_requested") {
     return {
       ok: false,
-      error: `Claim is ${claim.status}; only active claims can be submitted`,
+      error: `Claim is ${claim.status}; only active or revision_requested claims can be submitted`,
     };
   }
 
@@ -365,10 +365,10 @@ export async function confirmSubmission(
   if (claim.user_id !== user.id) {
     return { ok: false, error: "Not your claim" };
   }
-  if (claim.status !== "active") {
+  if (claim.status !== "active" && claim.status !== "revision_requested") {
     return {
       ok: false,
-      error: `Claim is ${claim.status}; only active claims can be submitted`,
+      error: `Claim is ${claim.status}; only active or revision_requested claims can be submitted`,
     };
   }
 

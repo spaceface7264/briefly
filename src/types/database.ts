@@ -85,6 +85,9 @@ export type Database = {
           reference_urls: string[] | null
           status: Database["public"]["Enums"]["brief_status"]
           stripe_payment_intent_id: string | null
+          target_countries: string[]
+          target_languages: string[]
+          target_skills: string[]
           title: string
           updated_at: string
           usage_rights: string | null
@@ -112,6 +115,9 @@ export type Database = {
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
           stripe_payment_intent_id?: string | null
+          target_countries?: string[]
+          target_languages?: string[]
+          target_skills?: string[]
           title: string
           updated_at?: string
           usage_rights?: string | null
@@ -139,6 +145,9 @@ export type Database = {
           reference_urls?: string[] | null
           status?: Database["public"]["Enums"]["brief_status"]
           stripe_payment_intent_id?: string | null
+          target_countries?: string[]
+          target_languages?: string[]
+          target_skills?: string[]
           title?: string
           updated_at?: string
           usage_rights?: string | null
@@ -1796,4 +1805,11 @@ export type ClaimStatus =
 export type BriefWithClaims = Brief & {
   claim_count: number;
   user_has_claimed: boolean;
+  /** Optional match-score badge data. Populated by /briefs server
+   *  ranking; absent on surfaces where matching isn't applied. */
+  match?: {
+    score: number;
+    overlapCount: number;
+    hasTargeting: boolean;
+  } | null;
 };

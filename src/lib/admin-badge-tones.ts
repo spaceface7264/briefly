@@ -12,6 +12,7 @@ export const badgeToneByStatus: Record<BriefStatus | ClaimStatus, string> = {
   open: "bg-success/20 text-success-ink",
   claimed: "bg-accent-muted text-accent-ink",
   submitted: "bg-info-muted text-info-ink",
+  revision_requested: "bg-warning/20 text-warning-ink",
   approved: "bg-success/20 text-success-ink",
   paid: "bg-success-muted text-success-ink",
   archived: "bg-muted/20 text-muted",
@@ -47,6 +48,7 @@ export const badgeToneByCategory: Record<BriefCategory, string> = {
 export const claimStatusLabel: Record<ClaimStatus, string> = {
   active: "Active",
   submitted: "Pending Review",
+  revision_requested: "Changes Requested",
   approved: "Approved",
   paid: "Paid",
   cancelled: "Cancelled",
