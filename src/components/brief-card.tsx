@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Brief, BriefWithClaims } from "@/types/database";
 import { formatPrice, formatDeadline, categoryLabel, durationClassLabel } from "@/lib/utils";
+import { matchBadgeTone } from "@/lib/brief-matching";
 
 interface BriefCardProps {
   brief: Brief | BriefWithClaims;
@@ -76,6 +77,23 @@ export function BriefCard({ brief }: BriefCardProps) {
             Ad
           </span>
         )}
+        {hasClaimInfo(brief) && brief.match && (() => {
+          const tone = matchBadgeTone(brief.match);
+          if (!tone) return null;
+          const isStrong = tone === "strong";
+          return (
+            <span
+              title={`${Math.round(brief.match.score * 100)}% match`}
+              className={
+                isStrong
+                  ? "inline-flex items-center rounded-full border border-brand-ink/40 bg-brand/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-brand-ink"
+                  : "inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted"
+              }
+            >
+              {isStrong ? "Match" : "Partial"}
+            </span>
+          );
+        })()}
         <span className="value-text inline-flex items-center rounded-full border border-accent-ink/30 bg-accent/10 px-1.5 py-px text-accent-ink text-xs font-semibold whitespace-nowrap">
           {formatPrice(brief.price_dkk)}
         </span>

@@ -19,6 +19,11 @@ import {
   decidePublishCharge,
 } from "@/lib/pricing";
 import {
+  sanitizeCountries,
+  sanitizeLanguages,
+  sanitizeSkills,
+} from "@/lib/creator-profile";
+import {
   commitBriefPublishCount,
   decrementBriefPublishCount,
 } from "@/lib/billing/allowance";
@@ -330,6 +335,12 @@ interface NewBriefInput {
   usage_rights: string | null;
   deliverable_specs: Json;
   is_ad_intended: boolean;
+  /** Soft-match targeting. Empty arrays mean "no filter on this
+   *  dimension". Values are sanitised server-side against the
+   *  controlled vocabularies in src/lib/creator-profile.ts. */
+  target_skills: string[];
+  target_languages: string[];
+  target_countries: string[];
   /**
    * Client-generated UUID minted when the form mounts. Used to derive
    * the Stripe idempotency key for the escrow PaymentIntent so a
@@ -457,6 +468,9 @@ export async function createBriefWithEscrow(
       usage_rights: input.usage_rights,
       deliverable_specs: input.deliverable_specs,
       is_ad_intended: input.is_ad_intended,
+      target_skills: sanitizeSkills(input.target_skills),
+      target_languages: sanitizeLanguages(input.target_languages),
+      target_countries: sanitizeCountries(input.target_countries),
       created_by: userId,
       org_id: orgId,
       status: "open",
@@ -568,6 +582,9 @@ export async function saveBriefDraft(
       usage_rights: input.usage_rights,
       deliverable_specs: input.deliverable_specs,
       is_ad_intended: input.is_ad_intended,
+      target_skills: sanitizeSkills(input.target_skills),
+      target_languages: sanitizeLanguages(input.target_languages),
+      target_countries: sanitizeCountries(input.target_countries),
       created_by: userId,
       org_id: orgId,
       status: "draft",
@@ -777,6 +794,9 @@ export async function updateBriefDraft(
       usage_rights: input.usage_rights,
       deliverable_specs: input.deliverable_specs,
       is_ad_intended: input.is_ad_intended,
+      target_skills: sanitizeSkills(input.target_skills),
+      target_languages: sanitizeLanguages(input.target_languages),
+      target_countries: sanitizeCountries(input.target_countries),
     })
     .eq("id", briefId);
 

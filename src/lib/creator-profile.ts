@@ -372,3 +372,24 @@ export function sanitizeLanguages(input: unknown): string[] {
   }
   return out;
 }
+
+/** Brief-side cap on `target_countries`. Mirrors COUNTRIES length so
+ *  an org can in principle target the full set without hitting the
+ *  cap, but rejects garbage payloads claiming more. */
+export const COUNTRIES_MAX = 30;
+
+export function sanitizeCountries(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!isValidCountry(trimmed)) continue;
+    if (seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+    if (out.length >= COUNTRIES_MAX) break;
+  }
+  return out;
+}
