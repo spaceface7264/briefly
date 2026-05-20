@@ -41,6 +41,38 @@ export async function requireCreatorAccount(
 }
 
 /**
+ * Creator-only gate that also enforces the first-time onboarding
+ * flow. Use on the *entry* surfaces a fresh creator might hit
+ * (/briefs, /discover, /my-briefs) so they get walked through the
+ * interview before browsing. /profile/* deliberately bypasses this —
+ * power users who want to edit fields directly can; once they save,
+ * `onboarded_at` is stamped and the redirect stops firing.
+ *
+ * Skips the check when no user is logged in (the outer middleware /
+ * page-level auth gate handles redirect-to-login).
+ */
+export async function requireOnboardedCreator(
+  supabase: SupabaseClient
+): Promise<void> {
+  await requireCreatorAccount(supabase);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("onboarded_at")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const onboardedAt = (data as { onboarded_at?: string | null } | null)
+    ?.onboarded_at;
+  if (!onboardedAt) redirect("/onboarding");
+}
+
+/**
  * Server-side guard for org-only pages. Sends creators to /briefs and
  * platform users to /admin/super. Platform users in support mode are
  * allowed through, see src/lib/platform.ts → getSupportOrg.

@@ -2,7 +2,7 @@ import path from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import { RECLAIM_COOLDOWN_DAYS } from "@/lib/claims";
 import { notFound } from "next/navigation";
-import { requireCreatorAccount } from "@/lib/account";
+import { requireOnboardedCreator } from "@/lib/account";
 import { BriefDetailClient } from "./brief-detail-client";
 import {
   extractBrandStoragePath,
@@ -21,7 +21,7 @@ interface Props {
 export default async function BriefDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-  await requireCreatorAccount(supabase);
+  await requireOnboardedCreator(supabase);
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -119,6 +119,7 @@ export default async function BriefDetailPage({ params }: Props) {
 const BRAND_KIT_VISIBLE_STATUSES = new Set([
   "active",
   "submitted",
+  "revision_requested",
   "approved",
   "paid",
 ]);

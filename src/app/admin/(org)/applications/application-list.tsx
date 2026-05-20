@@ -3,10 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { planLimitErrorMessage } from "@/lib/pricing";
-import {
-  instagramDisplayHandle,
-  instagramProfileUrl,
-} from "@/lib/instagram";
+import { SocialLinks } from "@/components/social-links";
 import { reviewApplication } from "./actions";
 
 export interface Application {
@@ -19,7 +16,7 @@ export interface Application {
     id: string;
     name: string | null;
     email: string | null;
-    instagram_handle: string | null;
+    social_handles: unknown;
   } | null;
 }
 
@@ -114,33 +111,13 @@ function ApplicationRow({
   return (
     <div className="bg-surface border border-border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <p className="font-medium truncate">
             {application.applicant?.name || application.applicant?.email || "Unknown"}
           </p>
-          {application.applicant?.instagram_handle &&
-            (() => {
-              const display = instagramDisplayHandle(
-                application.applicant.instagram_handle
-              );
-              const url = instagramProfileUrl(
-                application.applicant.instagram_handle
-              );
-              if (!display) return null;
-              const className = "text-xs text-muted hover:text-accent hover:underline";
-              return url ? (
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={className}
-                >
-                  @{display}
-                </a>
-              ) : (
-                <span className={className}>@{display}</span>
-              );
-            })()}
+          {application.applicant && (
+            <SocialLinks socialHandles={application.applicant.social_handles} />
+          )}
         </div>
         {application.applicant?.email && (
           <p className="text-sm text-muted truncate">

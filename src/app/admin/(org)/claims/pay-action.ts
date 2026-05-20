@@ -59,8 +59,11 @@ export async function payClaim(claimId: string): Promise<PayResult> {
     return { ok: false, error: "Claim not found" };
   }
 
-  if (claim.status !== "approved") {
-    return { ok: false, error: "Claim must be approved before paying" };
+  if (claim.status !== "submitted" && claim.status !== "approved") {
+    return {
+      ok: false,
+      error: "Only submitted or approved claims can be paid",
+    };
   }
 
   const creator = claim.creator;

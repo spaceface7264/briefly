@@ -9,10 +9,7 @@ import {
   languageLabel,
   skillLabel,
 } from "@/lib/creator-profile";
-import {
-  instagramDisplayHandle,
-  instagramProfileUrl,
-} from "@/lib/instagram";
+import { SocialLinks } from "@/components/social-links";
 import type { Profile } from "@/types/database";
 
 export default async function CreatorDetailPage({
@@ -82,23 +79,11 @@ export default async function CreatorDetailPage({
               {profile.name || "Unnamed Creator"}
             </h1>
             <p className="text-muted truncate">{profile.email}</p>
-            {(() => {
-              const display = instagramDisplayHandle(profile.instagram_handle);
-              const url = instagramProfileUrl(profile.instagram_handle);
-              if (!display) return null;
-              return url ? (
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent-ink hover:underline"
-                >
-                  @{display}
-                </a>
-              ) : (
-                <span className="text-accent-ink">@{display}</span>
-              );
-            })()}
+            <SocialLinks
+              socialHandles={profile.social_handles}
+              variant="stacked"
+              className="mt-2"
+            />
           </div>
         </div>
         <RoleBadge role={orgRole} />
@@ -193,6 +178,8 @@ export default async function CreatorDetailPage({
 
 function ProfileSummary({ profile }: { profile: Profile }) {
   const country = countryLabel(profile.country);
+  const city = profile.city?.trim() ?? "";
+  const location = [city, country].filter((p) => Boolean(p)).join(", ");
   const languages = profile.languages ?? [];
   const skills = profile.skills ?? [];
   const bio = profile.bio?.trim() ?? "";
@@ -200,7 +187,7 @@ function ProfileSummary({ profile }: { profile: Profile }) {
   // Hide the section entirely when the creator hasn't filled
   // anything in yet — an empty card with four "—" rows just adds
   // noise on accounts that pre-date Phase 2.
-  if (!country && !languages.length && !skills.length && !bio) {
+  if (!location && !languages.length && !skills.length && !bio) {
     return null;
   }
 
@@ -215,7 +202,7 @@ function ProfileSummary({ profile }: { profile: Profile }) {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <SummaryRow label="Country" value={country} />
+        <SummaryRow label="Location" value={location || null} />
         <SummaryChips
           label="Languages"
           values={languages}

@@ -4,10 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const WEBHOOK_AUTH_SECRET = Deno.env.get("WEBHOOK_AUTH_SECRET");
 const APP_URL = Deno.env.get("APP_URL") || "http://localhost:3000";
 const SENDER_NAME = Deno.env.get("PLATFORM_SENDER_NAME") || "Briefly";
 const SENDER_EMAIL = Deno.env.get("PLATFORM_SENDER_EMAIL") || "notifications@example.com";
 const PLATFORM_NAME = Deno.env.get("PLATFORM_NAME") || "Briefly";
+
+function authorized(req: Request): boolean {
+  if (!WEBHOOK_AUTH_SECRET) return false;
+  return req.headers.get("authorization") === `Bearer ${WEBHOOK_AUTH_SECRET}`;
+}
 
 const MAX_ATTEMPTS = 5;
 const BATCH_SIZE = 30;
@@ -78,7 +84,10 @@ async function sendEmail({
   }
 }
 
-serve(async () => {
+serve(async (req) => {
+  if (!authorized(req)) {
+    return new Response("unauthorized", { status: 401 });
+  }
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !RESEND_API_KEY) {
       return new Response(

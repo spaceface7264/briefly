@@ -9,6 +9,8 @@ import {
   forcePasswordReset,
 } from "../actions";
 import { RESET_LINK_COOKIE_PREFIX } from "../constants";
+import { SocialLinks } from "@/components/social-links";
+import { hasSocials } from "@/lib/socials";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,7 @@ export default async function SuperUserDetailPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, email, name, account_type, is_platform_admin, avatar_url, created_at, country, instagram_handle, stripe_account_id, stripe_payouts_enabled, stripe_details_submitted, disabled_at, disabled_reason, support_org_id, active_org_id"
+      "id, email, name, account_type, is_platform_admin, avatar_url, created_at, country, social_handles, stripe_account_id, stripe_payouts_enabled, stripe_details_submitted, disabled_at, disabled_reason, support_org_id, active_org_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -146,8 +148,14 @@ export default async function SuperUserDetailPage({
           <Inline label="User ID" value={<code className="font-mono text-xs">{profile.id}</code>} />
           <Inline label="Country" value={profile.country ?? "-"} />
           <Inline
-            label="Instagram"
-            value={profile.instagram_handle ?? "-"}
+            label="Socials"
+            value={
+              hasSocials(profile.social_handles) ? (
+                <SocialLinks socialHandles={profile.social_handles} />
+              ) : (
+                "-"
+              )
+            }
           />
           <Inline
             label="Created"

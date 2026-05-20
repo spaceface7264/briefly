@@ -21,6 +21,15 @@ import {
   publishBriefFromDraft,
 } from "./actions";
 import type { Brief, BriefCategory, BriefDurationClass } from "@/types/database";
+import {
+  COUNTRIES,
+  COUNTRIES_MAX,
+  SKILLS,
+  SKILLS_MAX,
+  countryLabel,
+  skillLabel,
+} from "@/lib/creator-profile";
+import { LanguagePicker } from "@/components/language-picker";
 
 const categories: { value: BriefCategory; label: string }[] = [
   { value: "entertaining", label: "Entertaining" },
@@ -135,6 +144,15 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
   );
   const [usageRights, setUsageRights] = useState(brief?.usage_rights || "");
   const [isAdIntended, setIsAdIntended] = useState(brief?.is_ad_intended ?? false);
+  const [targetSkills, setTargetSkills] = useState<string[]>(
+    brief?.target_skills ?? []
+  );
+  const [targetLanguages, setTargetLanguages] = useState<string[]>(
+    brief?.target_languages ?? []
+  );
+  const [targetCountries, setTargetCountries] = useState<string[]>(
+    brief?.target_countries ?? []
+  );
 
   // Deliverable specs as structured entries
   const [specEntries, setSpecEntries] = useState<SpecEntry[]>(() => {
@@ -302,6 +320,9 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
       usage_rights: usageRights || null,
       deliverable_specs: entriesToSpecs(specEntries),
       is_ad_intended: isAdIntended,
+      target_skills: targetSkills,
+      target_languages: targetLanguages,
+      target_countries: targetCountries,
     };
   }
 
@@ -895,6 +916,20 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
         />
       </div>
 
+      {/* Targeting criteria. Soft-match only — these don't hard-filter
+          creators on /briefs, they just rank matching briefs higher
+          on each creator's feed. Empty in any dimension means "no
+          preference" for that dimension. */}
+      <TargetingSection
+        skills={targetSkills}
+        onSkills={setTargetSkills}
+        languages={targetLanguages}
+        onLanguages={setTargetLanguages}
+        countries={targetCountries}
+        onCountries={setTargetCountries}
+        inputClass={inputClass}
+      />
+
       {/* Ad Intended */}
       <div className="flex items-start gap-3 p-4 bg-surface border border-border rounded-lg">
         <input
@@ -1018,5 +1053,127 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
         </button>
       </div>
     </form>
+  );
+}
+
+function TargetingSection({
+  skills,
+  onSkills,
+  languages,
+  onLanguages,
+  countries,
+  onCountries,
+  inputClass,
+}: {
+  skills: string[];
+  onSkills: (next: string[]) => void;
+  languages: string[];
+  onLanguages: (next: string[]) => void;
+  countries: string[];
+  onCountries: (next: string[]) => void;
+  inputClass: string;
+}) {
+  function toggleSkill(slug: string) {
+    if (skills.includes(slug)) {
+      onSkills(skills.filter((s) => s !== slug));
+    } else if (skills.length < SKILLS_MAX) {
+      onSkills([...skills, slug]);
+    }
+  }
+  function toggleCountry(code: string) {
+    if (countries.includes(code)) {
+      onCountries(countries.filter((c) => c !== code));
+    } else if (countries.length < COUNTRIES_MAX) {
+      onCountries([...countries, code]);
+    }
+  }
+
+  return (
+    <div className="border border-border rounded-lg p-4 bg-surface space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold mb-1">Looking for</h3>
+        <p className="text-xs text-muted">
+          Optional. Leave blank for any creator. Briefs with criteria
+          surface higher on matching creators&apos; feeds, but every
+          creator can still see and claim them.
+        </p>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium">Skills</label>
+          <span className="text-xs text-muted font-mono">
+            {skills.length}/{SKILLS_MAX}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {SKILLS.map((s) => {
+            const isSelected = skills.includes(s.slug);
+            const atCap = skills.length >= SKILLS_MAX;
+            const isDisabled = !isSelected && atCap;
+            return (
+              <button
+                key={s.slug}
+                type="button"
+                onClick={() => toggleSkill(s.slug)}
+                disabled={isDisabled}
+                aria-pressed={isSelected}
+                className={
+                  isSelected
+                    ? "px-3 py-1.5 rounded-full text-sm font-medium bg-brand-muted text-brand border border-brand/40"
+                    : "px-3 py-1.5 rounded-full text-sm font-medium border border-border text-muted hover:border-border-strong hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                }
+              >
+                {skillLabel(s.slug)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">Languages</label>
+        <LanguagePicker
+          selected={languages}
+          onChange={onLanguages}
+          inputClassName={inputClass}
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium">Countries</label>
+          {countries.length > 0 && (
+            <span className="text-xs text-muted font-mono">
+              {countries.length}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {COUNTRIES.map((c) => {
+            const isSelected = countries.includes(c.code);
+            const atCap = countries.length >= COUNTRIES_MAX;
+            const isDisabled = !isSelected && atCap;
+            return (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => toggleCountry(c.code)}
+                disabled={isDisabled}
+                aria-pressed={isSelected}
+                className={
+                  isSelected
+                    ? "px-3 py-1.5 rounded-full text-sm font-medium bg-brand-muted text-brand border border-brand/40 inline-flex items-center gap-1.5"
+                    : "px-3 py-1.5 rounded-full text-sm font-medium border border-border text-muted hover:border-border-strong hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
+                }
+              >
+                <span aria-hidden>{c.flag}</span>
+                <span>{countryLabel(c.code) ?? c.code}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

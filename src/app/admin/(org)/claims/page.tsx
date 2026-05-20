@@ -5,10 +5,7 @@ import { formatPrice } from "@/lib/utils";
 import { Avatar } from "@/components/avatar";
 import { ClaimActions } from "./claim-actions";
 import { badgeToneByStatus, claimStatusLabel } from "@/lib/admin-badge-tones";
-import {
-  instagramDisplayHandle,
-  instagramProfileUrl,
-} from "@/lib/instagram";
+import { SocialLinks } from "@/components/social-links";
 import type { ClaimStatus } from "@/types/database";
 
 export default async function AdminClaimsPage({
@@ -25,7 +22,7 @@ export default async function AdminClaimsPage({
   // Always fetch all claims so tab counts are accurate; filter the displayed list below
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: allClaims } = await (supabase.from("claims") as any)
-    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, instagram_handle, stripe_payouts_enabled, avatar_url)")
+    .select("*, brief:briefs(id, title, price_dkk, category), creator:profiles(id, name, email, social_handles, stripe_payouts_enabled, avatar_url)")
     .eq("org_id", orgId)
     .order("claimed_at", { ascending: false });
 
@@ -61,6 +58,7 @@ export default async function AdminClaimsPage({
     { status: null, label: "All" },
     { status: "active", label: "Active" },
     { status: "submitted", label: "Pending Review" },
+    { status: "revision_requested", label: "Changes Requested" },
     { status: "approved", label: "Approved" },
     { status: "paid", label: "Paid" },
     { status: "cancelled", label: "Cancelled" },
@@ -142,10 +140,10 @@ export default async function AdminClaimsPage({
                           <p className="text-muted text-sm truncate">
                             {claim.creator?.email}
                           </p>
-                          {claim.creator?.instagram_handle && (
-                            <InstagramLink
-                              handle={claim.creator.instagram_handle}
-                              className="text-accent-ink text-sm truncate hover:underline"
+                          {claim.creator?.social_handles && (
+                            <SocialLinks
+                              socialHandles={claim.creator.social_handles}
+                              className="mt-0.5"
                             />
                           )}
                         </div>
@@ -199,32 +197,3 @@ function ClaimStatusBadge({ status }: { status: ClaimStatus }) {
   );
 }
 
-/**
- * Small read-only Instagram link. Falls back to plain text if the
- * stored handle isn't usable as a link target. Block-level by default
- * so it sits on its own line under the creator's name/email.
- */
-function InstagramLink({
-  handle,
-  className = "",
-}: {
-  handle: string | null | undefined;
-  className?: string;
-}) {
-  const display = instagramDisplayHandle(handle);
-  const url = instagramProfileUrl(handle);
-  if (!display) return null;
-  if (!url) {
-    return <p className={className}>@{display}</p>;
-  }
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`block ${className}`}
-    >
-      @{display}
-    </a>
-  );
-}

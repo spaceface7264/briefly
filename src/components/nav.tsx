@@ -25,13 +25,13 @@ const creatorNavItems = [
   { href: "/briefs", label: "Briefs" },
   { href: "/my-briefs", label: "My Briefs" },
   { href: "/discover", label: "Discover" },
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/guide", label: "Guide" },
+  // How it works + Guide hidden pending an iterated redesign — the
+  // routes still exist (footer + deep links) so this is a nav-only
+  // hide, not a removal.
 ];
 
 const publicNavItems = [
   { href: "/discover", label: "Discover" },
-  { href: "/how-it-works", label: "How it works" },
 ];
 
 const creatorProfileItems = [

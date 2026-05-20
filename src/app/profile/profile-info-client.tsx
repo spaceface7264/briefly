@@ -4,19 +4,32 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  AvatarPenDialog,
+  AvatarPenTile,
+  SettingsCard,
+  SettingsReadRow,
+} from "@/components/settings-fields";
+import {
   AVATAR_ALLOWED_MIME_TYPES,
   AVATAR_MAX_BYTES,
   BIO_MAX,
   COUNTRIES,
-  LANGUAGES,
-  LANGUAGES_MAX,
   SKILLS,
   SKILLS_MAX,
+  countryLabel,
+  languageLabel,
+  skillLabel,
 } from "@/lib/creator-profile";
+import { LanguagePicker } from "@/components/language-picker";
 import {
-  instagramProfileUrl,
-  normalizeInstagramHandle,
-} from "@/lib/instagram";
+  normalizeSocialHandle,
+  readSocialHandles,
+  socialDisplayHandle,
+  socialLabel,
+  socialProfileUrl,
+  SOCIAL_PLATFORMS,
+  type SocialPlatform,
+} from "@/lib/socials";
 import {
   removeAvatar,
   saveCreatorProfile,
@@ -32,21 +45,30 @@ interface Props {
 const INPUT_CLASS =
   "w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors outline-none";
 
+type Section = "identity" | "public";
+
 export function ProfileInfoClient({ profile, userEmail }: Props) {
   const router = useRouter();
 
-  // Avatar lives in its own state because uploads happen out-of-band
-  // from the main save action — the file is too big to round-trip
-  // through the JSON form.
+  // Avatar lives outside the section edit-mode flow because uploads
+  // are direct-to-storage and immediately effective; there's no
+  // "draft" state to commit alongside the rest of the form.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     profile?.avatar_url ?? null
   );
   const [avatarPending, startAvatar] = useTransition();
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(profile?.name ?? "");
-  const [instagram, setInstagram] = useState(profile?.instagram_handle ?? "");
+  // socials is a slug→raw-input map. Pre-seed with the existing
+  // stored values so the inputs render the current handles; empty
+  // entries are visible but collapsed via "Add a profile" below.
+  const [socials, setSocials] = useState<
+    Partial<Record<SocialPlatform, string>>
+  >(() => readSocialHandles(profile?.social_handles));
   const [bio, setBio] = useState(profile?.bio ?? "");
+  const [city, setCity] = useState<string>(profile?.city ?? "");
   const [country, setCountry] = useState<string | null>(
     profile?.country ?? null
   );
@@ -54,6 +76,23 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
     profile?.languages ?? []
   );
   const [skills, setSkills] = useState<string[]>(profile?.skills ?? []);
+
+  // Per-section edit state. A "snapshot" lets Cancel restore the
+  // pre-edit values without re-fetching, so the user gets immediate
+  // feedback. Save clears the snapshot — the new values become the
+  // baseline for any subsequent edit.
+  const [editing, setEditing] = useState<Section | null>(null);
+  const [identitySnap, setIdentitySnap] = useState<{
+    name: string;
+    socials: Partial<Record<SocialPlatform, string>>;
+  } | null>(null);
+  const [publicSnap, setPublicSnap] = useState<{
+    bio: string;
+    city: string;
+    country: string | null;
+    languages: string[];
+    skills: string[];
+  } | null>(null);
   const [savePending, startSave] = useTransition();
 
   function pickAvatar() {
@@ -82,15 +121,11 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
         toast.error("Avatar upload failed", { description: result.error });
         return;
       }
-      // The action revalidates server data; refresh so the canonical
-      // URL flows back through props on the next render. We also
-      // optimistically swap to a blob preview so the tile updates
-      // before the round-trip completes.
       toast.success("Avatar updated");
+      setAvatarDialogOpen(false);
       router.refresh();
     });
 
-    // Optimistic preview while the upload + revalidate are in flight.
     const objectUrl = URL.createObjectURL(file);
     setAvatarUrl(objectUrl);
   }
@@ -104,6 +139,7 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
       }
       setAvatarUrl(null);
       toast.success("Avatar removed");
+      setAvatarDialogOpen(false);
       router.refresh();
     });
   }
@@ -118,23 +154,65 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
     );
   }
 
-  function toggleLanguage(code: string) {
-    setLanguages((prev) =>
-      prev.includes(code)
-        ? prev.filter((l) => l !== code)
-        : prev.length < LANGUAGES_MAX
-        ? [...prev, code]
-        : prev
-    );
+  function startEditIdentity() {
+    setIdentitySnap({ name, socials: { ...socials } });
+    setEditing("identity");
   }
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  function cancelEditIdentity() {
+    if (identitySnap) {
+      setName(identitySnap.name);
+      setSocials({ ...identitySnap.socials });
+    }
+    setIdentitySnap(null);
+    setEditing(null);
+  }
+
+  function setSocial(platform: SocialPlatform, value: string) {
+    setSocials((prev) => ({ ...prev, [platform]: value }));
+  }
+
+  function removeSocial(platform: SocialPlatform) {
+    setSocials((prev) => {
+      const next = { ...prev };
+      delete next[platform];
+      return next;
+    });
+  }
+
+  function startEditPublic() {
+    setPublicSnap({
+      bio,
+      city,
+      country,
+      languages: [...languages],
+      skills: [...skills],
+    });
+    setEditing("public");
+  }
+
+  function cancelEditPublic() {
+    if (publicSnap) {
+      setBio(publicSnap.bio);
+      setCity(publicSnap.city);
+      setCountry(publicSnap.country);
+      setLanguages(publicSnap.languages);
+      setSkills(publicSnap.skills);
+    }
+    setPublicSnap(null);
+    setEditing(null);
+  }
+
+  // Single save action takes the full payload regardless of which
+  // section the user is editing — the unedited section's values flow
+  // through unchanged, so we don't need a per-section endpoint.
+  function saveSection(section: Section) {
     startSave(async () => {
       const result = await saveCreatorProfile({
         name,
-        instagram,
+        socials,
         bio,
+        city,
         country,
         languages,
         skills,
@@ -144,6 +222,9 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
         return;
       }
       toast.success("Profile saved");
+      if (section === "identity") setIdentitySnap(null);
+      else setPublicSnap(null);
+      setEditing(null);
       router.refresh();
     });
   }
@@ -151,21 +232,41 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
   const initial =
     (name || userEmail || "?").trim().charAt(0).toUpperCase() || "?";
 
+  const identityEditing = editing === "identity";
+  const publicEditing = editing === "public";
+
+  // Dirty check vs. the pre-edit snapshot so Save stays disabled
+  // until the user actually changes something. Sets are compared by
+  // membership (not array order) so toggling a chip off and back on
+  // still counts as clean.
+  const identityDirty =
+    identitySnap !== null &&
+    (name !== identitySnap.name || !sameSocials(socials, identitySnap.socials));
+  const publicDirty =
+    publicSnap !== null &&
+    (bio !== publicSnap.bio ||
+      city !== publicSnap.city ||
+      country !== publicSnap.country ||
+      !sameSet(languages, publicSnap.languages) ||
+      !sameSet(skills, publicSnap.skills));
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Identity — avatar + display name + instagram. The fields most
-          tightly tied to "who is this person" sit together so the eye
-          can scan them as one block. */}
-      <Card
+    <div className="space-y-6">
+      <SettingsCard
         title="Identity"
         description="How you appear across briefs and your org's admin views."
+        editing={identityEditing}
+        onEdit={startEditIdentity}
+        onCancel={cancelEditIdentity}
+        onSave={() => saveSection("identity")}
+        savePending={savePending}
+        disableEdit={publicEditing}
+        disableSave={!identityDirty}
       >
-        <AvatarTile
+        <AvatarPenTile
           avatarUrl={avatarUrl}
           initial={initial}
-          pending={avatarPending}
-          onPick={pickAvatar}
-          onClear={clearAvatar}
+          onOpen={() => setAvatarDialogOpen(true)}
         />
         <input
           ref={fileInputRef}
@@ -174,290 +275,393 @@ export function ProfileInfoClient({ profile, userEmail }: Props) {
           className="hidden"
           onChange={onFileChosen}
         />
-
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium mb-2">
-            Display name
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-            className={INPUT_CLASS}
-          />
-        </div>
-
-        <InstagramField
-          value={instagram}
-          onChange={setInstagram}
-          inputClassName={INPUT_CLASS}
+        <AvatarPenDialog
+          open={avatarDialogOpen}
+          onOpenChange={setAvatarDialogOpen}
+          hasAvatar={Boolean(avatarUrl)}
+          pending={avatarPending}
+          onPick={pickAvatar}
+          onClear={clearAvatar}
         />
-      </Card>
 
-      {/* Public details — content-shaping fields that orgs match against
-          when reviewing claims. Bio + Country + Languages + Skills all
-          influence which briefs surface and how creators are picked. */}
-      <Card
+        {identityEditing ? (
+          <>
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium mb-2">
+                Display name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                className={INPUT_CLASS}
+              />
+            </div>
+            <SocialsEditor
+              values={socials}
+              onChange={setSocial}
+              onRemove={removeSocial}
+              inputClassName={INPUT_CLASS}
+            />
+          </>
+        ) : (
+          <>
+            <SettingsReadRow label="Display name" value={name || null} />
+            <SettingsReadRow
+              label="Social profiles"
+              value={renderSocials(socials)}
+            />
+          </>
+        )}
+      </SettingsCard>
+
+      <SettingsCard
         title="Public details"
         description="What orgs see when you claim or apply to a brief."
+        editing={publicEditing}
+        onEdit={startEditPublic}
+        onCancel={cancelEditPublic}
+        onSave={() => saveSection("public")}
+        savePending={savePending}
+        disableEdit={identityEditing}
+        disableSave={!publicDirty}
       >
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="bio" className="block text-sm font-medium">
-              Bio
-            </label>
-            <span className="text-xs text-muted">
-              {bio.length}/{BIO_MAX}
-            </span>
-          </div>
-          <textarea
-            id="bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
-            rows={4}
-            placeholder="A sentence or two about your work, style, and what you love creating."
-            className={`${INPUT_CLASS} resize-y`}
-          />
-        </div>
+        {publicEditing ? (
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="bio" className="block text-sm font-medium">
+                  Bio
+                </label>
+                <span className="text-xs text-muted">
+                  {bio.length}/{BIO_MAX}
+                </span>
+              </div>
+              <textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
+                rows={4}
+                placeholder="A sentence or two about your work, style, and what you love creating."
+                className={`${INPUT_CLASS} resize-y`}
+              />
+            </div>
 
-        <div>
-          <label htmlFor="country" className="block text-sm font-medium mb-2">
-            Country
-          </label>
-          <select
-            id="country"
-            value={country ?? ""}
-            onChange={(e) => setCountry(e.target.value || null)}
-            className={`${INPUT_CLASS} appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
-            style={{
-              backgroundImage:
-                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
-            }}
-          >
-            <option value="">Not set</option>
-            {COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.flag} {c.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[2fr_3fr] gap-3">
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium mb-2">
+                  City
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value.slice(0, 100))}
+                  placeholder="Copenhagen"
+                  autoCapitalize="words"
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium mb-2">
+                  Country
+                </label>
+                <select
+                  id="country"
+                  value={country ?? ""}
+                  onChange={(e) => setCountry(e.target.value || null)}
+                  className={`${INPUT_CLASS} appearance-none bg-[length:1rem] bg-[right_1rem_center] bg-no-repeat pr-10`}
+                  style={{
+                    backgroundImage:
+                      "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
+                  }}
+                >
+                  <option value="">Not set</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-        <ChipPicker
-          label="Languages"
-          helper="Languages you can create content in."
-          options={LANGUAGES.map((l) => ({
-            value: l.code,
-            label: l.label,
-          }))}
-          selected={languages}
-          max={LANGUAGES_MAX}
-          onToggle={toggleLanguage}
-        />
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Languages
+              </label>
+              <p className="text-muted text-sm mb-2">
+                Languages you can create content in.
+              </p>
+              <LanguagePicker
+                selected={languages}
+                onChange={setLanguages}
+                inputClassName={INPUT_CLASS}
+              />
+            </div>
 
-        <ChipPicker
-          label="Skills"
-          helper="What you bring to a brief. Pick up to 12."
-          options={SKILLS.map((s) => ({ value: s.slug, label: s.label }))}
-          selected={skills}
-          max={SKILLS_MAX}
-          onToggle={toggleSkill}
-        />
-      </Card>
+            <ChipPicker
+              label="Skills"
+              helper="What you bring to a brief. Pick up to 12."
+              options={SKILLS.map((s) => ({ value: s.slug, label: s.label }))}
+              selected={skills}
+              max={SKILLS_MAX}
+              onToggle={toggleSkill}
+            />
+          </>
+        ) : (
+          <>
+            <SettingsReadRow
+              label="Bio"
+              value={
+                bio.trim() ? (
+                  <p className="whitespace-pre-line">{bio}</p>
+                ) : null
+              }
+            />
+            <SettingsReadRow
+              label="Location"
+              value={formatLocation(city, country)}
+            />
+            <SettingsReadRow
+              label="Languages"
+              value={
+                languages.length > 0 ? (
+                  <ChipList items={languages.map(languageLabel)} />
+                ) : null
+              }
+            />
+            <SettingsReadRow
+              label="Skills"
+              value={
+                skills.length > 0 ? (
+                  <ChipList items={skills.map(skillLabel)} />
+                ) : null
+              }
+            />
+          </>
+        )}
+      </SettingsCard>
 
-      {/* Account — read-only sign-in details. Sits last because it's
-          the least interactive and acts as a footer reference. */}
-      <Card
+      <SettingsCard
         title="Account"
         description="Sign-in details. Contact an admin to change them."
       >
-        <div>
-          <label className="block text-sm font-medium mb-2">Email</label>
-          <input
-            type="email"
-            value={userEmail}
-            disabled
-            className="w-full px-4 py-3 bg-background border border-border rounded-lg text-muted cursor-not-allowed"
-          />
-        </div>
-      </Card>
-
-      <div className="flex items-center justify-end gap-4 pt-2">
-        <button
-          type="submit"
-          disabled={savePending}
-          className="px-6 py-3 bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-lg transition-colors"
-        >
-          {savePending ? "Saving…" : "Save changes"}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-interface CardProps {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}
-
-function Card({ title, description, children }: CardProps) {
-  return (
-    <section className="bg-surface border border-border rounded-xl p-6 space-y-5">
-      <header>
-        <h2 className="text-base font-semibold">{title}</h2>
-        {description && (
-          <p className="text-muted text-sm mt-0.5">{description}</p>
-        )}
-      </header>
-      <div className="space-y-5">{children}</div>
-    </section>
-  );
-}
-
-interface AvatarTileProps {
-  avatarUrl: string | null;
-  initial: string;
-  pending: boolean;
-  onPick: () => void;
-  onClear: () => void;
-}
-
-function AvatarTile({
-  avatarUrl,
-  initial,
-  pending,
-  onPick,
-  onClear,
-}: AvatarTileProps) {
-  return (
-    <div>
-      <label className="block text-sm font-medium mb-2">Profile picture</label>
-      <div className="flex items-center gap-4">
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-border bg-background">
-          {avatarUrl ? (
-            // Plain <img> by convention: the project keeps avatars and
-            // logos out of next/image so we don't need to maintain a
-            // remotePatterns allow-list for every Supabase project URL,
-            // and so blob: optimistic previews work without extra
-            // loader config. Same pattern as org-details-view.tsx.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt="Profile picture"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted">
-              {initial}
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <button
-            type="button"
-            onClick={onPick}
-            disabled={pending}
-            className="px-3 py-1.5 text-sm font-medium border border-border-strong rounded-lg hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {pending ? "Working…" : avatarUrl ? "Replace" : "Upload"}
-          </button>
-          {avatarUrl && (
-            <button
-              type="button"
-              onClick={onClear}
-              disabled={pending}
-              className="px-3 py-1.5 text-sm text-muted hover:text-error disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Remove
-            </button>
-          )}
-          <p className="text-xs text-muted sm:ml-2">
-            PNG, JPEG, or WebP. Up to 2 MB.
-          </p>
-        </div>
-      </div>
+        <SettingsReadRow label="Email" value={userEmail} />
+      </SettingsCard>
     </div>
   );
 }
 
-/**
- * Instagram handle field. Renders an `@` adornment inside the input
- * and (when the value resolves to a valid handle) a "Visit profile"
- * link that opens the public IG page in a new tab so creators can
- * verify they typed it correctly. Invalid input shows a soft hint
- * underneath so they fix it before saving.
- */
-function InstagramField({
-  value,
+function formatLocation(
+  city: string,
+  country: string | null
+): string | null {
+  const parts = [city.trim(), countryLabel(country)].filter(
+    (p): p is string => Boolean(p)
+  );
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function sameSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((v, i) => v === sortedB[i]);
+}
+
+function ChipList({ items }: { items: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((item) => (
+        <span
+          key={item}
+          className="px-2.5 py-1 rounded-full text-xs font-medium bg-surface-hover text-foreground border border-border"
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function sameSocials(
+  a: Partial<Record<SocialPlatform, string>>,
+  b: Partial<Record<SocialPlatform, string>>
+): boolean {
+  const keysA = Object.keys(a) as SocialPlatform[];
+  const keysB = Object.keys(b) as SocialPlatform[];
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k) => a[k] === b[k]);
+}
+
+function renderSocials(
+  values: Partial<Record<SocialPlatform, string>>
+): React.ReactNode {
+  const entries = SOCIAL_PLATFORMS.filter(
+    (p) => typeof values[p] === "string" && values[p]!.trim().length > 0
+  );
+  if (entries.length === 0) return null;
+  return (
+    <ul className="space-y-1.5">
+      {entries.map((platform) => {
+        const stored = values[platform]!.trim();
+        const url = socialProfileUrl(platform, stored);
+        const display = socialDisplayHandle(platform, stored) ?? stored;
+        return (
+          <li key={platform} className="flex items-baseline gap-2 text-sm">
+            <span className="text-muted w-20 shrink-0">
+              {socialLabel(platform)}
+            </span>
+            {url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent hover:underline truncate"
+              >
+                {display}
+              </a>
+            ) : (
+              <span className="truncate">{display}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function SocialsEditor({
+  values,
   onChange,
+  onRemove,
   inputClassName,
 }: {
-  value: string;
-  onChange: (next: string) => void;
+  values: Partial<Record<SocialPlatform, string>>;
+  onChange: (platform: SocialPlatform, value: string) => void;
+  onRemove: (platform: SocialPlatform) => void;
   inputClassName: string;
 }) {
-  const trimmed = value.trim();
-  const normalized = normalizeInstagramHandle(trimmed);
-  const profileUrl = normalized ? instagramProfileUrl(normalized) : null;
-  const showInvalidHint = trimmed.length > 0 && !normalized;
+  // Inputs always render in the canonical SOCIAL_PLATFORMS order so
+  // the UI is stable as the user adds/removes handles. Empty inputs
+  // are visible only for platforms the user has expanded (i.e. has
+  // any value, even if it's just whitespace). Other platforms hide
+  // behind the "Add another profile" picker below.
+  const visiblePlatforms = SOCIAL_PLATFORMS.filter(
+    (p) => typeof values[p] === "string"
+  );
+  const hiddenPlatforms = SOCIAL_PLATFORMS.filter(
+    (p) => typeof values[p] !== "string"
+  );
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <label htmlFor="instagram" className="block text-sm font-medium">
-          Instagram handle
-        </label>
-        {profileUrl && (
-          <a
-            href={profileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-          >
-            Visit profile
-            <svg
-              className="w-3 h-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14 3h7v7m0-7L10 14m-7 0v7h7"
-              />
-            </svg>
-          </a>
+      <label className="block text-sm font-medium mb-2">Social profiles</label>
+      <p className="text-muted text-sm mb-3">
+        Add the platforms where you create. Paste a username or full URL —
+        we&apos;ll tidy it up.
+      </p>
+      <div className="space-y-2">
+        {visiblePlatforms.length === 0 ? (
+          <p className="text-xs text-muted">No profiles added yet.</p>
+        ) : (
+          visiblePlatforms.map((platform) => (
+            <SocialInput
+              key={platform}
+              platform={platform}
+              value={values[platform] ?? ""}
+              onChange={(v) => onChange(platform, v)}
+              onRemove={() => onRemove(platform)}
+              inputClassName={inputClassName}
+            />
+          ))
         )}
       </div>
-      <div className="relative">
-        <span
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm"
-          aria-hidden
+      {hiddenPlatforms.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {hiddenPlatforms.map((platform) => (
+            <button
+              key={platform}
+              type="button"
+              onClick={() => onChange(platform, "")}
+              className="px-2.5 py-1 rounded-full text-xs font-medium border border-border text-muted hover:border-border-strong hover:text-foreground transition-colors"
+            >
+              + {socialLabel(platform)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SocialInput({
+  platform,
+  value,
+  onChange,
+  onRemove,
+  inputClassName,
+}: {
+  platform: SocialPlatform;
+  value: string;
+  onChange: (next: string) => void;
+  onRemove: () => void;
+  inputClassName: string;
+}) {
+  const trimmed = value.trim();
+  const normalized = trimmed ? normalizeSocialHandle(platform, trimmed) : null;
+  const showInvalidHint = trimmed.length > 0 && !normalized;
+  const profileUrl = normalized ? socialProfileUrl(platform, normalized) : null;
+  const inputId = `social-${platform}`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label
+          htmlFor={inputId}
+          className="block text-xs font-medium text-muted"
         >
-          @
-        </span>
-        <input
-          id="instagram"
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="yourhandle"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          className={`${inputClassName} pl-8`}
-        />
+          {socialLabel(platform)}
+        </label>
+        <div className="flex items-center gap-3">
+          {profileUrl && (
+            <a
+              href={profileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              Visit
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-muted hover:text-foreground"
+          >
+            Remove
+          </button>
+        </div>
       </div>
+      <input
+        id={inputId}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={
+          platform === "website" ? "https://your-site.com" : "yourhandle"
+        }
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        className={inputClassName}
+      />
       {showInvalidHint && (
-        <p className="mt-1.5 text-xs text-warning">
-          Use just your username — letters, numbers, periods, and underscores.
-          We&apos;ll strip any @, URL, or extra spaces for you.
+        <p className="mt-1 text-xs text-warning">
+          That doesn&apos;t look right. Use your username or full profile URL.
         </p>
       )}
     </div>

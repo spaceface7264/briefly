@@ -5,23 +5,13 @@ import { PlatformLogo } from "@/components/platform-logo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Mode = "login" | "signup-creator" | "signup-invite";
+type Mode = "login" | "signup";
 
 /**
  * Map a small set of known Supabase auth errors to friendlier copy.
  * Covers both `signInWithPassword` (login) and `signUp` failure
  * modes — codes are disjoint between the two flows, so one helper
  * is enough.
- *
- * The flow argument is used only for the fallback string ("Signup
- * failed" vs "Sign-in failed") so the user gets a useful sentence
- * even when we don't recognise the error code. Anything we don't
- * explicitly handle is returned verbatim, so new failure modes are
- * never silently swallowed — we just lose the friendliness.
- *
- * Codes match `@supabase/auth-js`'s ErrorCode union; the message
- * fallbacks exist because Supabase still ships some failure modes
- * with a code-less response.
  */
 function friendlyAuthError(
   err: unknown,
@@ -32,10 +22,6 @@ function friendlyAuthError(
   const message = e?.message ?? "";
   const lower = message.toLowerCase();
 
-  // Generic rate limiting first — applies to both flows. Supabase
-  // ships at least three different shapes for this depending on
-  // the rate-limit kind (per-IP, per-email, per-fingerprint), so
-  // we OR the code with the message-substring matches.
   if (
     code === "over_email_send_rate_limit" ||
     code === "over_request_rate_limit" ||
@@ -49,7 +35,6 @@ function friendlyAuthError(
       : "Too many sign-in attempts. Try again in a few minutes.";
   }
 
-  // ----- login-only cases -----
   if (flow === "login") {
     if (
       code === "invalid_credentials" ||
@@ -74,7 +59,6 @@ function friendlyAuthError(
     }
   }
 
-  // ----- signup-only cases -----
   if (flow === "signup") {
     if (
       code === "user_already_exists" ||
@@ -92,7 +76,7 @@ function friendlyAuthError(
     }
 
     if (code === "signup_disabled" || lower.includes("signups not allowed")) {
-      return "Self-serve signup is disabled on this platform. Ask an admin for an invite code.";
+      return "Self-serve signup is disabled on this platform.";
     }
 
     if (
@@ -120,45 +104,53 @@ function friendlyAuthError(
   );
 }
 
-interface LoginFormProps {
-  /** True when at least one organisation has discoverable=true. When
-   *  set, creator self-serve signup is allowed. When false, the only
-   *  signup path is "I have an invite code". */
-  allowOpenSignup: boolean;
-}
-
-export function LoginForm({ allowOpenSignup }: LoginFormProps) {
+export function LoginForm() {
   return (
     <Suspense fallback={<main className="flex-1" />}>
-      <LoginFormInner allowOpenSignup={allowOpenSignup} />
+      <LoginFormInner />
     </Suspense>
   );
 }
 
-function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
+function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const initialMode = ((): Mode => {
     const requested = searchParams.get("mode");
-    if (requested === "signup" || requested === "signup-creator") {
-      return allowOpenSignup ? "signup-creator" : "signup-invite";
-    }
-    if (requested === "signup-invite" || requested === "invite") {
-      return "signup-invite";
+    if (
+      requested === "signup" ||
+      requested === "signup-creator" ||
+      requested === "signup-invite" ||
+      requested === "invite"
+    ) {
+      return "signup";
     }
     return "login";
   })();
 
+  // Pre-fill the invite-code field (and expand it) when the user lands
+  // via a legacy invite-only deep link.
+  const initialInvitePrefill =
+    searchParams.get("mode") === "signup-invite" ||
+    searchParams.get("mode") === "invite" ||
+    searchParams.get("code") ||
+    "";
+
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState(
+    typeof initialInvitePrefill === "string" && initialInvitePrefill !== "true"
+      ? initialInvitePrefill.toUpperCase()
+      : ""
+  );
+  const [showInvite, setShowInvite] = useState(Boolean(initialInvitePrefill));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
 
-  const isSignup = mode === "signup-creator" || mode === "signup-invite";
+  const isSignup = mode === "signup";
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -176,26 +168,30 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
       return;
     }
 
-    // Route to the user's shell:
-    //   platform account → /admin/super
-    //   org account      → /admin
-    //   creator with at least one active membership → /briefs
-    //   creator with no membership yet → /discover
     let nextPath = "/briefs";
     if (signInData.user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("account_type")
+        .select("account_type, onboarded_at")
         .eq("id", signInData.user.id)
         .maybeSingle();
 
-      const accountType = (profile as { account_type?: string } | null)
-        ?.account_type;
+      const accountType = (
+        profile as { account_type?: string; onboarded_at?: string | null } | null
+      )?.account_type;
+      const onboardedAt = (
+        profile as { onboarded_at?: string | null } | null
+      )?.onboarded_at;
 
       if (accountType === "platform") {
         nextPath = "/admin/super";
       } else if (accountType === "org") {
         nextPath = "/admin";
+      } else if (!onboardedAt) {
+        // First-time creator: walk through the interview before they
+        // see /briefs or /discover. The interview itself stamps
+        // onboarded_at, so this branch self-terminates on next sign-in.
+        nextPath = "/onboarding";
       } else {
         const { count } = await supabase
           .from("memberships")
@@ -214,13 +210,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
 
   async function handleSignup(supabase: ReturnType<typeof createClient>) {
     const trimmedCode = inviteCode.trim().toUpperCase();
-    const usingInvite = mode === "signup-invite";
-
-    if (usingInvite && !trimmedCode) {
-      setError("Invite code is required");
-      setLoading(false);
-      return;
-    }
+    const usingInvite = trimmedCode.length > 0;
 
     if (usingInvite) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,7 +233,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
       email,
       password,
       options: {
-        data: usingInvite && trimmedCode ? { invite_code: trimmedCode } : undefined,
+        data: usingInvite ? { invite_code: trimmedCode } : undefined,
       },
     });
 
@@ -258,7 +248,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
     // 0029 will raise PLAN_LIMIT_EXCEEDED — surface it so the user
     // knows to ask the admin to upgrade rather than silently
     // ending up without a membership.
-    if (usingInvite && trimmedCode && authData.user) {
+    if (usingInvite && authData.user) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: redeemError } = await (supabase as any).rpc(
         "use_invite_code",
@@ -316,14 +306,11 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
           <p className="text-muted">
             {mode === "login"
               ? "Sign in to access your briefs"
-              : mode === "signup-creator"
-                ? "Create your creator account"
-                : "Sign up with an invite code"}
+              : "Create your creator account"}
           </p>
         </div>
 
-        {/* Top-level toggle: Sign in vs Sign up */}
-        <div className="flex bg-surface border border-border rounded-lg p-1 mb-4">
+        <div className="flex bg-surface border border-border rounded-lg p-1 mb-6">
           <button
             type="button"
             onClick={() => switchMode("login")}
@@ -337,9 +324,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
           </button>
           <button
             type="button"
-            onClick={() =>
-              switchMode(allowOpenSignup ? "signup-creator" : "signup-invite")
-            }
+            onClick={() => switchMode("signup")}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
               isSignup
                 ? "bg-accent text-background font-bold"
@@ -350,58 +335,7 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
           </button>
         </div>
 
-        {/* Sub-toggle: which signup path */}
-        {isSignup && allowOpenSignup && (
-          <div className="grid grid-cols-2 gap-2 mb-6">
-            <PathCard
-              label="As a creator"
-              description="Browse open briefs from any brand."
-              selected={mode === "signup-creator"}
-              onSelect={() => switchMode("signup-creator")}
-            />
-            <PathCard
-              label="With invite code"
-              description="Join a specific org as creator or teammate."
-              selected={mode === "signup-invite"}
-              onSelect={() => switchMode("signup-invite")}
-            />
-          </div>
-        )}
-
-        {isSignup && !allowOpenSignup && (
-          <div className="mb-6 p-3 bg-surface border border-border rounded-lg">
-            <p className="text-xs text-muted">
-              This platform is currently invite-only. Ask an org admin or a
-              platform admin for a code.
-            </p>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signup-invite" && (
-            <div>
-              <label
-                htmlFor="inviteCode"
-                className="block text-sm font-medium mb-2"
-              >
-                Invite code <span className="text-error-ink">*</span>
-              </label>
-              <input
-                id="inviteCode"
-                type="text"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                required
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
-                placeholder="XXXX-XXXX"
-              />
-              <p className="text-muted text-xs mt-1">
-                The code determines whether you join as a creator, member, or
-                admin.
-              </p>
-            </div>
-          )}
-
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-2">
               Email
@@ -441,6 +375,59 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
               }
             />
           </div>
+
+          {isSignup && (
+            <div>
+              {!showInvite ? (
+                <button
+                  type="button"
+                  onClick={() => setShowInvite(true)}
+                  className="text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  Have an invite code?{" "}
+                  <span className="text-accent-ink underline">
+                    Add it here
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <label
+                      htmlFor="inviteCode"
+                      className="block text-sm font-medium"
+                    >
+                      Invite code{" "}
+                      <span className="text-muted font-normal">(optional)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowInvite(false);
+                        setInviteCode("");
+                      }}
+                      className="text-xs text-muted hover:text-foreground"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <input
+                    id="inviteCode"
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) =>
+                      setInviteCode(e.target.value.toUpperCase())
+                    }
+                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
+                    placeholder="XXXX-XXXX"
+                  />
+                  <p className="text-muted text-xs mt-1">
+                    Connects you to a specific org as creator, member, or
+                    admin.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 bg-error-muted border border-error/30 rounded-lg p-3">
@@ -491,58 +478,37 @@ function LoginFormInner({ allowOpenSignup }: LoginFormProps) {
                 : "Creating account..."
               : mode === "login"
                 ? "Sign In"
-                : mode === "signup-creator"
-                  ? "Create creator account"
-                  : "Redeem invite & create account"}
+                : "Create account"}
           </button>
         </form>
 
         <p className="text-center text-muted text-sm mt-6">
-          {mode === "login"
-            ? allowOpenSignup
-              ? "New here? Sign up to browse organisations or redeem an invite."
-              : "This platform is invite-only."
-            : mode === "signup-creator"
-              ? "Have a code instead? Switch to \u201cWith invite code\u201d above."
-              : "Don't have a code? "}
-          {mode === "signup-invite" && allowOpenSignup && (
-            <button
-              type="button"
-              onClick={() => switchMode("signup-creator")}
-              className="text-accent-ink hover:underline"
-            >
-              Sign up as a creator instead
-            </button>
+          {mode === "login" ? (
+            <>
+              New here?{" "}
+              <button
+                type="button"
+                onClick={() => switchMode("signup")}
+                className="text-accent-ink hover:underline"
+              >
+                Sign up
+              </button>{" "}
+              to browse briefs from any brand.
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => switchMode("login")}
+                className="text-accent-ink hover:underline"
+              >
+                Sign in instead
+              </button>
+            </>
           )}
         </p>
       </div>
     </main>
-  );
-}
-
-function PathCard({
-  label,
-  description,
-  selected,
-  onSelect,
-}: {
-  label: string;
-  description: string;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`text-left p-3 rounded-lg border transition-colors ${
-        selected
-          ? "border-accent bg-accent/10"
-          : "border-border bg-surface hover:border-border-strong"
-      }`}
-    >
-      <p className="font-medium text-sm">{label}</p>
-      <p className="text-xs text-muted mt-1 leading-snug">{description}</p>
-    </button>
   );
 }

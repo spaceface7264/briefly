@@ -4,7 +4,7 @@ Operational and pre-launch tasks that live outside the codebase. Items are
 tracked by feature area, not by branch — each section has its own
 preconditions. Work top to bottom within a section.
 
-**Status legend** (audit pass 2026-04-29):
+**Status legend** (audit pass 2026-04-29; light refresh 2026-05-10):
 
 - ✅ DONE — verified complete in code / repo
 - 🟡 LIKELY DONE — dependent features ship in code, presumed applied; worth a manual confirm
@@ -968,7 +968,7 @@ audit-trail are two different surfaces with one URL.
 invite code` tiles in `LoginForm` are functional but visually thin. Worth doing as a small PR-D ticket:
   - Stronger tile treatment with a small illustration or icon per
   path, a one-line value prop, and a path-specific accent (creator
-  = lime, invite = a cooler/org-flavoured tone).
+  = teal accent, invite = a cooler/org-flavoured tone).
   - Hero title + subtitle change to match the selected path
   ("Find paid briefs you love" vs "Join your team's workspace").
   - Marketing-friendly deep links: `/login?mode=signup-creator` and
@@ -1539,7 +1539,7 @@ Shipped + visually verified 2026-04-30. Funded badges live on
 panel on /admin/billing.
 
 - ✅ `badgeToneByFundedStatus` + `fundedStatusLabel` added to
-`src/lib/admin-badge-tones.ts`. Tones: `funded` accent (lime),
+`src/lib/admin-badge-tones.ts`. Tones: `funded` accent (teal),
 `partially_released` info, `released` muted, `refunded` error
 tint. `unfunded` intentionally not in the map — list/detail
 views suppress the badge entirely so legacy briefs and free
@@ -1952,7 +1952,7 @@ re-examine when the related surface comes up.
   spin up a dedicated pricing page that presents all plans, with
   feature explanations and the current plan highlighted
 - ❌ Make the active-plan pill on `/admin/billing` use the
-  success-green tone instead of the lime accent
+  success-green tone instead of the teal accent
 
 **IA and navigation**
 
@@ -1987,17 +1987,49 @@ re-examine when the related surface comes up.
 **Performance / perceived performance**
 
 - 🟡 Skeleton screens on slow surfaces, target <100ms response,
-  prioritise above-the-fold rendering. Initial pass added
-  page-shaped `loading.tsx` skeletons for `/admin/super/orgs` (list
-  + detail), `/admin/super/health`, `/admin/super/users`,
-  `/admin/(org)/applications`, `/admin/(org)/billing`,
-  `/admin/(org)/organization`, `/discover`, and `/notifications`
-  (2026-05-09). Still missing: rest of `/admin/super/*`
-  (audit/money/notices/users-detail), creator profile sub-pages,
-  brand kit form. Spinner inventory not yet attempted.
+  prioritise above-the-fold rendering. First pass (2026-05-09)
+  shipped `/admin/super/orgs` (list + detail), `/admin/super/health`,
+  `/admin/super/users`, `/admin/(org)/applications`,
+  `/admin/(org)/billing`, `/admin/(org)/organization`, `/discover`,
+  and `/notifications`. Second pass (2026-05-10) covered the rest of
+  `/admin/super/*` (`audit`, `money`, `notices`, `users/[id]`),
+  `/admin/(org)/brand`, and the creator profile sub-pages
+  (`/profile/settings`, `/profile/applications`, `/profile/earnings`,
+  `/profile/invoices`); `/profile/notifications` and
+  `/profile/payouts` are server-side redirects so no skeleton
+  needed. Spinner inventory not yet attempted.
 - ❌ Lazy-load off-screen assets, audit CDN delivery, browser
   caching, minify
 - ✅ Disable redundant clicks on active nav links: AdminNav,
   PlatformNav, and the public/creator top Nav now render the
   active row as an inert `<span aria-current="page">` instead of
   a Link, killing the soft refetch on re-click — shipped 2026-05-09
+
+**Operational hygiene**
+
+- ❌ Convert `notify-submission` and `notify-new-brief` database
+  webhooks from "HTTP Request" type to "Supabase Edge Functions"
+  type (Dashboard → Database → Webhooks → edit each). Same target
+  function, but Supabase handles auth internally with a
+  system-issued token. Removes the `Bearer <secret>` header from
+  the webhook config, so future auth rotations don't require
+  touching these two surfaces. ~30s per webhook. Consider the
+  same conversion for the `process-notification-outbox` cron job
+  if Cron exposes an equivalent type.
+- ❌ Debug why `notify-submission` and `notify-new-brief` HTTP
+  webhooks didn't appear in `net._http_response` during the
+  2026-05-17 rotation smoke test. Cron firings logged every
+  minute (success), but a real claim status change to `submitted`
+  and a real brief INSERT didn't produce response rows.
+  Suspected: webhook trigger condition mismatch, or response rows
+  aged out before query. Confirm with a fresh trigger after this
+  TODO is picked up, and verify the webhook is enabled + scoped
+  to schema `public`.
+- ❌ Fix `notify-new-brief` BCC-only Resend payload was patched
+  in-session (added a `to: SENDER_EMAIL` so Resend stops 422'ing
+  on "Missing `to` field"). Worth a real review: blind-list BCC
+  to N creators is fine for small N, but at scale Resend bills /
+  rate-limits per recipient regardless of to/cc/bcc, and creators
+  appear in each other's headers via the From only. Reconsider
+  fan-out as N-of-1 sends (one email per creator) once we have
+  more than a handful of creators per org.

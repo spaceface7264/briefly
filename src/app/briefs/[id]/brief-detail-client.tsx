@@ -8,6 +8,7 @@ import { useOrgId } from "@/lib/org-context";
 import ReactMarkdown from "react-markdown";
 import { Nav } from "@/components/nav";
 import { ContentTips } from "@/components/content-tips";
+import { ClaimCommentThread } from "@/components/claim-comment-thread";
 import { ConfirmDialog, Modal } from "@/components/modal";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -79,6 +80,7 @@ const categoryDot: Record<string, string> = {
 
 const terminalClaimStatusLabel: Partial<Record<Claim["status"], string>> = {
   submitted: "Under review",
+  revision_requested: "Changes requested",
   approved: "Approved",
   paid: "Paid",
 };
@@ -116,12 +118,13 @@ export function BriefDetailClient({
     !userClaim &&
     !isReclaimBlocked;
   const hasClaim = Boolean(userClaim);
+  // "Active" here means the claim can still be worked on by the
+  // creator — they can submit (or re-submit after revision_requested).
+  // The badge in the header reflects this with a pulsing indicator.
   const isActiveClaim = Boolean(
     userClaim &&
-      userClaim.status !== "submitted" &&
-      userClaim.status !== "approved" &&
-      userClaim.status !== "paid" &&
-      userClaim.status !== "cancelled"
+      (userClaim.status === "active" ||
+        userClaim.status === "revision_requested")
   );
   const dueLabel = brief.deadline ? ` · Due ${formatShortDate(brief.deadline)}` : "";
   const claimStatusLabel = userClaim
@@ -631,20 +634,38 @@ function ClaimedState({
     );
   }
 
-  // Active — can submit or cancel
+  const isRevisionRequested = claim.status === "revision_requested";
+
+  // Active or revision_requested — both render the same submit form;
+  // the server action allows submission from either status, the
+  // resulting transition flips status back to "submitted" and notifies
+  // the org. For revision_requested we lead with a callout pointing at
+  // the comment thread so the creator reads the feedback first.
   return (
     <div>
       {!showSubmitForm && (
         <>
-          <div className="flex items-center justify-between mb-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-ink">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-ink animate-status-pulse" />
-              Claimed
-            </span>
-            <span className="value-text font-mono text-muted text-sm">
-              exp {formatDeadline(claim.expires_at)}
-            </span>
-          </div>
+          {isRevisionRequested ? (
+            <div className="mb-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
+              <p className="text-xs font-semibold text-warning-ink uppercase tracking-wider mb-1">
+                Changes requested
+              </p>
+              <p className="text-sm text-text-secondary">
+                The org left feedback on your submission. Read it below,
+                then upload an updated version.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-ink">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-ink animate-status-pulse" />
+                Claimed
+              </span>
+              <span className="value-text font-mono text-muted text-sm">
+                exp {formatDeadline(claim.expires_at)}
+              </span>
+            </div>
+          )}
 
           {error && (
             <p className="text-error text-xs mb-3">{error}</p>
@@ -655,8 +676,16 @@ function ClaimedState({
               onClick={() => setShowSubmitForm(true)}
               className="w-full min-h-11 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-full transition-colors"
             >
-              Submit work
+              {isRevisionRequested ? "Re-submit work" : "Submit work"}
             </button>
+            {isRevisionRequested && (
+              <button
+                onClick={() => setShowSubmission(true)}
+                className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors text-center"
+              >
+                View feedback
+              </button>
+            )}
             <Link
               href="/my-briefs"
               className="block w-full min-h-11 py-2 border border-border hover:bg-surface-hover text-sm font-medium rounded-full transition-colors text-center"
@@ -670,6 +699,12 @@ function ClaimedState({
               Release claim
             </button>
           </div>
+
+          <MySubmissionModal
+            open={showSubmission}
+            onClose={() => setShowSubmission(false)}
+            claim={claim}
+          />
         </>
       )}
 
@@ -953,6 +988,15 @@ function MySubmissionModal({
               Nothing was attached to this submission.
             </p>
           )}
+
+        <div>
+          <dt className="text-xs text-muted uppercase tracking-wider mb-2">
+            Conversation
+          </dt>
+          <dd>
+            <ClaimCommentThread claimId={claim.id} viewerRole="creator" />
+          </dd>
+        </div>
       </dl>
     </Modal>
   );

@@ -7,10 +7,8 @@ import {
   countryLabel,
   skillLabel,
 } from "@/lib/creator-profile";
-import {
-  instagramDisplayHandle,
-  instagramProfileUrl,
-} from "@/lib/instagram";
+import { SocialLinks } from "@/components/social-links";
+import { hasSocials } from "@/lib/socials";
 import type { Profile } from "@/types/database";
 
 export default async function AdminCreatorsPage() {
@@ -96,7 +94,7 @@ export default async function AdminCreatorsPage() {
                   Skills
                 </th>
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">
-                  Instagram
+                  Socials
                 </th>
                 <th className="text-left text-sm font-medium text-muted px-4 py-3">
                   Active Claims
@@ -178,29 +176,11 @@ export default async function AdminCreatorsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {(() => {
-                        const display = instagramDisplayHandle(
-                          creator.instagram_handle
-                        );
-                        const url = instagramProfileUrl(
-                          creator.instagram_handle
-                        );
-                        if (!display) {
-                          return <span className="text-muted">-</span>;
-                        }
-                        return url ? (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent-ink hover:underline"
-                          >
-                            @{display}
-                          </a>
-                        ) : (
-                          <span className="text-accent-ink">@{display}</span>
-                        );
-                      })()}
+                      {hasSocials(creator.social_handles) ? (
+                        <SocialLinks socialHandles={creator.social_handles} />
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-sm">
                       {creator.activeClaims > 0 ? (

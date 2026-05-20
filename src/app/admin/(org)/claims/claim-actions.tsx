@@ -3,10 +3,11 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
 import { Modal, ConfirmDialog } from "@/components/modal";
 import { Avatar } from "@/components/avatar";
+import { ClaimCommentThread } from "@/components/claim-comment-thread";
 import { payClaim } from "./pay-action";
+import { requestRevision, rejectClaim } from "./review-actions";
 import { getClaimAttachmentSignedUrls } from "@/app/briefs/[id]/actions";
 
 type Attachment = {
@@ -45,213 +46,79 @@ interface ClaimActionsProps {
   } | null;
   /**
    * True when the viewer is an org admin. Members can review and
-   * approve/reject submissions (server-side `claims.update` RLS
-   * allows it) but cannot release funds — `payClaim` still calls
-   * `requireOrgAdmin()`. Hide the Pay button accordingly.
+   * request changes / reject (server-side RLS allows it) but cannot
+   * release funds — `payClaim` still calls `requireOrgAdmin()`. The
+   * combined "Approve & Pay" button is therefore admin-only too; we
+   * fall back to a disabled hint for members.
    */
   canPay: boolean;
 }
 
-type PendingAction = null | "approve" | "reject" | "pay";
-
 export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [showSubmission, setShowSubmission] = useState(false);
-  const [pending, setPending] = useState<PendingAction>(null);
-  const [paying, startPaying] = useTransition();
+  const [showReview, setShowReview] = useState(false);
 
   const creatorLabel = claim.creator?.name || claim.creator?.email || "this creator";
-
-  async function updateStatus(newStatus: string) {
-    setLoading(true);
-    const supabase = createClient();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from("claims") as any)
-      .update({ status: newStatus })
-      .eq("id", claim.id);
-
-    setLoading(false);
-    setPending(null);
-    setShowSubmission(false);
-
-    if (error) {
-      console.error("Update error:", error);
-      toast.error("Couldn't update claim", { description: error.message });
-      return;
-    }
-
-    toast.success(
-      newStatus === "approved" ? "Claim approved" : "Claim rejected",
-      newStatus === "approved"
-        ? { description: `Ready for payout to ${creatorLabel}.` }
-        : undefined
-    );
-    router.refresh();
-  }
-
-  async function handleApprove() {
-    await updateStatus("approved");
-  }
-
-  async function handleReject() {
-    await updateStatus("cancelled");
-  }
-
-  function handlePay() {
-    startPaying(async () => {
-      try {
-        const result = await payClaim(claim.id);
-        setPending(null);
-        if (!result.ok) {
-          toast.error("Payout failed", { description: result.error });
-          return;
-        }
-        toast.success(`Paid out to ${creatorLabel}`);
-        router.refresh();
-      } catch (err) {
-        // payClaim throws when post-Stripe DB writes fail. The
-        // money is already out of the platform; the message
-        // includes the Stripe transfer id for manual reconciliation.
-        // Sticky toast (no auto-dismiss) so it can't be missed.
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Payout left in a stuck state. Check Stripe Dashboard.";
-        toast.error("Payout needs reconciliation", {
-          description: message,
-          duration: Infinity,
-        });
-        setPending(null);
-      }
-    });
-  }
 
   if (claim.status === "submitted") {
     return (
       <div className="flex items-center gap-2 justify-end">
         <button
-          onClick={() => setShowSubmission(true)}
-          className="px-3 py-1.5 text-sm text-accent hover:bg-accent-muted rounded-lg transition-colors"
+          onClick={() => setShowReview(true)}
+          className="px-3 py-1.5 text-sm bg-accent hover:bg-accent-hover text-background rounded-lg transition-colors"
         >
           Review
         </button>
-        <button
-          onClick={() => setPending("approve")}
-          disabled={loading}
-          className="px-3 py-1.5 text-sm bg-success-muted text-success hover:bg-success/25 disabled:opacity-50 rounded-lg transition-colors"
-        >
-          Approve
-        </button>
-        <button
-          onClick={() => setPending("reject")}
-          disabled={loading}
-          className="px-3 py-1.5 text-sm bg-error-muted text-error hover:bg-error/25 disabled:opacity-50 rounded-lg transition-colors"
-        >
-          Reject
-        </button>
 
-        <SubmissionModal
-          open={showSubmission}
-          onClose={() => setShowSubmission(false)}
+        <ReviewModal
+          open={showReview}
+          onClose={() => setShowReview(false)}
           claim={claim}
-          onApprove={() => {
-            setShowSubmission(false);
-            setPending("approve");
-          }}
-          onReject={() => {
-            setShowSubmission(false);
-            setPending("reject");
+          canPay={canPay}
+          creatorLabel={creatorLabel}
+          onDone={() => {
+            setShowReview(false);
+            router.refresh();
           }}
         />
+      </div>
+    );
+  }
 
-        <ConfirmDialog
-          open={pending === "approve"}
-          onClose={() => !loading && setPending(null)}
-          onConfirm={handleApprove}
-          title="Approve submission?"
-          description={`Approve the submission from ${creatorLabel}. The claim will move to "Approved" and be ready for payout.`}
-          confirmLabel="Approve"
-          tone="success"
-          loading={loading}
-        />
+  if (claim.status === "revision_requested") {
+    return (
+      <div className="flex items-center gap-2 justify-end">
+        <button
+          onClick={() => setShowReview(true)}
+          className="px-3 py-1.5 text-sm bg-surface-raised hover:bg-surface-hover border border-border rounded-lg transition-colors"
+        >
+          View thread
+        </button>
+        <span className="text-muted text-xs">Awaiting creator</span>
 
-        <ConfirmDialog
-          open={pending === "reject"}
-          onClose={() => !loading && setPending(null)}
-          onConfirm={handleReject}
-          title="Reject this claim?"
-          description={`The claim will be cancelled and ${creatorLabel} will need to reclaim the brief to try again.`}
-          confirmLabel="Reject claim"
-          tone="danger"
-          loading={loading}
+        <ReviewModal
+          open={showReview}
+          onClose={() => setShowReview(false)}
+          claim={claim}
+          canPay={canPay}
+          creatorLabel={creatorLabel}
+          onDone={() => {
+            setShowReview(false);
+            router.refresh();
+          }}
         />
       </div>
     );
   }
 
   if (claim.status === "approved") {
-    const payoutsEnabled = claim.creator?.stripe_payouts_enabled ?? false;
-
-    if (!canPay) {
-      return (
-        <div className="flex flex-col items-end gap-1">
-          <span
-            title="Releasing funds is admin-only — ask an admin"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted bg-surface-raised border border-border rounded-lg select-none cursor-not-allowed"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-            Awaiting admin payout
-          </span>
-        </div>
-      );
-    }
-
     return (
-      <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={() => setPending("pay")}
-          disabled={paying || !payoutsEnabled}
-          title={payoutsEnabled ? undefined : "Creator hasn't connected a payout account"}
-          className="px-3 py-1.5 text-sm bg-accent hover:bg-accent-hover text-background disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-        >
-          {paying ? "Paying..." : "Pay"}
-        </button>
-        {!payoutsEnabled && (
-          <span className="text-xs text-muted">No payout account</span>
-        )}
-
-        <ConfirmDialog
-          open={pending === "pay"}
-          onClose={() => !paying && setPending(null)}
-          onConfirm={handlePay}
-          title="Send payout?"
-          description={`Pay out to ${creatorLabel} via Stripe. This triggers a real transfer and cannot be reversed from the dashboard.`}
-          confirmLabel="Send payout"
-          tone="brand"
-          loading={paying}
-        />
-      </div>
+      <ApprovedActions claim={claim} canPay={canPay} creatorLabel={creatorLabel} />
     );
   }
 
   if (claim.status === "active") {
-    return (
-      <span className="text-muted text-sm">Awaiting submission</span>
-    );
+    return <span className="text-muted text-sm">Awaiting submission</span>;
   }
 
   if (claim.status === "paid" && paidInvoice) {
@@ -270,26 +137,132 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
   return null;
 }
 
-function SubmissionModal({
+/**
+ * Standalone "Pay" button for the legacy approved-but-not-yet-paid
+ * state. The Approve & Pay one-click action collapses this into a
+ * single step, but some claims may sit at approved if they came
+ * through the old flow or were re-issued via /admin/super/money.
+ */
+function ApprovedActions({
+  claim,
+  canPay,
+  creatorLabel,
+}: {
+  claim: ClaimActionsProps["claim"];
+  canPay: boolean;
+  creatorLabel: string;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [paying, startPaying] = useTransition();
+  const payoutsEnabled = claim.creator?.stripe_payouts_enabled ?? false;
+
+  if (!canPay) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <span
+          title="Releasing funds is admin-only — ask an admin"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted bg-surface-raised border border-border rounded-lg select-none cursor-not-allowed"
+        >
+          Awaiting admin payout
+        </span>
+      </div>
+    );
+  }
+
+  function handlePay() {
+    startPaying(async () => {
+      try {
+        const result = await payClaim(claim.id);
+        setPending(false);
+        if (!result.ok) {
+          toast.error("Payout failed", { description: result.error });
+          return;
+        }
+        toast.success(`Paid out to ${creatorLabel}`);
+        router.refresh();
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Payout left in a stuck state. Check Stripe Dashboard.";
+        toast.error("Payout needs reconciliation", {
+          description: message,
+          duration: Infinity,
+        });
+        setPending(false);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={() => setPending(true)}
+        disabled={paying || !payoutsEnabled}
+        title={payoutsEnabled ? undefined : "Creator hasn't connected a payout account"}
+        className="px-3 py-1.5 text-sm bg-accent hover:bg-accent-hover text-background disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+      >
+        {paying ? "Paying..." : "Pay"}
+      </button>
+      {!payoutsEnabled && (
+        <span className="text-xs text-muted">No payout account</span>
+      )}
+
+      <ConfirmDialog
+        open={pending}
+        onClose={() => !paying && setPending(false)}
+        onConfirm={handlePay}
+        title="Send payout?"
+        description={`Pay out to ${creatorLabel} via Stripe. This triggers a real transfer and cannot be reversed from the dashboard.`}
+        confirmLabel="Send payout"
+        tone="brand"
+        loading={paying}
+      />
+    </div>
+  );
+}
+
+/**
+ * Three-way review surface, opened from "Review" on submitted claims
+ * or "View thread" on revision_requested claims. Shows the submission
+ * (creator info, files, notes, URL) on the left side, the comment
+ * thread, and a footer with Approve & Pay / Request changes / Reject
+ * buttons whose availability depends on the current claim status.
+ */
+function ReviewModal({
   open,
   onClose,
   claim,
-  onApprove,
-  onReject,
+  canPay,
+  creatorLabel,
+  onDone,
 }: {
   open: boolean;
   onClose: () => void;
   claim: ClaimActionsProps["claim"];
-  onApprove: () => void;
-  onReject: () => void;
+  canPay: boolean;
+  creatorLabel: string;
+  onDone: () => void;
 }) {
   const [attachments, setAttachments] = useState<Attachment[] | null>(null);
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
 
-  // Fetch signed URLs each time the modal opens. Signed URLs have a
-  // short TTL (15 min server-side), so re-fetching on every open beats
-  // caching and serving stale URLs.
+  const [showRevision, setShowRevision] = useState(false);
+  const [revisionBody, setRevisionBody] = useState("");
+  const [revisionSubmitting, startRevision] = useTransition();
+
+  const [showReject, setShowReject] = useState(false);
+  const [rejectBody, setRejectBody] = useState("");
+  const [rejectSubmitting, startReject] = useTransition();
+
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [paying, startPaying] = useTransition();
+
+  const payoutsEnabled = claim.creator?.stripe_payouts_enabled ?? false;
+  const isSubmitted = claim.status === "submitted";
+
   useEffect(() => {
     if (!open) return;
     setLoadingAttachments(true);
@@ -306,121 +279,316 @@ function SubmissionModal({
     })();
   }, [open, claim.id]);
 
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Review submission"
-      description={claim.brief?.title}
-      size="lg"
-      footer={
-        <>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
-          >
-            Close
-          </button>
-          <button
-            onClick={onReject}
-            className="px-4 py-2 bg-error-muted text-error hover:bg-error/25 text-sm font-semibold rounded-lg transition-colors"
-          >
-            Reject
-          </button>
-          <button
-            onClick={onApprove}
-            className="px-4 py-2 bg-success hover:bg-success/80 text-background text-sm font-semibold rounded-lg transition-colors"
-          >
-            Approve
-          </button>
-        </>
+  function handleApproveAndPay() {
+    setShowApproveConfirm(false);
+    startPaying(async () => {
+      try {
+        const result = await payClaim(claim.id);
+        if (!result.ok) {
+          toast.error("Approve & Pay failed", { description: result.error });
+          return;
+        }
+        toast.success(`Approved + paid out to ${creatorLabel}`);
+        onDone();
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Payout left in a stuck state. Check Stripe Dashboard.";
+        toast.error("Payout needs reconciliation", {
+          description: message,
+          duration: Infinity,
+        });
       }
-    >
-      <dl className="space-y-5">
-        <div>
-          <dt className="text-xs text-muted uppercase tracking-wider mb-2">
-            Creator
-          </dt>
-          <dd>
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar
-                url={claim.creator?.avatar_url}
-                name={claim.creator?.name}
-                email={claim.creator?.email}
-                size="md"
-                alt=""
-              />
-              <div className="min-w-0">
-                <p className="font-medium truncate">
-                  {claim.creator?.name || claim.creator?.email || "Unknown"}
-                </p>
-                {claim.creator?.name && claim.creator?.email && (
-                  <p className="text-muted text-sm truncate">
-                    {claim.creator.email}
-                  </p>
-                )}
-              </div>
-            </div>
-          </dd>
-        </div>
+    });
+  }
 
-        {claim.submission_url && (
+  function handleRequestRevision() {
+    const body = revisionBody.trim();
+    if (!body) {
+      toast.error("Feedback is required");
+      return;
+    }
+    startRevision(async () => {
+      const result = await requestRevision(claim.id, body);
+      if (!result.ok) {
+        toast.error("Couldn't request changes", { description: result.error });
+        return;
+      }
+      toast.success("Changes requested", {
+        description: `${creatorLabel} will be notified.`,
+      });
+      setShowRevision(false);
+      setRevisionBody("");
+      onDone();
+    });
+  }
+
+  function handleReject() {
+    startReject(async () => {
+      const result = await rejectClaim(claim.id, rejectBody.trim() || null);
+      if (!result.ok) {
+        toast.error("Couldn't reject claim", { description: result.error });
+        return;
+      }
+      toast.success("Claim rejected");
+      setShowReject(false);
+      setRejectBody("");
+      onDone();
+    });
+  }
+
+  const busy = paying || revisionSubmitting || rejectSubmitting;
+
+  return (
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title={isSubmitted ? "Review submission" : "Submission thread"}
+        description={claim.brief?.title}
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              Close
+            </button>
+            {isSubmitted && (
+              <>
+                <button
+                  onClick={() => setShowReject(true)}
+                  disabled={busy}
+                  className="px-4 py-2 bg-error-muted text-error hover:bg-error/25 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => setShowRevision(true)}
+                  disabled={busy}
+                  className="px-4 py-2 bg-warning-muted text-warning-ink hover:bg-warning/25 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Request changes
+                </button>
+                {canPay ? (
+                  <button
+                    onClick={() => setShowApproveConfirm(true)}
+                    disabled={busy || !payoutsEnabled}
+                    title={
+                      payoutsEnabled
+                        ? undefined
+                        : "Creator hasn't connected a payout account"
+                    }
+                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-background text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {paying ? "Paying..." : "Approve & Pay"}
+                  </button>
+                ) : (
+                  <span
+                    title="Approving + paying is admin-only — ask an admin"
+                    className="px-4 py-2 text-xs text-muted bg-surface-raised border border-border rounded-lg select-none cursor-not-allowed"
+                  >
+                    Awaiting admin
+                  </span>
+                )}
+              </>
+            )}
+          </>
+        }
+      >
+        <dl className="space-y-5">
           <div>
-            <dt className="text-xs text-muted uppercase tracking-wider mb-1">
-              Submission URL
+            <dt className="text-xs text-muted uppercase tracking-wider mb-2">
+              Creator
             </dt>
             <dd>
-              <a
-                href={claim.submission_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-accent hover:underline break-all font-mono text-sm"
-              >
-                {claim.submission_url}
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar
+                  url={claim.creator?.avatar_url}
+                  name={claim.creator?.name}
+                  email={claim.creator?.email}
+                  size="md"
+                  alt=""
+                />
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {claim.creator?.name || claim.creator?.email || "Unknown"}
+                  </p>
+                  {claim.creator?.name && claim.creator?.email && (
+                    <p className="text-muted text-sm truncate">
+                      {claim.creator.email}
+                    </p>
+                  )}
+                </div>
+              </div>
             </dd>
           </div>
-        )}
 
-        <div>
-          <dt className="text-xs text-muted uppercase tracking-wider mb-2">
-            Files
-          </dt>
-          <dd>
-            {loadingAttachments && (
-              <p className="text-sm text-muted">Loading…</p>
-            )}
-            {attachmentsError && (
-              <p className="text-sm text-error">{attachmentsError}</p>
-            )}
-            {attachments && attachments.length === 0 && (
-              <p className="text-sm text-muted">No files uploaded.</p>
-            )}
-            {attachments && attachments.length > 0 && (
-              <ul className="space-y-3">
-                {attachments.map((att) => (
-                  <AttachmentPreview key={att.id} attachment={att} />
-                ))}
-              </ul>
-            )}
-          </dd>
-        </div>
+          {claim.submission_url && (
+            <div>
+              <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+                Submission URL
+              </dt>
+              <dd>
+                <a
+                  href={claim.submission_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-accent hover:underline break-all font-mono text-sm"
+                >
+                  {claim.submission_url}
+                </a>
+              </dd>
+            </div>
+          )}
 
-        {claim.submission_notes && (
           <div>
-            <dt className="text-xs text-muted uppercase tracking-wider mb-1">
-              Notes from creator
+            <dt className="text-xs text-muted uppercase tracking-wider mb-2">
+              Files
             </dt>
-            <dd className="bg-surface border border-border rounded-lg p-3 text-sm whitespace-pre-wrap">
-              {claim.submission_notes}
+            <dd>
+              {loadingAttachments && (
+                <p className="text-sm text-muted">Loading…</p>
+              )}
+              {attachmentsError && (
+                <p className="text-sm text-error">{attachmentsError}</p>
+              )}
+              {attachments && attachments.length === 0 && (
+                <p className="text-sm text-muted">No files uploaded.</p>
+              )}
+              {attachments && attachments.length > 0 && (
+                <ul className="space-y-3">
+                  {attachments.map((att) => (
+                    <AttachmentPreview key={att.id} attachment={att} />
+                  ))}
+                </ul>
+              )}
             </dd>
           </div>
-        )}
-      </dl>
-    </Modal>
+
+          {claim.submission_notes && (
+            <div>
+              <dt className="text-xs text-muted uppercase tracking-wider mb-1">
+                Notes from creator
+              </dt>
+              <dd className="bg-surface border border-border rounded-lg p-3 text-sm whitespace-pre-wrap">
+                {claim.submission_notes}
+              </dd>
+            </div>
+          )}
+
+          <div>
+            <dt className="text-xs text-muted uppercase tracking-wider mb-2">
+              Conversation
+            </dt>
+            <dd>
+              <ClaimCommentThread claimId={claim.id} viewerRole="org" />
+            </dd>
+          </div>
+        </dl>
+      </Modal>
+
+      <ConfirmDialog
+        open={showApproveConfirm}
+        onClose={() => !paying && setShowApproveConfirm(false)}
+        onConfirm={handleApproveAndPay}
+        title="Approve and send payout?"
+        description={`Approves the submission and immediately pays out to ${creatorLabel} via Stripe. This triggers a real transfer and cannot be reversed from the dashboard.`}
+        confirmLabel="Approve & Pay"
+        tone="brand"
+        loading={paying}
+      />
+
+      <Modal
+        open={showRevision}
+        onClose={() => !revisionSubmitting && setShowRevision(false)}
+        title="Request changes"
+        description={`Send feedback to ${creatorLabel}. They'll be notified and can re-upload.`}
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => setShowRevision(false)}
+              disabled={revisionSubmitting}
+              className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRequestRevision}
+              disabled={revisionSubmitting || !revisionBody.trim()}
+              className="px-4 py-2 bg-warning text-background hover:bg-warning/80 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {revisionSubmitting ? "Sending…" : "Send feedback"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <label
+            htmlFor="revision-body"
+            className="block text-xs text-muted uppercase tracking-wider"
+          >
+            What needs to change?
+          </label>
+          <textarea
+            id="revision-body"
+            value={revisionBody}
+            onChange={(e) => setRevisionBody(e.target.value)}
+            rows={5}
+            autoFocus
+            placeholder="Be specific. Reference the asset and what to change."
+            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        open={showReject}
+        onClose={() => !rejectSubmitting && setShowReject(false)}
+        title="Reject this claim?"
+        description={`This is terminal. ${creatorLabel} won't be able to revise. Use Request changes if revisions are possible.`}
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => setShowReject(false)}
+              disabled={rejectSubmitting}
+              className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={rejectSubmitting}
+              className="px-4 py-2 bg-error text-background hover:bg-error/80 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+            >
+              {rejectSubmitting ? "Rejecting…" : "Reject claim"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <label
+            htmlFor="reject-body"
+            className="block text-xs text-muted uppercase tracking-wider"
+          >
+            Optional final note
+          </label>
+          <textarea
+            id="reject-body"
+            value={rejectBody}
+            onChange={(e) => setRejectBody(e.target.value)}
+            rows={3}
+            placeholder="Leave blank to reject without a note."
+            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+          />
+        </div>
+      </Modal>
+    </>
   );
 }
 

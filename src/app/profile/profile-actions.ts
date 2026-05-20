@@ -12,7 +12,13 @@ import {
   sanitizeLanguages,
   sanitizeSkills,
 } from "@/lib/creator-profile";
-import { normalizeInstagramHandle } from "@/lib/instagram";
+import {
+  isSocialPlatform,
+  normalizeSocialHandle,
+  socialLabel,
+  SOCIAL_PLATFORMS,
+  type SocialPlatform,
+} from "@/lib/socials";
 
 const AVATARS_BUCKET = "avatars";
 
@@ -188,8 +194,9 @@ export async function removeAvatar(): Promise<ActionResult> {
 
 interface SaveCreatorProfileInput {
   name: string;
-  instagram: string;
+  socials: Partial<Record<SocialPlatform, string>>;
   bio: string;
+  city: string | null;
   country: string | null;
   languages: string[];
   skills: string[];
@@ -203,7 +210,7 @@ interface SaveCreatorProfileInput {
  * All fields are sanitised server-side (length caps, controlled-
  * vocabulary filters) — the client UI is the *first* line of
  * defence, not the only one. The DB CHECK constraints from 0042
- * are the last.
+ * and 0055 are the last.
  */
 export async function saveCreatorProfile(
   input: SaveCreatorProfileInput
@@ -213,23 +220,41 @@ export async function saveCreatorProfile(
 
   const name =
     typeof input.name === "string" ? input.name.trim().slice(0, 200) : "";
-  // Normalise to a bare handle so reads can build a profile URL
-  // without re-cleaning. Invalid input becomes null (we'd rather drop
-  // the value than store something that links to a 404). The client
-  // form blocks save when validation fails, so reaching this branch
-  // with a non-empty invalid string means a hand-crafted request.
-  const rawInstagram =
-    typeof input.instagram === "string" ? input.instagram.trim() : "";
-  const instagram = rawInstagram ? normalizeInstagramHandle(rawInstagram) : null;
-  if (rawInstagram && !instagram) {
-    return {
-      ok: false,
-      error:
-        "Instagram handle should be a username like @yourhandle (letters, numbers, periods, underscores).",
-    };
+
+  // Normalise each social handle into its canonical stored form. An
+  // entry with a non-empty raw value that fails validation is a hard
+  // error — the client UI rejects bad input, so reaching this branch
+  // means a hand-crafted request.
+  const socialHandles: Record<string, string> = {};
+  const rawSocials =
+    input.socials && typeof input.socials === "object" ? input.socials : {};
+  for (const platform of SOCIAL_PLATFORMS) {
+    const raw = rawSocials[platform];
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const normalized = normalizeSocialHandle(platform, trimmed);
+    if (!normalized) {
+      return {
+        ok: false,
+        error: `${socialLabel(platform)} value doesn't look right. Use your username or full profile URL.`,
+      };
+    }
+    socialHandles[platform] = normalized;
   }
+  // Reject unknown keys defensively. isSocialPlatform is the same
+  // gate used on the read side; this stops an attacker from pushing
+  // garbage keys into the JSONB blob.
+  for (const key of Object.keys(rawSocials)) {
+    if (!isSocialPlatform(key)) {
+      return { ok: false, error: `Unknown social platform: ${key}` };
+    }
+  }
+
   const bio =
     typeof input.bio === "string" ? input.bio.trim().slice(0, BIO_MAX) : "";
+  const city =
+    typeof input.city === "string" ? input.city.trim().slice(0, 100) : "";
   const country =
     typeof input.country === "string" && isValidCountry(input.country)
       ? input.country
@@ -241,8 +266,9 @@ export async function saveCreatorProfile(
     .from("profiles")
     .update({
       name: name || null,
-      instagram_handle: instagram,
+      social_handles: socialHandles,
       bio: bio || null,
+      city: city || null,
       country,
       languages,
       skills,
