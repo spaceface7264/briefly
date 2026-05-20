@@ -32,8 +32,15 @@
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://bncuqifjcsrjkohxkwez.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_kiij5LwoTAVQoom57SUGXQ_rgtClNuy",
-    "NEXT_PUBLIC_APP_URL": "https://rainbow.ramieldaoud.workers.dev"
+    "NEXT_PUBLIC_APP_URL": "https://app.briefly.dk"
   },
+  "routes": [
+    {
+      "pattern": "app.briefly.dk",
+      "zone_name": "briefly.dk",
+      "custom_domain": true
+    }
+  ],
   "env": {
     "staging": {
       "name": "rainbow-staging",
