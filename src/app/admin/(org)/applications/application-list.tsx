@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useSyncExternalStore, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -223,18 +223,12 @@ function PendingCard({
                 {flag}
               </span>
             )}
-            {applicant && hasSocials(applicant.social_handles) && (
-              <SocialLinks
-                socialHandles={applicant.social_handles}
-                className="shrink-0"
-              />
-            )}
           </div>
           {applicant?.email && applicant?.name && (
             <p className="truncate text-sm text-muted">{applicant.email}</p>
           )}
           <p className="value-text mt-1 text-xs text-muted">
-            Applied {relativeTimeFrom(application.created_at)}
+            Applied <RelativeTime iso={application.created_at} />
           </p>
         </div>
         <div className="shrink-0 self-center text-muted transition-colors group-hover:text-foreground">
@@ -312,9 +306,9 @@ function ReviewedRow({
       </div>
       <StatusPill status={application.status} />
       <span className="value-text hidden whitespace-nowrap text-xs text-muted sm:inline">
-        {application.reviewed_at
-          ? relativeTimeFrom(application.reviewed_at)
-          : relativeTimeFrom(application.created_at)}
+        <RelativeTime
+          iso={application.reviewed_at ?? application.created_at}
+        />
       </span>
       <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted" />
     </button>
@@ -360,8 +354,8 @@ function ApplicationSheetBody({
       } else {
         setError(res.error);
       }
-      setLoading(null);
     }
+    setLoading(null);
   }
 
   const busy = loading !== null || pendingTransition;
@@ -553,6 +547,30 @@ function SheetSection({
       </h3>
       {children}
     </section>
+  );
+}
+
+const subscribeMount = () => () => {};
+const getMountedClient = () => true;
+const getMountedServer = () => false;
+
+function RelativeTime({ iso }: { iso: string }) {
+  // useSyncExternalStore returns the server snapshot (false) during
+  // SSR + first paint and the client snapshot (true) after hydration,
+  // so we can render a deterministic absolute date on the server and
+  // swap to "Xh ago" on the client without a hydration mismatch
+  // (relativeTimeFrom reads Date.now()).
+  const mounted = useSyncExternalStore(
+    subscribeMount,
+    getMountedClient,
+    getMountedServer
+  );
+  return (
+    <>
+      {mounted
+        ? relativeTimeFrom(iso)
+        : new Date(iso).toLocaleDateString("en-GB")}
+    </>
   );
 }
 
