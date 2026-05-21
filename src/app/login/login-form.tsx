@@ -1,22 +1,31 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 import { PlatformLogo } from "@/components/platform-logo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+const platformName = process.env.NEXT_PUBLIC_PLATFORM_NAME || "Briefly";
 
 type Mode = "login" | "signup";
 
 /**
  * Map a small set of known Supabase auth errors to friendlier copy.
- * Covers both `signInWithPassword` (login) and `signUp` failure
- * modes — codes are disjoint between the two flows, so one helper
- * is enough.
+ * Covers both `signInWithPassword` (login) and `signUp` failure modes;
+ * codes are disjoint between the two flows, so one helper is enough.
  */
-function friendlyAuthError(
-  err: unknown,
-  flow: "login" | "signup"
-): string {
+function friendlyAuthError(err: unknown, flow: "login" | "signup"): string {
   const e = err as { code?: string; message?: string } | null;
   const code = e?.code;
   const message = e?.message ?? "";
@@ -245,9 +254,7 @@ function LoginFormInner() {
 
     // Mark invite code as used (only when one was supplied). If the
     // target org is at its creator cap, the membership trigger from
-    // 0029 will raise PLAN_LIMIT_EXCEEDED — surface it so the user
-    // knows to ask the admin to upgrade rather than silently
-    // ending up without a membership.
+    // 0029 will raise PLAN_LIMIT_EXCEEDED, so surface it.
     if (usingInvite && authData.user) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: redeemError } = await (supabase as any).rpc(
@@ -293,222 +300,390 @@ function LoginFormInner() {
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+    <main className="flex-1 grid lg:grid-cols-[1.05fr_1fr] min-h-[100svh] bg-background">
+      {/* BRAND PANEL ---------------------------------------------------- */}
+      <aside
+        className="
+          relative overflow-hidden
+          border-b lg:border-b-0 lg:border-r border-border
+          bg-surface/40
+          px-6 sm:px-10 lg:px-14 py-10 lg:py-14
+          flex flex-col
+        "
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 -left-16 size-[460px] rounded-full bg-brand/10 blur-[140px]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 right-0 size-[320px] rounded-full bg-brand/8 blur-[160px]"
+        />
+
+        <div className="relative flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="
+              inline-flex items-center gap-2 text-sm text-text-secondary
+              hover:text-foreground transition-colors
+            "
+          >
+            <ArrowLeft className="size-3.5" />
+            Back home
+          </Link>
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-muted">
+            {isSignup ? "Create account" : "Sign in"}
+          </span>
+        </div>
+
+        <div className="relative mt-12 lg:mt-auto lg:pt-32">
           <PlatformLogo
-            className="h-12 w-auto mx-auto mb-4"
-            width={180}
-            height={48}
+            className="h-7 w-auto"
+            width={160}
+            height={40}
             priority
-            textClassName="text-3xl font-extrabold tracking-tight"
+            textClassName="text-2xl font-extrabold tracking-tight"
           />
-          <p className="text-muted">
-            {mode === "login"
-              ? "Sign in to access your briefs"
-              : "Create your creator account"}
+          <h1
+            className="
+              mt-8 font-display font-extrabold tracking-tight text-foreground
+              text-[clamp(2rem,5vw,3.75rem)] leading-[0.95]
+              max-w-[14ch]
+            "
+          >
+            {isSignup ? (
+              <>
+                Start claiming{" "}
+                <span className="text-brand-ink">paid briefs.</span>
+              </>
+            ) : (
+              <>
+                Welcome{" "}
+                <span className="italic font-normal text-text-secondary">
+                  back.
+                </span>
+              </>
+            )}
+          </h1>
+          <p className="mt-5 max-w-[40ch] text-base text-text-secondary leading-relaxed">
+            {isSignup
+              ? `${platformName} is a paid-brief platform run by brands you already follow. Sign up, join a roster, and claim work that fits.`
+              : "Pick up where you left off. Your briefs, your submissions, and your payouts are all where you left them."}
           </p>
         </div>
 
-        <div className="flex bg-surface border border-border rounded-lg p-1 mb-6">
-          <button
-            type="button"
-            onClick={() => switchMode("login")}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-              mode === "login"
-                ? "bg-accent text-background font-bold"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("signup")}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-              isSignup
-                ? "bg-accent text-background font-bold"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            Sign Up
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-2">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium mb-2"
+        <ul className="relative mt-10 hidden lg:grid gap-3 text-sm text-text-secondary max-w-[44ch]">
+          {[
+            {
+              icon: ShieldCheck,
+              text: "Funded in escrow before the brief is published.",
+            },
+            {
+              icon: Wallet,
+              text: "Payouts in DKK, transferred within seven days of approval.",
+            },
+            {
+              icon: Sparkles,
+              text: "Self-billed invoices issued for you. You never write one.",
+            },
+          ].map(({ icon: Icon, text }) => (
+            <li
+              key={text}
+              className="
+                flex items-start gap-3
+                rounded-2xl border border-border bg-background/40 px-4 py-3
+              "
             >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
-              className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-              placeholder={
-                mode === "login" ? "Your password" : "Min 6 characters"
-              }
+              <Icon className="size-4 mt-0.5 text-brand-ink shrink-0" />
+              <span className="leading-relaxed">{text}</span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="relative mt-10 lg:mt-12 text-xs text-muted font-mono uppercase tracking-[0.18em]">
+          © {new Date().getFullYear()} {platformName}
+        </p>
+      </aside>
+
+      {/* FORM PANEL ----------------------------------------------------- */}
+      <section className="relative flex items-center justify-center px-4 sm:px-8 py-12 lg:py-16">
+        <div className="w-full max-w-[440px]">
+          <header className="mb-8">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              {isSignup ? "Create your account" : "Sign in"}
+            </h2>
+            <p className="mt-2 text-sm text-text-secondary">
+              {isSignup
+                ? "It takes about 30 seconds. We'll email you a confirmation link."
+                : "Use the email and password you signed up with."}
+            </p>
+          </header>
+
+          {/* Mode toggle — segmented control */}
+          <div
+            role="tablist"
+            aria-label="Choose mode"
+            className="relative grid grid-cols-2 rounded-full border border-border bg-surface/60 p-1 mb-7"
+          >
+            <span
+              aria-hidden="true"
+              className="
+                absolute top-1 bottom-1 w-[calc(50%-0.25rem)]
+                rounded-full bg-brand
+                transition-transform duration-300 ease-out
+                shadow-[0_1px_0_0_rgba(0,0,0,0.05)_inset,0_4px_18px_-6px_rgba(9,215,215,0.55)]
+              "
+              style={{
+                transform: isSignup ? "translateX(calc(100% + 0.25rem))" : "translateX(0.25rem)",
+              }}
             />
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isSignup}
+              onClick={() => switchMode("login")}
+              className={`
+                relative z-10 h-9 rounded-full text-sm font-semibold transition-colors
+                ${!isSignup ? "text-on-brand" : "text-text-secondary hover:text-foreground"}
+              `}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isSignup}
+              onClick={() => switchMode("signup")}
+              className={`
+                relative z-10 h-9 rounded-full text-sm font-semibold transition-colors
+                ${isSignup ? "text-on-brand" : "text-text-secondary hover:text-foreground"}
+              `}
+            >
+              Sign up
+            </button>
           </div>
 
-          {isSignup && (
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              {!showInvite ? (
-                <button
-                  type="button"
-                  onClick={() => setShowInvite(true)}
-                  className="text-sm text-muted hover:text-foreground transition-colors"
+              <label
+                htmlFor="email"
+                className="block text-xs font-mono uppercase tracking-[0.16em] text-muted mb-2"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="
+                  w-full h-11 px-4
+                  rounded-xl border border-border bg-background/60
+                  text-foreground placeholder:text-muted/70
+                  hover:border-border-strong
+                  focus:border-brand focus:ring-2 focus:ring-brand/30
+                  outline-none transition-colors
+                "
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-mono uppercase tracking-[0.16em] text-muted"
                 >
-                  Have an invite code?{" "}
-                  <span className="text-accent-ink underline">
-                    Add it here
+                  Password
+                </label>
+                {isSignup && (
+                  <span className="text-[11px] text-muted">
+                    Min 6 characters
                   </span>
-                </button>
+                )}
+              </div>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                className="
+                  w-full h-11 px-4
+                  rounded-xl border border-border bg-background/60
+                  text-foreground placeholder:text-muted/70
+                  hover:border-border-strong
+                  focus:border-brand focus:ring-2 focus:ring-brand/30
+                  outline-none transition-colors
+                "
+                placeholder={isSignup ? "Pick something memorable" : "Your password"}
+              />
+            </div>
+
+            {isSignup && (
+              <div className="rounded-xl border border-dashed border-border bg-surface/40 px-4 py-3.5">
+                {!showInvite ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowInvite(true)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <span className="text-sm text-text-secondary">
+                      Have an invite code from an org?
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink">
+                      Add it
+                      <ArrowRight className="size-3" />
+                    </span>
+                  </button>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <label
+                        htmlFor="inviteCode"
+                        className="block text-xs font-mono uppercase tracking-[0.16em] text-muted"
+                      >
+                        Invite code{" "}
+                        <span className="normal-case tracking-normal text-muted/80">
+                          (optional)
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInvite(false);
+                          setInviteCode("");
+                        }}
+                        className="text-[11px] text-muted hover:text-foreground transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <input
+                      id="inviteCode"
+                      type="text"
+                      value={inviteCode}
+                      onChange={(e) =>
+                        setInviteCode(e.target.value.toUpperCase())
+                      }
+                      className="
+                        w-full h-11 px-4
+                        rounded-xl border border-border bg-background/60
+                        text-foreground placeholder:text-muted/60
+                        font-mono tracking-[0.18em] uppercase
+                        hover:border-border-strong
+                        focus:border-brand focus:ring-2 focus:ring-brand/30
+                        outline-none transition-colors
+                      "
+                      placeholder="XXXX-XXXX"
+                    />
+                    <p className="text-[11px] text-muted mt-2 leading-relaxed">
+                      Connects you to a specific org as creator, member, or
+                      admin. If you don&rsquo;t have one, leave this blank.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-xl border border-error/30 bg-error-muted px-4 py-3"
+              >
+                <AlertCircle className="size-4 text-error-ink shrink-0 mt-0.5" />
+                <p className="text-sm text-error-ink leading-relaxed">
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {success && (
+              <div
+                role="status"
+                className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success-muted px-4 py-3"
+              >
+                <CheckCircle2 className="size-4 text-success-ink shrink-0 mt-0.5" />
+                <p className="text-sm text-success-ink leading-relaxed">
+                  {success}
+                </p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="
+                group inline-flex w-full h-12 items-center justify-center gap-2.5
+                rounded-full bg-brand hover:bg-brand-hover
+                disabled:opacity-60 disabled:cursor-not-allowed
+                text-sm font-semibold text-on-brand
+                transition-colors active:translate-y-px
+              "
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {isSignup ? "Creating account" : "Signing in"}
+                </>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-2">
-                    <label
-                      htmlFor="inviteCode"
-                      className="block text-sm font-medium"
-                    >
-                      Invite code{" "}
-                      <span className="text-muted font-normal">(optional)</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowInvite(false);
-                        setInviteCode("");
-                      }}
-                      className="text-xs text-muted hover:text-foreground"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <input
-                    id="inviteCode"
-                    type="text"
-                    value={inviteCode}
-                    onChange={(e) =>
-                      setInviteCode(e.target.value.toUpperCase())
-                    }
-                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono tracking-wider"
-                    placeholder="XXXX-XXXX"
-                  />
-                  <p className="text-muted text-xs mt-1">
-                    Connects you to a specific org as creator, member, or
-                    admin.
-                  </p>
+                  {isSignup ? "Create account" : "Sign in"}
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </>
               )}
-            </div>
-          )}
+            </button>
+          </form>
 
-          {error && (
-            <div className="flex items-start gap-2 bg-error-muted border border-error/30 rounded-lg p-3">
-              <svg
-                className="w-4 h-4 text-error-ink shrink-0 mt-0.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"
-                />
-              </svg>
-              <p className="text-error-ink text-sm">{error}</p>
-            </div>
-          )}
+          <p className="mt-6 text-center text-sm text-text-secondary">
+            {isSignup ? (
+              <>
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="text-brand-ink font-medium hover:underline underline-offset-4"
+                >
+                  Sign in instead
+                </button>
+              </>
+            ) : (
+              <>
+                New here?{" "}
+                <button
+                  type="button"
+                  onClick={() => switchMode("signup")}
+                  className="text-brand-ink font-medium hover:underline underline-offset-4"
+                >
+                  Create an account
+                </button>
+              </>
+            )}
+          </p>
 
-          {success && (
-            <div className="flex items-start gap-2 bg-success-muted border border-success/30 rounded-lg p-3">
-              <svg
-                className="w-4 h-4 text-success-ink shrink-0 mt-0.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <p className="text-success-ink text-sm">{success}</p>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold rounded-full transition-colors"
-          >
-            {loading
-              ? mode === "login"
-                ? "Signing in..."
-                : "Creating account..."
-              : mode === "login"
-                ? "Sign In"
-                : "Create account"}
-          </button>
-        </form>
-
-        <p className="text-center text-muted text-sm mt-6">
-          {mode === "login" ? (
-            <>
-              New here?{" "}
-              <button
-                type="button"
-                onClick={() => switchMode("signup")}
-                className="text-accent-ink hover:underline"
-              >
-                Sign up
-              </button>{" "}
-              to browse briefs from any brand.
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => switchMode("login")}
-                className="text-accent-ink hover:underline"
-              >
-                Sign in instead
-              </button>
-            </>
-          )}
-        </p>
-      </div>
+          <p className="mt-8 text-center text-[11px] text-muted leading-relaxed">
+            By continuing you agree to our{" "}
+            <Link
+              href="/legal/terms"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              terms
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/legal/privacy"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              privacy policy
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
