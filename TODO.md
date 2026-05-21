@@ -895,6 +895,142 @@ same discussion.
 
 ### Backlog
 
+- ❌ **Brief slot-open watch list ("Notify me when available").**
+  Today a creator who lands on a fully-claimed brief has no way to
+  hear about it again. Slots reopen all the time (claim cancellation,
+  expiry, rejection, revision-requested then cancelled), so there's
+  a meaningful matching problem we're leaving on the floor. Build
+  an opt-in watch list per (brief, creator) plus a slot-reopen
+  notification that flows through the existing email rails.
+  Design:
+  1. **Schema** (one migration):
+    `CREATE TABLE brief_watchers (
+       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+       brief_id uuid NOT NULL REFERENCES briefs(id) ON DELETE CASCADE,
+       user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+       created_at timestamptz NOT NULL DEFAULT now(),
+       notified_at timestamptz,
+       UNIQUE (brief_id, user_id)
+     );`
+    RLS: creator can SELECT/INSERT/DELETE their own rows; no other
+    access for v1. Index on `(brief_id) WHERE notified_at IS NULL`
+    so the slot-reopen trigger is fast.
+  2. **Enum**: add `brief_slot_available` to
+    `notification_event_type`.
+  3. **Preference column**: reuse `notify_new_briefs` (same intent:
+    "tell me about claimable briefs"). Wire it in
+    `preferenceColumnFor()` at
+    `supabase/functions/process-notification-outbox/index.ts:37`.
+  4. **Slot-reopen trigger** on `claims` UPDATE:
+    Fire when `OLD.status IN ('active','submitted','revision_requested')`
+    AND `NEW.status = 'cancelled'`. After the flip:
+      a. Check if the brief now has at least one open slot
+       (`claim_limit > count of non-cancelled claims`) AND the
+       brief is still in an open/active status.
+      b. If yes, select all `brief_watchers` rows for this brief
+       where `notified_at IS NULL`.
+      c. For each watcher, re-check eligibility against the
+       targeting rules from migration 0057 (same filter used to
+       decide whether they can see/claim the brief in the first
+       place). Skip ineligible watchers without setting
+       `notified_at` so they remain queued for a future reopen.
+      d. For eligible watchers, call
+       `create_notification_for_user(...)` with title
+       "A slot just opened" and a body referencing the brief
+       title, then set `notified_at = NOW()` on the watcher row
+       in the same statement. Outbox + Resend deliver via the
+       shared `renderEmail()` helper.
+    Race handling: emailing all watchers is fine. First click
+    wins via the existing slot-count check at claim-insert time;
+    losers see the normal "fully claimed" UX. No pessimistic
+    reservation.
+  5. **Auto-unwatch on self-claim**: when a creator successfully
+    claims a brief, DELETE their `brief_watchers` row for that
+    brief (in the same server action). Avoids the "I claimed it,
+    why did I get the slot-open email later" footgun.
+  6. **UI**:
+    - Brief detail (`briefs/[id]/brief-detail-client.tsx`) when
+      brief is fully claimed AND viewer is eligible AND has no
+      claim: render a "Notify me when a slot opens" button.
+      Flipped state shows "We'll email you" with an undo.
+    - Creator profile (`/profile` or `/my-briefs`): list active
+      watches with unwatch action. Mostly for transparency and
+      easy GDPR-style "what do you know about me" answers.
+  Edge cases to handle in v1:
+  - Creator already has a non-cancelled claim on the brief → hide
+    the watch button (no-op the action server-side as a backstop).
+  - Brief moves to `closed`/`archived` → silently delete watch
+    rows (CASCADE handles brief deletion; status change needs an
+    explicit cleanup in whichever action flips the brief).
+  - Watcher becomes ineligible between subscribing and the slot
+    opening (org membership change, targeting rule change) → step
+    4c above suppresses the email without burning their slot.
+  - Duplicate watch attempt → UNIQUE constraint, server action
+    returns success idempotently.
+  Worth deciding before writing the migration:
+  - **Notify once or every reopen?** Current design is once
+    (notified_at as a one-shot flag). If we want recurring notifies
+    we'd swap `notified_at` for a `notification_count` int and gate
+    on a cooldown. Start with once; a creator who really wants
+    repeated alerts can re-subscribe after each slot opens.
+  - **Email all watchers vs first-N?** Email all. If a brief has
+    20 watchers and 1 slot, we're not gating; the UX message is
+    explicit ("a slot opened, first to claim wins").
+  Verify after shipping: synthetic flow with a 1-slot brief,
+  watcher A and B both subscribe, claim it as user C, cancel as C,
+  confirm A and B both get an email + a notification row, A claims
+  the slot, B sees "fully claimed" on retry, B's watch row is
+  consumed (`notified_at` set so they don't get a second email if
+  the slot re-opens later).
+
+- ❌ **Pre-expiry claim reminder email.** Today the only expiry
+  email creators get is the post-mortem `claim_expired` notification
+  fired by the trigger in `0018_org_scoped_triggers.sql:196` once
+  the claim has already flipped to `cancelled`. By then the slot is
+  gone. Need a "your claim expires in ~24h, submit before [date]"
+  nudge while they can still act. All the delivery rails exist; this
+  is just a new trigger source.
+  Design (cleanest path on existing infra):
+  1. **Enum**: add `claim_expiring_soon` to `notification_event_type`
+    via a one-line migration (mirrors the `claim_revision_requested`
+    add in 0054).
+  2. **Idempotency column**: `claims.expiry_reminded_at TIMESTAMPTZ`
+    so the cron can't double-send. Single-reminder model. If we
+    later want two stages (72h + 24h), swap for a `reminder_stage`
+    smallint.
+  3. **SQL function + `pg_cron`** scheduled hourly: select claims
+    where `status IN ('active', 'revision_requested')`,
+    `expires_at BETWEEN NOW() AND NOW() + interval '24 hours'`,
+    `expiry_reminded_at IS NULL`. For each, call
+    `create_notification_for_user(...)` with title "Claim expires
+    soon" and a body that interpolates the brief title + remaining
+    hours, then set `expiry_reminded_at = NOW()` in the same
+    statement.
+  4. **Delivery**: nothing new needed. The notification row flows
+    through `notification_outbox`, gets picked up by
+    `process-notification-outbox`, and rendered via the shared
+    `renderEmail()` helper (committed bc0ed44). Honour the existing
+    `notify_claim_updates` preference column so we don't add a new
+    user-facing toggle.
+  5. **Preference column wiring**: confirm `preferenceColumnFor()`
+    in `process-notification-outbox/index.ts:37` returns
+    `notify_claim_updates` for `claim_expiring_soon` (it currently
+    falls through to that default, which is correct; verify).
+  Open decisions before writing the migration:
+  - **Threshold value.** 24h is the default. If typical `expires_at`
+    is 48h after claim, that's half-life and probably right. If it's
+    7 days, a 72h reminder may be friendlier. Sample real claim
+    `expires_at - claimed_at` deltas before locking this in.
+  - **One reminder or two.** Single 24h reminder is one column and
+    one cron tick. Two-stage (72h + 24h) needs `reminder_stage` and
+    two passes per tick. Start with one; second can be added later
+    without schema churn.
+  Verify after shipping: backfill a synthetic claim with
+  `expires_at = NOW() + interval '23 hours'`, wait for the next
+  cron tick, confirm a notification row exists, the outbox sends,
+  and the email lands. Then confirm a second cron tick does not
+  re-send.
+
 - ❌ **Submissions storage lifecycle (`submissions` bucket cleanup).**
   Traced 2026-05-21: every video uploaded to a claim lives in the
   `submissions` bucket forever. No cleanup anywhere in code (verified
