@@ -36,6 +36,16 @@
   },
   "routes": [
     {
+      "pattern": "briefly.dk",
+      "zone_name": "briefly.dk",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.briefly.dk",
+      "zone_name": "briefly.dk",
+      "custom_domain": true
+    },
+    {
       "pattern": "app.briefly.dk",
       "zone_name": "briefly.dk",
       "custom_domain": true
