@@ -24,7 +24,7 @@ export function LandingTopCallout({ audience }: LandingTopCalloutProps) {
           cta: "See the org pitch",
         }
       : {
-          href: "/",
+          href: "/for-creators",
           eyebrow: "Making content yourself?",
           cta: "See the creator pitch",
         };

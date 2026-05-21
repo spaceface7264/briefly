@@ -167,7 +167,7 @@ export default async function ForBrands() {
                 </span>
               </a>
               <Link
-                href="/"
+                href="/for-creators"
                 className="
                   inline-flex h-12 items-center justify-center
                   rounded-full border border-border-strong/70 bg-surface/40
@@ -539,7 +539,7 @@ export default async function ForBrands() {
                   </p>
                 </div>
                 <Link
-                  href="/"
+                  href="/for-creators"
                   className="
                     inline-flex h-10 items-center gap-2 rounded-full
                     border border-border-strong bg-background/40 px-4
@@ -591,7 +591,7 @@ export default async function ForBrands() {
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </a>
             <Link
-              href="/"
+              href="/for-creators"
               className="
                 inline-flex h-12 items-center rounded-full
                 border border-border-strong/70 bg-surface/40

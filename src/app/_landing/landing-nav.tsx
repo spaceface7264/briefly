@@ -14,15 +14,16 @@ interface LandingNavProps {
 }
 
 /**
- * Sticky pill nav for the two marketing surfaces (`/` and `/for-brands`).
- * Both pages share this top chrome; the only difference is which audience
- * the page addresses, which flips the cross-link and the primary CTA.
+ * Sticky pill nav for the two marketing surfaces (/for-creators and
+ * /for-brands). Both pages share this top chrome; the only difference
+ * is which audience the page addresses, which flips the cross-link and
+ * the primary CTA.
  */
 export function LandingNav({ audience }: LandingNavProps) {
   const crossLink =
     audience === "creator"
       ? { href: "/for-brands", label: "For brands" }
-      : { href: "/", label: "For creators" };
+      : { href: "/for-creators", label: "For creators" };
 
   const primaryCta =
     audience === "creator"
