@@ -581,6 +581,33 @@ html[data-theme] body {
   html { @apply font-sans; }
 }
 
+/* The shadcn Sidebar primitive sets `--sidebar-width` inline on its
+   wrapper (16rem desktop default). That fills ~33% of an iPad-portrait
+   viewport, which makes the rail feel oversized between the md and lg
+   breakpoints. Redeclaring the variable on the sidebar element itself
+   wins via the cascade (closer declaration beats the ancestor's inline
+   style), so we get a responsive width without forking the primitive
+   or reaching for !important. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  [data-slot="sidebar"] {
+    --sidebar-width: 13.5rem;
+  }
+}
+
+/* Mobile off-canvas drawer. The primitive hardcodes 18rem inline on
+   SheetContent, which on a 360px phone is ~80% of the viewport and is
+   also wider than the desktop rail, so resizing across the breakpoint
+   makes the sidebar grow on the smaller screen, which feels inverted.
+   Cap the drawer at 17rem and never exceed 85vw on the tiniest
+   viewports. `!important` is unavoidable here, the primitive's inline
+   style on the same element would otherwise win regardless of
+   selector specificity, and we don't want to fork the primitive. */
+@media (max-width: 767.98px) {
+  [data-mobile="true"][data-slot="sidebar"] {
+    --sidebar-width: min(85vw, 17rem) !important;
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────
    SANDBOX THEME TOKENS — scoped, exploratory
 

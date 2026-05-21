@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { Brief } from "@/types/database";
 import { AdminBriefsClient } from "./admin-briefs-client";
 import { FlashToast } from "@/components/flash-toast";
+import { Button } from "@/components/ui/button";
+import { PlusIcon } from "lucide-react";
 
 export default async function AdminBriefsPage({
   searchParams,
@@ -60,18 +62,15 @@ export default async function AdminBriefsPage({
       <Suspense fallback={null}>
         <FlashToast />
       </Suspense>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display tracking-tight text-3xl font-bold">Briefs</h1>
-          <p className="text-muted text-sm mt-1">Showing {briefsWithCounts.length} total</p>
-        </div>
-        <Link
-          href="/admin/briefs/new"
-          className="px-5 py-2.5 bg-accent hover:bg-accent-hover text-background font-semibold rounded-full transition-colors"
-        >
-          Create Brief
-        </Link>
-      </div>
+      <header className="mb-6 flex items-end justify-between gap-4">
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
+          Briefs
+        </h1>
+        <Button nativeButton={false} render={<Link href="/admin/briefs/new" />}>
+          <PlusIcon data-icon="inline-start" />
+          New brief
+        </Button>
+      </header>
 
       <AdminBriefsClient briefs={briefsWithCounts} canBulkEdit={isAdmin} />
     </div>

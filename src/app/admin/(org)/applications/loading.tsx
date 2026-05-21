@@ -1,34 +1,65 @@
 export default function ApplicationsLoading() {
   return (
     <div className="animate-pulse">
-      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-9 w-44 bg-surface rounded-lg" />
-          <div className="h-4 w-72 bg-surface rounded" />
+          <div className="h-9 w-48 rounded-lg bg-surface" />
+          <div className="h-4 w-56 rounded bg-surface" />
         </div>
-        <div className="h-7 w-32 bg-surface rounded-md" />
-      </div>
+      </header>
 
-      <div className="space-y-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-surface border border-border rounded-xl p-5"
-          >
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="space-y-2 flex-1 min-w-0">
-                <div className="h-5 w-1/2 bg-border/60 rounded" />
-                <div className="h-3 w-3/4 bg-border/40 rounded" />
-                <div className="h-3 w-2/3 bg-border/40 rounded" />
+      <section className="mb-10">
+        <div className="mb-3 flex items-baseline gap-2">
+          <div className="h-3 w-14 rounded bg-surface" />
+          <div className="h-4 w-6 rounded-full bg-surface" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-xl border border-border bg-surface p-5"
+            >
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-border/60" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-1/3 rounded bg-border/60" />
+                  <div className="h-3 w-1/2 rounded bg-border/40" />
+                  <div className="h-3 w-1/4 rounded bg-border/40" />
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <div className="h-8 w-20 bg-border/60 rounded-lg" />
-                <div className="h-8 w-20 bg-border/60 rounded-lg" />
+              <div className="mt-3 ml-14 flex gap-1.5">
+                <div className="h-5 w-16 rounded-full bg-border/40" />
+                <div className="h-5 w-20 rounded-full bg-border/40" />
+                <div className="h-5 w-14 rounded-full bg-border/40" />
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-baseline gap-2">
+          <div className="h-3 w-16 rounded bg-surface" />
+          <div className="h-4 w-6 rounded-full bg-surface" />
+        </div>
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3 px-4 py-3 ${
+                i > 0 ? "border-t border-border" : ""
+              }`}
+            >
+              <div className="h-7 w-7 shrink-0 rounded-full bg-border/60" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-1/3 rounded bg-border/60" />
+                <div className="h-3 w-1/2 rounded bg-border/40" />
+              </div>
+              <div className="h-5 w-16 rounded-full bg-border/40" />
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
