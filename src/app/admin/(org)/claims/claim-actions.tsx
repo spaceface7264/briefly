@@ -118,7 +118,11 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
   }
 
   if (claim.status === "active") {
-    return <span className="text-muted text-sm">Awaiting submission</span>;
+    return (
+      <span className="whitespace-nowrap text-sm text-muted">
+        Awaiting submission
+      </span>
+    );
   }
 
   if (claim.status === "paid" && paidInvoice) {
@@ -127,7 +131,7 @@ export function ClaimActions({ claim, paidInvoice, canPay }: ClaimActionsProps) 
         href={`/api/invoices/${paidInvoice.id}/pdf`}
         target="_blank"
         rel="noopener noreferrer"
-        className="px-3 py-1.5 text-sm text-accent hover:bg-accent-muted rounded-lg transition-colors inline-block"
+        className="inline-block whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-brand-ink transition-colors hover:bg-brand-muted"
       >
         Invoice {paidInvoice.invoice_number}
       </a>

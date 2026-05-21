@@ -117,7 +117,6 @@ export default async function AdminLayout({
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <AdminNav
-        userId={user.id}
         userEmail={user.email ?? ""}
         userName={profile?.name ?? null}
         userAvatarUrl={profile?.avatar_url ?? null}
@@ -125,12 +124,19 @@ export default async function AdminLayout({
         isPlatformAdmin={isPlatformAdmin}
         isSupportMode={isPlatformActor}
         org={{
+          id: org.id,
           name: org.name,
           logoUrl: org.logo_url,
           accentColor: org.accent_color,
         }}
       />
-      <SidebarInset>
+      {/* `min-w-0` on the SidebarInset flex item is the load-bearing
+          fix: shadcn's primitive defaults to `min-width: auto`, so a
+          wide descendant (long brief title in a table) could push the
+          inset past its share of the row and out of the viewport on
+          the right. With min-w-0 the inset can shrink to its flex
+          share regardless of content. */}
+      <SidebarInset className="min-w-0">
         {/* Platform-wide and per-org notices stack above the support
             mode banner so a "site is read-only for the next 30 minutes"
             advisory shows even during a support session. */}
@@ -150,7 +156,11 @@ export default async function AdminLayout({
             drawer with no visible trigger, so render a small fixed
             fallback that only appears below the md breakpoint. */}
         <SidebarTrigger className="md:hidden fixed top-3 left-3 z-40 bg-background/80 backdrop-blur-sm border border-border/60" />
-        <div className="p-6 md:p-8">{children}</div>
+        {/* `min-w-0` lets this flex child shrink below its content
+            min, so a wide descendant (e.g. an unbreakable brief title
+            in a table) scrolls within its own container instead of
+            pushing the page wider than the viewport. */}
+        <div className="min-w-0 p-6 md:p-8">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

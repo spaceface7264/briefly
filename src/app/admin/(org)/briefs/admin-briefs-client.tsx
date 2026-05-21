@@ -6,8 +6,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { categoryLabel, durationClassLabel, formatPrice } from "@/lib/utils";
 import type { Brief, BriefStatus } from "@/types/database";
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
-import { type ColumnKey } from "./columns-dropdown";
+import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
+  ChevronDownIcon,
+  SearchIcon,
+  SlidersHorizontalIcon,
+} from "lucide-react";
 import {
   badgeToneByCategory,
   badgeToneByDurationClass,
@@ -17,7 +23,24 @@ import {
 } from "@/lib/admin-badge-tones";
 import type { BriefFundedStatus } from "@/types/database";
 import { ConfirmDialog } from "@/components/modal";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   archiveBriefsBulk,
   deleteBriefsBulk,
@@ -29,6 +52,16 @@ type SortField = "created_at" | "title" | "price_dkk";
 type SortOrder = "asc" | "desc";
 type StatusFilter = "all" | "open" | "claimed" | "archived";
 type AdFilter = "all" | "ad" | "non_ad";
+type DurationFilter = Brief["duration_class"] | "all";
+
+export type ColumnKey =
+  | "category"
+  | "duration"
+  | "price"
+  | "claims"
+  | "status"
+  | "created"
+  | "actions";
 
 const PAGE_SIZE = 10;
 const DEFAULT_COLUMNS: ColumnKey[] = [
@@ -39,6 +72,48 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
   "status",
   "created",
   "actions",
+];
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  category: "Category",
+  duration: "Duration",
+  price: "Price",
+  claims: "Claims",
+  status: "Status",
+  created: "Created",
+  actions: "Actions",
+};
+
+const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
+  all: "All",
+  open: "Open",
+  claimed: "Claimed",
+  archived: "Archived",
+};
+
+// Dot styling for the status filter chips. "Open" pulses to mirror
+// the live indicator used elsewhere; the other states are static.
+// Counts and labels are paired with the dot so color never carries
+// meaning alone.
+const STATUS_DOT_CLASS: Record<StatusFilter, string> = {
+  all: "bg-muted/70",
+  open: "bg-success-ink",
+  claimed: "bg-brand-ink",
+  archived: "bg-muted/60",
+};
+
+const DURATION_OPTIONS: { value: DurationFilter; label: string }[] = [
+  { value: "all", label: "All durations" },
+  { value: "short", label: "Short" },
+  { value: "medium", label: "Medium" },
+  { value: "long", label: "Long" },
+  { value: "static", label: "Static" },
+];
+
+const AD_OPTIONS: { value: AdFilter; label: string }[] = [
+  { value: "all", label: "All brief types" },
+  { value: "ad", label: "Intended for ads" },
+  { value: "non_ad", label: "Organic only" },
 ];
 
 type BriefWithCount = Brief & {
@@ -54,16 +129,18 @@ function FundedBadge({ status }: { status: BriefFundedStatus | null }) {
   const label = fundedStatusLabel[status];
   if (!tone || !label) return null;
   return (
-    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${tone}`}>
+    <span
+      className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium ${tone}`}
+    >
       {label}
     </span>
   );
 }
 
 function SortIcon({ activeOrder }: { activeOrder?: SortOrder }) {
-  if (activeOrder === "asc") return <ArrowUpIcon className="h-3.5 w-3.5" aria-hidden="true" />;
-  if (activeOrder === "desc") return <ArrowDownIcon className="h-3.5 w-3.5" aria-hidden="true" />;
-  return <ArrowUpDownIcon className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />;
+  if (activeOrder === "asc") return <ArrowUpIcon className="size-3.5" aria-hidden="true" />;
+  if (activeOrder === "desc") return <ArrowDownIcon className="size-3.5" aria-hidden="true" />;
+  return <ArrowUpDownIcon className="size-3.5 opacity-60" aria-hidden="true" />;
 }
 
 export function AdminBriefsClient({
@@ -77,7 +154,7 @@ export function AdminBriefsClient({
 }) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [durationFilter, setDurationFilter] = useState<Brief["duration_class"] | "all">("all");
+  const [durationFilter, setDurationFilter] = useState<DurationFilter>("all");
   const [adFilter, setAdFilter] = useState<AdFilter>("all");
   const [q, setQ] = useState("");
   const [sortField, setSortField] = useState<SortField | undefined>(undefined);
@@ -123,6 +200,8 @@ export function AdminBriefsClient({
   const safePage = Math.min(page, totalPages);
   const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const animationKey = `${statusFilter}|${durationFilter}|${adFilter}|${q}|${sortField || "none"}|${sortOrder || "none"}|${safePage}`;
+  const hasNonStatusFilter =
+    durationFilter !== "all" || adFilter !== "all" || q.trim().length > 0;
 
   function cycleSort(field: SortField) {
     setPage(1);
@@ -144,9 +223,19 @@ export function AdminBriefsClient({
       const next = new Set(prev);
       if (next.has(col)) next.delete(col);
       else next.add(col);
+      // Never let users hide every column; fall back to defaults if
+      // they tried.
       if (next.size === 0) return new Set(DEFAULT_COLUMNS);
       return next;
     });
+  }
+
+  function resetFilters() {
+    setStatusFilter("all");
+    setDurationFilter("all");
+    setAdFilter("all");
+    setQ("");
+    setPage(1);
   }
 
   const briefsById = useMemo(() => {
@@ -159,7 +248,7 @@ export function AdminBriefsClient({
   // that removes rows (e.g. bulk delete) drops stale ids from the
   // active count without needing to write back into selectedIds in
   // an effect. Anything that survives in selectedIds but not in
-  // briefsById is treated as gone — bulk actions clearSelection() on
+  // briefsById is treated as gone; bulk actions clearSelection() on
   // completion anyway, so the only path that hits this is a router
   // refresh racing the user.
   const selectedBriefs = useMemo(
@@ -261,83 +350,103 @@ export function AdminBriefsClient({
     });
   }
 
+  const durationLabel =
+    DURATION_OPTIONS.find((o) => o.value === durationFilter)?.label ?? "All durations";
+  const adLabel = AD_OPTIONS.find((o) => o.value === adFilter)?.label ?? "All brief types";
+
   return (
     <div>
-      <div className="flex flex-wrap gap-2 mb-4">
-        {(["all", "open", "claimed", "archived"] as StatusFilter[]).map((status) => {
-          const colorDotStyles: Record<StatusFilter, string> = {
-            all: "bg-muted",
-            open: "bg-success",
-            claimed: "bg-accent",
-            archived: "bg-muted",
-          };
+      {/* Status filter row. Pill-shaped chips that match the rest of
+          the design system (rounded-full, brand-tinted on active).
+          Each chip pairs its dot with a label and count so colour is
+          never the sole signal. */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(Object.keys(STATUS_FILTER_LABEL) as StatusFilter[]).map((status) => {
           const isActive = statusFilter === status;
+          const count = statusCounts[status];
           return (
             <button
               key={status}
-              onClick={() => { setStatusFilter(status); setPage(1); }}
-              className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+              type="button"
+              onClick={() => {
+                setStatusFilter(status);
+                setPage(1);
+              }}
+              aria-pressed={isActive}
+              className={`group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-surface-raised text-foreground border-border-strong"
-                  : "bg-surface border-border text-foreground hover:border-brand/40"
+                  ? "border-brand-ink/25 bg-brand-soft text-foreground"
+                  : "border-border bg-surface text-text-secondary hover:border-border-strong hover:text-foreground"
               }`}
             >
-              <span className="inline-flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${colorDotStyles[status]}`} />
-                {status === "all" ? "All" : status[0].toUpperCase() + status.slice(1)} ({statusCounts[status]})
+              <span className={`size-2 rounded-full ${STATUS_DOT_CLASS[status]}`} aria-hidden="true" />
+              <span>{STATUS_FILTER_LABEL[status]}</span>
+              <span
+                className={`value-text text-xs ${
+                  isActive ? "text-muted" : "text-muted/80"
+                }`}
+              >
+                {count}
               </span>
             </button>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => { setQ(e.target.value); setPage(1); }}
-          placeholder="Search title or location..."
-          className="w-64 rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-        />
-        <select
-          value={durationFilter}
-          onChange={(e) => { setDurationFilter(e.target.value as Brief["duration_class"] | "all"); setPage(1); }}
-          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-        >
-          <option value="all">All durations</option>
-          <option value="short">Short</option>
-          <option value="medium">Medium</option>
-          <option value="long">Long</option>
-          <option value="static">Static</option>
-        </select>
-        <select
-          value={adFilter}
-          onChange={(e) => { setAdFilter(e.target.value as AdFilter); setPage(1); }}
-          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-        >
-          <option value="all">All brief types</option>
-          <option value="ad">Intended for ads</option>
-          <option value="non_ad">Organic only</option>
-        </select>
+      {/* Search + filter row. Search owns the left so the eye lands
+          there first; the dropdown chips group on the right with the
+          columns control. */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-72">
+          <SearchIcon
+            aria-hidden="true"
+            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted"
+          />
+          <Input
+            type="search"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search title or location"
+            aria-label="Search briefs"
+            className="pl-7.5"
+          />
+        </div>
 
-        <details className="relative ml-auto">
-          <summary className="list-none cursor-pointer px-3 py-2 rounded-lg border border-border text-sm hover:border-accent/50 transition-colors">
-            Columns
-          </summary>
-          <div className="absolute right-0 mt-2 z-10 min-w-56 rounded-lg border border-border bg-surface p-3 shadow-lg space-y-2">
-            {DEFAULT_COLUMNS.map((column) => (
-              <label key={column} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.has(column)}
-                  onChange={() => toggleColumn(column)}
-                  className="accent-accent"
-                />
-                <span className="capitalize">{column}</span>
-              </label>
-            ))}
-          </div>
-        </details>
+        <FilterChip
+          label={durationLabel}
+          value={durationFilter}
+          options={DURATION_OPTIONS}
+          onChange={(v) => {
+            setDurationFilter(v);
+            setPage(1);
+          }}
+        />
+        <FilterChip
+          label={adLabel}
+          value={adFilter}
+          options={AD_OPTIONS}
+          onChange={(v) => {
+            setAdFilter(v);
+            setPage(1);
+          }}
+        />
+
+        {hasNonStatusFilter && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resetFilters}
+            className="text-muted hover:text-foreground"
+          >
+            Clear
+          </Button>
+        )}
+
+        <ColumnsMenu visibleColumns={visibleColumns} onToggle={toggleColumn} />
       </div>
 
       {canBulkEdit && selectedCount > 0 && (
@@ -353,8 +462,8 @@ export function AdminBriefsClient({
       )}
 
       {paginated.length > 0 ? (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <table className="w-full">
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-border">
                 {canBulkEdit && (
@@ -375,131 +484,207 @@ export function AdminBriefsClient({
                     />
                   </th>
                 )}
-                <th className="text-left text-sm font-medium text-muted px-4 py-3">
-                  <button onClick={() => cycleSort("title")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted">
+                  <button
+                    onClick={() => cycleSort("title")}
+                    className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+                  >
                     Title
                     <SortIcon activeOrder={sortField === "title" ? sortOrder : undefined} />
                   </button>
                 </th>
-                {visibleColumns.has("category") && <th className="text-left text-sm font-medium text-muted px-4 py-3">Category</th>}
-                {visibleColumns.has("duration") && <th className="text-left text-sm font-medium text-muted px-4 py-3">Duration</th>}
+                {visibleColumns.has("category") && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted">
+                    Category
+                  </th>
+                )}
+                {visibleColumns.has("duration") && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted">
+                    Duration
+                  </th>
+                )}
                 {visibleColumns.has("price") && (
-                  <th className="text-left text-sm font-medium text-muted px-4 py-3">
-                    <button onClick={() => cycleSort("price_dkk")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted">
+                    <button
+                      onClick={() => cycleSort("price_dkk")}
+                      className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+                    >
                       Price
                       <SortIcon activeOrder={sortField === "price_dkk" ? sortOrder : undefined} />
                     </button>
                   </th>
                 )}
-                {visibleColumns.has("claims") && <th className="text-left text-sm font-medium text-muted px-4 py-3">Claims</th>}
-                {visibleColumns.has("status") && <th className="text-left text-sm font-medium text-muted px-4 py-3">Status</th>}
+                {visibleColumns.has("claims") && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted">
+                    Claims
+                  </th>
+                )}
+                {visibleColumns.has("status") && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted">
+                    Status
+                  </th>
+                )}
                 {visibleColumns.has("created") && (
-                  <th className="text-left text-sm font-medium text-muted px-4 py-3">
-                    <button onClick={() => cycleSort("created_at")} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted">
+                    <button
+                      onClick={() => cycleSort("created_at")}
+                      className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+                    >
                       Created
                       <SortIcon activeOrder={sortField === "created_at" ? sortOrder : undefined} />
                     </button>
                   </th>
                 )}
-                {visibleColumns.has("actions") && <th className="text-right text-sm font-medium text-muted px-4 py-3">Actions</th>}
+                {visibleColumns.has("actions") && (
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody key={animationKey} className="animate-stagger-in">
               {paginated.map((brief) => {
                 const isSelected = selectedIds.has(brief.id);
                 return (
-                <tr
-                  key={brief.id}
-                  className={`border-b border-border last:border-0 hover:bg-surface-hover ${
-                    isSelected ? "bg-accent-muted/40" : ""
-                  }`}
-                >
-                  {canBulkEdit && (
-                    <td className="px-4 py-3 align-middle">
-                      <Checkbox
-                        aria-label={`Select ${brief.title}`}
-                        checked={isSelected}
-                        onCheckedChange={(checked) =>
-                          toggleSelect(brief.id, checked === true)
-                        }
-                      />
+                  <tr
+                    key={brief.id}
+                    className={`border-b border-border transition-colors last:border-0 hover:bg-surface-hover ${
+                      isSelected ? "bg-brand-soft hover:bg-brand-soft" : ""
+                    }`}
+                  >
+                    {canBulkEdit && (
+                      <td className="px-4 py-3 align-middle">
+                        <Checkbox
+                          aria-label={`Select ${brief.title}`}
+                          checked={isSelected}
+                          onCheckedChange={(checked) =>
+                            toggleSelect(brief.id, checked === true)
+                          }
+                        />
+                      </td>
+                    )}
+                    <td className="max-w-[280px] px-4 py-3 sm:max-w-[360px]">
+                      <Link
+                        href={`/admin/briefs/${brief.id}`}
+                        title={brief.title}
+                        className="block truncate font-medium text-foreground transition-colors hover:text-brand-ink"
+                      >
+                        {brief.title}
+                      </Link>
+                      {brief.location && (
+                        <p className="mt-0.5 truncate text-sm text-muted" title={brief.location}>
+                          {brief.location}
+                        </p>
+                      )}
                     </td>
-                  )}
-                  <td className="px-4 py-3">
-                    <Link href={`/admin/briefs/${brief.id}`} className="font-medium hover:text-accent">{brief.title}</Link>
-                    {brief.location && <p className="mt-0.5 text-muted text-sm">{brief.location}</p>}
-                  </td>
-                  {visibleColumns.has("category") && (
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${badgeToneByCategory[brief.category]}`}>
-                          {categoryLabel(brief.category)}
-                        </span>
-                        {brief.is_ad_intended && (
-                          <span className="inline-flex px-2 py-0.5 rounded-full bg-warning/15 text-warning text-[11px] font-medium">
-                            Ad
+                    {visibleColumns.has("category") && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${badgeToneByCategory[brief.category]}`}
+                          >
+                            {categoryLabel(brief.category)}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                  {visibleColumns.has("duration") && (
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${badgeToneByDurationClass[brief.duration_class]}`}>
-                        {durationClassLabel(brief.duration_class)}
-                      </span>
-                    </td>
-                  )}
-                  {visibleColumns.has("price") && <td className="px-4 py-3 text-sm">{formatPrice(brief.price_dkk)}</td>}
-                  {visibleColumns.has("claims") && <td className="px-4 py-3 text-sm">{brief.activeClaimCount} / {brief.claim_limit}</td>}
-                  {visibleColumns.has("status") && (
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1 items-start">
-                        <span className={`px-2.5 py-1 text-xs font-medium rounded-full capitalize ${badgeToneByStatus[brief.status as BriefStatus]}`}>
-                          {brief.status}
+                          {brief.is_ad_intended && (
+                            <span className="inline-flex whitespace-nowrap rounded-full bg-warning-muted px-2 py-0.5 text-[11px] font-medium text-warning-ink ring-1 ring-warning-ink/20">
+                              Ad
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.has("duration") && (
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${badgeToneByDurationClass[brief.duration_class]}`}
+                        >
+                          {durationClassLabel(brief.duration_class)}
                         </span>
-                        <FundedBadge status={brief.funded_status as BriefFundedStatus | null} />
-                      </div>
-                    </td>
-                  )}
-                  {visibleColumns.has("created") && <td className="px-4 py-3 text-muted text-sm">{new Date(brief.created_at).toLocaleDateString("en-GB")}</td>}
-                  {visibleColumns.has("actions") && (
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/admin/briefs/${brief.id}`} className="text-accent hover:underline text-sm">Edit</Link>
-                    </td>
-                  )}
-                </tr>
+                      </td>
+                    )}
+                    {visibleColumns.has("price") && (
+                      <td className="value-text whitespace-nowrap px-4 py-3 text-sm text-foreground">
+                        {formatPrice(brief.price_dkk)}
+                      </td>
+                    )}
+                    {visibleColumns.has("claims") && (
+                      <td className="value-text whitespace-nowrap px-4 py-3 text-sm text-text-secondary">
+                        {brief.activeClaimCount}
+                        <span className="text-muted"> / {brief.claim_limit}</span>
+                      </td>
+                    )}
+                    {visibleColumns.has("status") && (
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize ${badgeToneByStatus[brief.status as BriefStatus]}`}
+                          >
+                            {brief.status}
+                          </span>
+                          <FundedBadge status={brief.funded_status as BriefFundedStatus | null} />
+                        </div>
+                      </td>
+                    )}
+                    {visibleColumns.has("created") && (
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-muted">
+                        {new Date(brief.created_at).toLocaleDateString("en-GB")}
+                      </td>
+                    )}
+                    {visibleColumns.has("actions") && (
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/admin/briefs/${brief.id}`}
+                          className="text-sm font-medium text-brand-ink hover:underline"
+                        >
+                          Edit
+                        </Link>
+                      </td>
+                    )}
+                  </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
       ) : (
-        <div className="text-center py-12 bg-surface border border-border rounded-xl">
-          <p className="text-muted mb-4">No briefs found for the current filters</p>
-        </div>
+        <EmptyState
+          hasFilters={statusFilter !== "all" || hasNonStatusFilter}
+          onResetFilters={resetFilters}
+        />
       )}
 
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between">
-          <p className="text-sm text-muted">Page {safePage} of {totalPages}</p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-              className="px-3 py-2 rounded-lg border text-sm transition-colors disabled:pointer-events-none disabled:opacity-50 border-border hover:border-accent/50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage >= totalPages}
-              className="px-3 py-2 rounded-lg border text-sm transition-colors disabled:pointer-events-none disabled:opacity-50 border-border hover:border-accent/50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination className="mt-6 justify-between">
+          <p className="text-sm text-muted">
+            Page <span className="value-text text-foreground">{safePage}</span>
+            <span className="text-muted"> of </span>
+            <span className="value-text text-foreground">{totalPages}</span>
+          </p>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (safePage > 1) setPage((p) => Math.max(1, p - 1));
+                }}
+                aria-disabled={safePage <= 1}
+                className={safePage <= 1 ? "pointer-events-none opacity-50" : undefined}
+              />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (safePage < totalPages) setPage((p) => Math.min(totalPages, p + 1));
+                }}
+                aria-disabled={safePage >= totalPages}
+                className={
+                  safePage >= totalPages ? "pointer-events-none opacity-50" : undefined
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
 
       <ConfirmDialog
@@ -582,6 +767,137 @@ export function AdminBriefsClient({
   );
 }
 
+/**
+ * Chip-style filter trigger backed by DropdownMenu + RadioGroup. The
+ * trigger shows the current selection so users don't have to open the
+ * menu to read state. Generic over the option value type, but the
+ * underlying RadioGroup is string-based, so we adapt at the boundary.
+ */
+function FilterChip<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="outline" size="sm" className="font-medium">
+            <span>{label}</span>
+            <ChevronDownIcon data-icon="inline-end" className="opacity-70" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" className="min-w-[180px]">
+        <DropdownMenuRadioGroup
+          value={value}
+          onValueChange={(v) => {
+            if (typeof v === "string") onChange(v as T);
+          }}
+        >
+          {options.map((opt) => (
+            <DropdownMenuRadioItem key={opt.value} value={opt.value} closeOnClick>
+              {opt.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Column visibility menu. Icon-led trigger keeps the row tight; the
+ * dropdown uses checkbox items so toggling a column doesn't close the
+ * menu (saves clicks when adjusting several at once).
+ */
+function ColumnsMenu({
+  visibleColumns,
+  onToggle,
+}: {
+  visibleColumns: Set<ColumnKey>;
+  onToggle: (col: ColumnKey) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="outline" size="sm" className="ml-auto font-medium">
+            <SlidersHorizontalIcon data-icon="inline-start" />
+            Columns
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" className="min-w-[180px]">
+        {DEFAULT_COLUMNS.map((column) => (
+          <DropdownMenuCheckboxItem
+            key={column}
+            checked={visibleColumns.has(column)}
+            onCheckedChange={() => onToggle(column)}
+          >
+            {COLUMN_LABELS[column]}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Empty state for the briefs table. Distinguishes "no briefs yet"
+ * (first-run, point at New brief) from "filters hide everything"
+ * (offer Clear). DESIGN.md: specific copy, secondary line, optional
+ * primary CTA. No decorative illustration.
+ */
+function EmptyState({
+  hasFilters,
+  onResetFilters,
+}: {
+  hasFilters: boolean;
+  onResetFilters: () => void;
+}) {
+  if (hasFilters) {
+    return (
+      <div className="rounded-xl border border-border bg-surface px-6 py-12 text-center">
+        <p className="text-base text-text-secondary">No briefs match these filters</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted">
+          Try widening the status or duration, or clear the search.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onResetFilters}
+          className="mt-4"
+        >
+          Clear filters
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface px-6 py-16 text-center">
+      <p className="text-base text-text-secondary">No briefs yet</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted">
+        Publish your first brief and creators in your network can claim it.
+      </p>
+      <Button
+        nativeButton={false}
+        render={<Link href="/admin/briefs/new" className="mt-4" />}
+      >
+        Create your first brief
+      </Button>
+    </div>
+  );
+}
+
 function BulkActionBar({
   selectedCount,
   archivableCount,
@@ -600,13 +916,14 @@ function BulkActionBar({
   onClear: () => void;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-muted/40 px-4 py-3">
-      <span className="text-sm font-medium">
-        {selectedCount} selected
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-brand-ink/20 bg-brand-soft px-4 py-2.5">
+      <span className="text-sm font-medium text-foreground">
+        <span className="value-text">{selectedCount}</span> selected
       </span>
-      <div className="ml-auto flex flex-wrap items-center gap-2">
-        <button
-          type="button"
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => onAction("reopen")}
           disabled={working || reopenableCount === 0}
           title={
@@ -614,15 +931,15 @@ function BulkActionBar({
               ? "Select archived briefs to reopen"
               : `Reopen ${reopenableCount} of ${selectedCount}`
           }
-          className="px-3 py-1.5 text-sm font-medium border border-border bg-surface hover:border-accent/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
         >
           Reopen
           {reopenableCount > 0 && reopenableCount !== selectedCount && (
-            <span className="ml-1.5 text-xs text-muted">({reopenableCount})</span>
+            <span className="text-muted">({reopenableCount})</span>
           )}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => onAction("archive")}
           disabled={working || archivableCount === 0}
           title={
@@ -630,39 +947,39 @@ function BulkActionBar({
               ? "Selected briefs are already archived"
               : `Archive ${archivableCount} of ${selectedCount}`
           }
-          className="px-3 py-1.5 text-sm font-medium border border-border bg-surface hover:border-accent/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
         >
           Archive
           {archivableCount > 0 && archivableCount !== selectedCount && (
-            <span className="ml-1.5 text-xs text-muted">({archivableCount})</span>
+            <span className="text-muted">({archivableCount})</span>
           )}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
           onClick={() => onAction("delete")}
           disabled={working || deletableCount === 0}
           title={
             deletableCount === 0
-              ? "Briefs with claim history cannot be deleted — archive instead"
+              ? "Briefs with claim history cannot be deleted, archive instead"
               : deletableCount < selectedCount
                 ? `Delete ${deletableCount} of ${selectedCount} (others have claims)`
                 : `Delete ${deletableCount}`
           }
-          className="px-3 py-1.5 text-sm font-medium border border-error/40 text-error bg-surface hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
         >
           Delete
           {deletableCount > 0 && deletableCount !== selectedCount && (
-            <span className="ml-1.5 text-xs">({deletableCount})</span>
+            <span>({deletableCount})</span>
           )}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onClear}
           disabled={working}
-          className="px-3 py-1.5 text-sm font-medium text-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="text-muted hover:text-foreground"
         >
           Clear
-        </button>
+        </Button>
       </div>
     </div>
   );

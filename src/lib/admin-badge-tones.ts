@@ -47,8 +47,8 @@ export const badgeToneByCategory: Record<BriefCategory, string> = {
 
 export const claimStatusLabel: Record<ClaimStatus, string> = {
   active: "Active",
-  submitted: "Pending Review",
-  revision_requested: "Changes Requested",
+  submitted: "Pending review",
+  revision_requested: "Changes requested",
   approved: "Approved",
   paid: "Paid",
   cancelled: "Cancelled",

@@ -12,6 +12,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
@@ -34,12 +35,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Building2Icon,
   ChevronsUpDownIcon,
+  ClipboardCheckIcon,
+  CreditCardIcon,
+  FileTextIcon,
+  LayoutDashboardIcon,
   LockIcon,
   LogOutIcon,
+  MailIcon,
+  PaletteIcon,
   ScaleIcon,
+  SettingsIcon,
   SparklesIcon,
   UserIcon,
+  UserPlusIcon,
+  UsersIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { ThemeMenuItems } from "@/components/theme-menu-items";
@@ -52,8 +63,6 @@ const LEGAL_LINKS = [
 ] as const;
 
 interface AdminNavProps {
-  /** The signed-in user's id; used to subscribe to claim-notification realtime updates. */
-  userId: string;
   /** Email shown under the user's avatar in the sidebar footer menu. */
   userEmail: string;
   /** Display name shown above the email. Falls back to email when null. */
@@ -69,8 +78,11 @@ interface AdminNavProps {
    *  signs out here" affordances we don't want a support session
    *  exiting through. */
   isSupportMode: boolean;
-  /** Active org branding shown as the top-left identity anchor of the sidebar. */
+  /** Active org branding shown as the top-left identity anchor of the sidebar.
+   *  `id` also scopes the realtime queue counters (claims awaiting review,
+   *  applications awaiting a decision). */
   org: {
+    id: string;
     name: string;
     logoUrl: string | null;
     accentColor: string | null;
@@ -85,110 +97,100 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-const navItems: NavItem[] = [
+interface NavSection {
+  /** Section label shown above the items. Null for the top section
+   *  (the dashboard sits there with no header so the rail starts
+   *  uncluttered). */
+  label: string | null;
+  items: NavItem[];
+}
+
+// Grouping mirrors the admin's mental model: home, daily work, the
+// creator network, then setup. The flat 10-row list this replaces
+// gave every route equal weight, which made the rail feel busy and
+// buried the routes admins actually use every day.
+const navSections: NavSection[] = [
   {
-    href: "/admin",
-    label: "Dashboard",
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-      </svg>
-    ),
+    label: null,
+    items: [
+      {
+        href: "/admin",
+        label: "Dashboard",
+        icon: <LayoutDashboardIcon />,
+      },
+    ],
   },
   {
-    href: "/admin/briefs",
-    label: "Briefs",
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
+    label: "Work",
+    items: [
+      {
+        href: "/admin/briefs",
+        label: "Briefs",
+        icon: <FileTextIcon />,
+      },
+      {
+        href: "/admin/claims",
+        label: "Claims",
+        icon: <ClipboardCheckIcon />,
+      },
+      {
+        href: "/admin/applications",
+        label: "Applications",
+        icon: <UserPlusIcon />,
+      },
+    ],
   },
   {
-    href: "/admin/claims",
-    label: "Claims",
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
+    label: "Network",
+    items: [
+      {
+        href: "/admin/creators",
+        label: "Creators",
+        icon: <UsersIcon />,
+      },
+      {
+        href: "/admin/invites",
+        label: "Invites",
+        adminOnly: true,
+        icon: <MailIcon />,
+      },
+    ],
   },
   {
-    href: "/admin/creators",
-    label: "Creators",
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/applications",
-    label: "Applications",
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/invites",
-    label: "Invites",
-    adminOnly: true,
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/billing",
-    label: "Billing",
-    adminOnly: true,
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/organization",
-    label: "Organization",
-    // Not adminOnly, members can view the org page read-only. The
-    // OrgDetailsForm/View split inside the page handles the
-    // editable-vs-readonly choice based on role.
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/brand",
-    label: "Brand",
-    // Not adminOnly. Members read the brand kit (logos, palette,
-    // typography, guidelines) so they share visual context with the
-    // org. Edit gating happens server-side via requireOrgAdmin().
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-      </svg>
-    ),
-  },
-  {
-    href: "/admin/settings",
-    label: "Settings",
-    icon: (
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
+    label: "Setup",
+    items: [
+      {
+        href: "/admin/organization",
+        // Not adminOnly, members can view the org page read-only. The
+        // OrgDetailsForm/View split inside the page handles the
+        // editable-vs-readonly choice based on role.
+        label: "Organization",
+        icon: <Building2Icon />,
+      },
+      {
+        href: "/admin/brand",
+        // Not adminOnly. Members read the brand kit (logos, palette,
+        // typography, guidelines) so they share visual context with
+        // the org. Edit gating happens server-side via requireOrgAdmin().
+        label: "Brand",
+        icon: <PaletteIcon />,
+      },
+      {
+        href: "/admin/billing",
+        label: "Billing",
+        adminOnly: true,
+        icon: <CreditCardIcon />,
+      },
+      {
+        href: "/admin/settings",
+        label: "Settings",
+        icon: <SettingsIcon />,
+      },
+    ],
   },
 ];
 
 export function AdminNav({
-  userId,
   userEmail,
   userName,
   userAvatarUrl,
@@ -197,52 +199,82 @@ export function AdminNav({
   isSupportMode,
   org,
 }: AdminNavProps) {
-  // Only the claim-unread badge needs client state. Role/admin flags
-  // arrive from the server layout, so the very first render already
-  // has the correct lock state, no flash.
-  const [claimUnread, setClaimUnread] = useState(0);
+  // Badges count work the org has to act on: claims awaiting review and
+  // applications awaiting a decision. Both drop to zero the moment the
+  // admin treats the item, so the rail stays honest. Role/admin flags
+  // arrive from the server layout, so the very first render already has
+  // the correct lock state, no flash.
+  const [claimsPending, setClaimsPending] = useState(0);
+  const [applicationsPending, setApplicationsPending] = useState(0);
   const pathname = usePathname();
   const platformAdminActive = pathname.startsWith("/admin/super");
+  const orgId = org.id;
 
   useEffect(() => {
     const supabase = createClient();
-    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
+    let claimsChannel: RealtimeChannel | null = null;
+    let appsChannel: RealtimeChannel | null = null;
 
-    async function loadUnread() {
+    async function loadClaims() {
       const { count } = await supabase
-        .from("notifications")
+        .from("claims")
         .select("id", { head: true, count: "exact" })
-        .eq("recipient_id", userId)
-        .eq("event_type", "claim_submitted")
-        .is("read_at", null);
-
-      setClaimUnread(count ?? 0);
+        .eq("org_id", orgId)
+        .eq("status", "submitted");
+      if (!cancelled) setClaimsPending(count ?? 0);
     }
 
-    loadUnread();
+    async function loadApplications() {
+      const { count } = await supabase
+        .from("org_applications")
+        .select("id", { head: true, count: "exact" })
+        .eq("org_id", orgId)
+        .eq("status", "pending");
+      if (!cancelled) setApplicationsPending(count ?? 0);
+    }
 
-    channel = supabase
-      .channel(`admin-claims-unread:${userId}`)
+    loadClaims();
+    loadApplications();
+
+    claimsChannel = supabase
+      .channel(`admin-claims-queue:${orgId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "notifications",
-          filter: `recipient_id=eq.${userId}`,
+          table: "claims",
+          filter: `org_id=eq.${orgId}`,
         },
         () => {
-          loadUnread();
+          loadClaims();
+        }
+      )
+      .subscribe();
+
+    appsChannel = supabase
+      .channel(`admin-applications-queue:${orgId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "org_applications",
+          filter: `org_id=eq.${orgId}`,
+        },
+        () => {
+          loadApplications();
         }
       )
       .subscribe();
 
     return () => {
-      if (channel) {
-        void supabase.removeChannel(channel);
-      }
+      cancelled = true;
+      if (claimsChannel) void supabase.removeChannel(claimsChannel);
+      if (appsChannel) void supabase.removeChannel(appsChannel);
     };
-  }, [userId]);
+  }, [orgId]);
 
   return (
     <Sidebar collapsible="icon">
@@ -265,20 +297,28 @@ export function AdminNav({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <NavRow
-                  key={item.href}
-                  item={item}
-                  isOrgAdmin={isOrgAdmin}
-                  claimUnread={claimUnread}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navSections.map((section, idx) => (
+          <SidebarGroup key={section.label ?? `top-${idx}`}>
+            {section.label && (
+              <SidebarGroupLabel className="uppercase tracking-wide text-muted">
+                {section.label}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => (
+                  <NavRow
+                    key={item.href}
+                    item={item}
+                    isOrgAdmin={isOrgAdmin}
+                    claimsPending={claimsPending}
+                    applicationsPending={applicationsPending}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
@@ -292,7 +332,7 @@ export function AdminNav({
               <SidebarMenuButton
                 tooltip="Platform admin"
                 isActive={platformAdminActive}
-                className="text-accent-ink/90 data-active:bg-accent/10 data-active:text-accent-ink"
+                className="text-brand-ink/90 data-active:bg-brand-muted data-active:text-brand-ink"
                 render={<Link href="/admin/super" />}
               >
                 <SparklesIcon />
@@ -344,9 +384,9 @@ function OrgIdentity({
   //   * org admin     → "Admin" in accent
   //   * org member    → "Member" muted
   const chip = isSupportMode
-    ? { label: "Support", className: "text-amber-400" }
+    ? { label: "Support", className: "text-warning-ink" }
     : isOrgAdmin
-      ? { label: "Admin", className: "text-accent-ink" }
+      ? { label: "Admin", className: "text-brand-ink" }
       : { label: "Member", className: "text-muted" };
 
   return (
@@ -368,7 +408,7 @@ function OrgIdentity({
       ) : (
         <div
           aria-hidden="true"
-          className="size-8 rounded-md flex items-center justify-center text-background font-bold text-sm shrink-0"
+          className="size-8 rounded-md flex items-center justify-center text-on-brand font-bold text-sm shrink-0"
           style={{ backgroundColor: orgAccent }}
         >
           {orgInitial}
@@ -514,14 +554,22 @@ function UserMenu({
 function NavRow({
   item,
   isOrgAdmin,
-  claimUnread,
+  claimsPending,
+  applicationsPending,
 }: {
   item: NavItem;
   isOrgAdmin: boolean;
-  claimUnread: number;
+  claimsPending: number;
+  applicationsPending: number;
 }) {
   const isActive = useIsActiveRoute(item.href);
   const locked = item.adminOnly === true && !isOrgAdmin;
+  const badgeCount =
+    item.href === "/admin/claims"
+      ? claimsPending
+      : item.href === "/admin/applications"
+        ? applicationsPending
+        : 0;
 
   if (locked) {
     return (
@@ -560,9 +608,9 @@ function NavRow({
         {item.icon}
         <span>{item.label}</span>
       </SidebarMenuButton>
-      {item.href === "/admin/claims" && claimUnread > 0 && (
-        <SidebarMenuBadge className="bg-accent/15 text-accent-ink">
-          {claimUnread > 99 ? "99+" : claimUnread}
+      {badgeCount > 0 && (
+        <SidebarMenuBadge className="bg-brand-muted text-brand-ink">
+          {badgeCount > 99 ? "99+" : badgeCount}
         </SidebarMenuBadge>
       )}
     </SidebarMenuItem>
