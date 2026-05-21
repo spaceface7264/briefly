@@ -895,6 +895,49 @@ same discussion.
 
 ### Backlog
 
+- ❌ **Submissions storage lifecycle (`submissions` bucket cleanup).**
+  Traced 2026-05-21: every video uploaded to a claim lives in the
+  `submissions` bucket forever. No cleanup anywhere in code (verified
+  via `grep -rn '\.remove(' src`, every hit is for `org-logos`,
+  `avatars`, or `brand-assets`; nothing for `submissions`). Two
+  code-comment "future cleanup jobs" exist as TODOs (actions.ts:191
+  and migration 0036 header) but were never built. Consequences:
+  storage bloats every revision round, cancelled claims orphan their
+  bytes (FK cascades the rows but not the objects), aborted uploads
+  orphan their bytes, and Free-tier ceiling (1 GB) fills fast at the
+  current 50 MB per-file cap. Three coordinated fixes, in order:
+  1. **On approval, prune prior versions.** In the approve server
+    action, after the status flip to `approved`, list all
+    `claim_attachments` for the claim, keep the most recent row by
+    `created_at`, and delete the older rows + their storage objects
+    (`admin.storage.from('submissions').remove([...paths])`). During
+    review the org keeps the full version history visible (vid1,
+    vid2, vid3) so they can confirm feedback was addressed; the
+    moment they click Approve, only the approved take survives. This
+    is the smallest fix and the biggest UX win.
+  2. **On cancel or reject, delete all attachments.** In
+    `rejectClaim` (review-actions.ts:98) and any creator-side
+    cancellation path, before/after the status flip to `cancelled`,
+    list `claim_attachments` for the claim and call
+    `admin.storage.from('submissions').remove([...paths])`. The FK
+    on `claim_attachments → claims` already cascades the rows on
+    claim delete; this just stops orphaning the bytes when a claim
+    ends without approval.
+  3. **Nightly orphan janitor.** A scheduled Edge Function (or
+    `pg_cron` + a Supabase function) that runs once a day, lists
+    every object in `submissions/` older than 24 h whose
+    `{user_id}/{claim_id}/…` path has no matching row in
+    `claim_attachments.storage_path`, and removes them. Catches
+    aborted uploads, drift from #1 / #2, and anything cancelled
+    before the new actions shipped. The spec is essentially the
+    comment block at actions.ts:189-193; implement it.
+
+  Out of scope here but worth flagging for later: a retention
+  policy on `paid` claims (e.g. delete the approved deliverable 90
+  days post-payout), and a GDPR delete cascade so removing an
+  `auth.users` row also wipes their `submissions/{user_id}/…`
+  prefix.
+
 - ✅ **Split `/admin/settings` into Personal vs Org IA** — moved to
 Decided above 2026-04-29 (shipped with opposite naming convention
 from the original plan: `/admin/settings` became personal,
