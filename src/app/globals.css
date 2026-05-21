@@ -389,6 +389,16 @@ dialog[open]::backdrop {
   word-break: break-word;
 }
 
+/* Landing-page trust strip: slow horizontal marquee of org chips. */
+@keyframes trust-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.animate-trust-marquee {
+  animation: trust-marquee 48s linear infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -398,6 +408,7 @@ dialog[open]::backdrop {
   }
   .animate-stagger-in > * { opacity: 1; animation: none; }
   .animate-status-pulse { animation: none; }
+  .animate-trust-marquee { animation: none; }
   dialog[open] > [data-modal-panel],
   dialog[open]::backdrop { animation: none; }
   ::view-transition-old(root),
