@@ -795,6 +795,58 @@ stays trapped. The native `<dialog>`-based modals use `showModal()`
 which is well-supported but worth confirming on Safari/Firefox/Chrome.
 - **Footer**: renders on every route (landing, login, admin, legal)
 and the platform name/contact email reflect the env vars from §4.
+- **Claim review workflow (migration 0054, status: never tested
+end-to-end)**. The `revision_requested` state plus threaded
+`claim_comments` shipped in code but the loop has not been
+exercised against a real Supabase project. Run all of these
+against staging (or a throwaway org/creator pair in prod) before
+trusting it:
+  - **DB sanity**: confirm 0054 is applied on the target project.
+    `select unnest(enum_range(null::notification_event_type))`
+    includes `claim_revision_requested`; `\d+ claims` shows the
+    extended `claims_status_check`; `\d+ claim_comments` exists
+    with RLS enabled; `select polname, qual from pg_policies where
+    tablename = 'claim_comments'` returns the expected SELECT /
+    INSERT policies for org members and the claim's creator.
+  - **Happy path (single round)**: creator submits work, org admin
+    clicks "Request revision" with a comment, status flips to
+    `revision_requested`, creator sees the "Changes requested"
+    callout on the brief detail page, opens the thread, reads the
+    comment, replies, re-uploads, resubmits, org approves, escrow
+    transfer fires. Verify each transition writes a row to
+    `notifications` with the right type, and that
+    `claim_revision_requested` triggers a Resend email if that
+    webhook is wired (check `net._http_response`).
+  - **Multi-round**: do at least two `submitted → revision_requested
+    → submitted` cycles before approving. Comment ordering stays
+    chronological, no duplicate notifications, no orphaned escrow
+    state, the brand kit panel stays visible to the creator the
+    whole time (RLS extension from 0054 §3).
+  - **Cancellation from revision_requested**: org cancels the
+    claim while it's in `revision_requested`. Confirm the state
+    transitions to `cancelled`, the slot reopens, escrow accounting
+    is correct, and the creator gets the cancellation notification,
+    not a stuck `revision_requested` row.
+  - **RLS isolation**: log in as a second org's admin and confirm
+    they cannot read or insert into `claim_comments` for the first
+    org's claim (direct table query via Supabase JS, not just the
+    UI). Same check for a different creator's account against the
+    same claim. Both reads must return zero rows; both writes must
+    error.
+  - **State machine guardrails**: try to push invalid transitions
+    via the server actions (e.g. `approved → revision_requested`,
+    `revision_requested → approved` without a fresh submission).
+    Each should fail loudly, not silently no-op, and surface as a
+    user-facing error rather than a 500.
+  - **UI polish**: claim list badge tone for `revision_requested`
+    (admin-badge-tones), creator's `/my-briefs` row state, empty
+    thread state, long-thread scroll, timestamp formatting,
+    keyboard focus management on the "Request revision" modal,
+    optimistic-update behavior if the action is slow.
+  - **Email content**: if `notify-revision-requested` (or whatever
+    the trigger is named) is wired, send a real Resend test and
+    eyeball it in Gmail, Outlook web, and Apple Mail. Otherwise
+    log this as a follow-up.
 
 ---
 
