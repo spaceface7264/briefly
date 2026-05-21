@@ -2025,17 +2025,14 @@ re-examine when the related surface comes up.
   aged out before query. Confirm with a fresh trigger after this
   TODO is picked up, and verify the webhook is enabled + scoped
   to schema `public`.
-- ❌ Add a Cloudflare Redirect Rule sending `www.briefly.dk` →
-  `briefly.dk` so we have one canonical marketing URL. Dashboard
-  path: briefly.dk zone → Rules → Redirect Rules → Create rule.
-  Filter: `(http.host eq "www.briefly.dk")`. Then: Dynamic
-  redirect, expression `concat("https://briefly.dk",
-  http.request.uri.path)`, status 301, preserve query string on.
-  Both `briefly.dk` and `www.briefly.dk` already resolve as Worker
-  Custom Domains (added 2026-05-21), so this is purely an SEO /
-  canonicalisation cleanup, not a routing fix. Verify with
-  `curl -sI https://www.briefly.dk/for-brands` — expect HTTP/2 301
-  and `location: https://briefly.dk/for-brands`.
+- ✅ `www.briefly.dk` and `briefly.dk` both resolve as Worker
+  Custom Domains and serve the app. Apex initially appeared to
+  show a one.com placeholder, but that was stale local DNS / HSTS
+  cache; verified globally via `dig @1.1.1.1` and `curl -sI`
+  returning `server: cloudflare` + `x-opennext: 1` on both hosts.
+  Canonicalisation redirect (www → apex) deferred, not needed
+  for routing; revisit only if SEO/duplicate-content becomes an
+  issue.
 - ❌ Fix `notify-new-brief` BCC-only Resend payload was patched
   in-session (added a `to: SENDER_EMAIL` so Resend stops 422'ing
   on "Missing `to` field"). Worth a real review: blind-list BCC
