@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderEmail } from "../_shared/email-layout.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -87,6 +88,26 @@ serve(async (req) => {
 
       const adminEmails = admins.map((a) => a.email).filter(Boolean);
 
+      const briefTitle = brief?.title || "Brief";
+      const creatorLabel = creator?.name || creator?.email || "Unknown";
+      const meta = [
+        { label: "Brief", value: briefTitle },
+        { label: "Creator", value: creatorLabel },
+        { label: "Submission", value: payload.record.submission_url },
+      ];
+      if (payload.record.submission_notes) {
+        meta.push({ label: "Notes", value: payload.record.submission_notes });
+      }
+
+      const { html, text } = renderEmail({
+        heading: "New content submission",
+        paragraphs: [
+          `${creatorLabel} just submitted work for "${briefTitle}". Review it in the admin to approve, request changes, or reject.`,
+        ],
+        meta,
+        cta: { label: "Review in admin", href: `${APP_URL}/admin/claims` },
+      });
+
       // Send email via Resend
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -97,15 +118,9 @@ serve(async (req) => {
         body: JSON.stringify({
           from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
           to: adminEmails,
-          subject: `New Submission: ${brief?.title || "Brief"}`,
-          html: `
-            <h2>New Content Submission</h2>
-            <p><strong>Brief:</strong> ${brief?.title || "Unknown"}</p>
-            <p><strong>Creator:</strong> ${creator?.name || creator?.email || "Unknown"}</p>
-            <p><strong>Submission URL:</strong> <a href="${payload.record.submission_url}">${payload.record.submission_url}</a></p>
-            ${payload.record.submission_notes ? `<p><strong>Notes:</strong> ${payload.record.submission_notes}</p>` : ""}
-            <p><a href="${APP_URL}/admin/claims">Review in Admin</a></p>
-          `,
+          subject: `New submission: ${briefTitle}`,
+          html,
+          text,
         }),
       });
 

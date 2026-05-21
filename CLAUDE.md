@@ -6,7 +6,7 @@ Generic, multi-business content creator platform (working title: Briefly). Brand
 
 - Next.js 16 (App Router) + React 19
 - TypeScript
-- Tailwind CSS 4 (dark-first, lime #C8FF00 accent)
+- Tailwind CSS 4 (dark-first, cyan #09D7D7 accent with #0C1618 on-brand ink)
 - shadcn/ui (components in `src/components/ui/`)
 - Supabase (Auth + Postgres + RLS + Storage)
 - Stripe Connect (Express, Marketplace mode) for brief escrow + creator payouts

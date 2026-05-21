@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderEmail } from "../_shared/email-layout.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -81,6 +82,25 @@ serve(async (req) => {
       minimumFractionDigits: 0,
     }).format(payload.record.price_dkk);
 
+    const meta = [
+      { label: "Category", value: payload.record.category },
+      { label: "Duration", value: payload.record.duration_class },
+      { label: "Payout", value: payout },
+    ];
+    if (payload.record.location) {
+      meta.push({ label: "Location", value: payload.record.location });
+    }
+
+    const { html, text } = renderEmail({
+      heading: payload.record.title,
+      paragraphs: [payload.record.description],
+      meta,
+      cta: {
+        label: "View brief",
+        href: `${APP_URL}/briefs/${payload.record.id}`,
+      },
+    });
+
     // Send email via Resend
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -92,22 +112,9 @@ serve(async (req) => {
         from: `${SENDER_NAME} <${SENDER_EMAIL}>`,
         to: SENDER_EMAIL,
         bcc: creatorEmails, // Use BCC for privacy
-        subject: `New Brief: ${payload.record.title}`,
-        html: `
-          <h2>New Brief Available</h2>
-          <h3>${payload.record.title}</h3>
-          <p>${payload.record.description}</p>
-          <p><strong>Category:</strong> ${payload.record.category}</p>
-          <p><strong>Duration:</strong> ${payload.record.duration_class}</p>
-          <p><strong>Payout:</strong> ${payout}</p>
-          ${payload.record.location ? `<p><strong>Location:</strong> ${payload.record.location}</p>` : ""}
-          <p style="margin-top: 20px;">
-            <a href="${APP_URL}/briefs/${payload.record.id}"
-               style="background: #ff00ff; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-              View Brief
-            </a>
-          </p>
-        `,
+        subject: `New brief: ${payload.record.title}`,
+        html,
+        text,
       }),
     });
 

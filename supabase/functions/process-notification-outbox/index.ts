@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderEmail } from "../_shared/email-layout.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -59,10 +60,12 @@ async function sendEmail({
   to,
   subject,
   html,
+  text,
 }: {
   to: string;
   subject: string;
   html: string;
+  text: string;
 }) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -75,6 +78,7 @@ async function sendEmail({
       to: [to],
       subject,
       html,
+      text,
     }),
   });
 
@@ -184,14 +188,16 @@ serve(async (req) => {
                 : `${APP_URL}/my-briefs`;
 
       try {
+        const { html, text } = renderEmail({
+          heading: row.notification.title,
+          paragraphs: [row.notification.body],
+          cta: { label: `Open in ${PLATFORM_NAME}`, href: targetHref },
+        });
         await sendEmail({
           to: profile.email,
           subject: row.notification.title,
-          html: `
-            <h2>${row.notification.title}</h2>
-            <p>${row.notification.body}</p>
-            <p><a href="${targetHref}">Open in ${PLATFORM_NAME}</a></p>
-          `,
+          html,
+          text,
         });
 
         await supabase
