@@ -1131,6 +1131,56 @@ visibility, tightening to `p=quarantine` later
 
 ---
 
+## 8a. Upgrade Supabase to Pro (pre-launch)
+
+🚫 **Pre-launch blocker.** Free tier has a hard 50 MB per-file
+upload cap, which clips the `submissions` bucket's configured
+250 MB ceiling and makes "pro-grade video deliverables" undeliverable
+for anything past ~30s of 1080p. Pro ($25/mo) unlocks the 250 MB
+already configured on the bucket and lifts the global cap to
+500 GB if we ever need more.
+
+What we get for $25/mo:
+
+- 100 GB file storage included (then $0.021/GB). At ~100 MB per
+  approved claim with the cleanup TODO shipped, that's room for
+  ~1,000 claims before any storage overage. Storage is not the
+  near-term cost pressure.
+- 250 GB egress included (then $0.09/GB). This is the more likely
+  cost knee once orgs start downloading deliverables; ~1,250 plays
+  of a 200 MB video fills it. Worth instrumenting once we have
+  live traffic.
+- 8 GB disk per project (Postgres data), 100k MAU included.
+- 7-day daily backups + 7-day log retention. Both are meaningful
+  upgrades over Free; backups especially.
+- Image transformations toggle (useful for serving thumbnails of
+  the `submissions` bucket without round-tripping originals).
+
+To do, in order:
+
+1. Upgrade the project to Pro from the Supabase dashboard.
+2. Verify the bucket's 250 MB limit is now effective (the
+   `Free Plan has a fixed upload file size limit of 50 MB`
+   banner in Storage → Settings should disappear).
+3. Bump `MAX_FILE_BYTES` in `src/app/briefs/[id]/actions.ts`
+   from 50 MB to 250 MB so the server action's pre-flight
+   check matches the bucket. Search the file for the literal
+   `50 MB` in user-facing error strings and update those too.
+4. Enable image transformations in Storage → Settings if we
+   plan to use them for submission previews; otherwise leave off.
+5. Sanity-test a >50 MB video upload end-to-end on production
+   before announcing the change to creators.
+
+Out of scope here but follow-ups once Pro lands:
+
+- Add a Supabase usage alert (or a weekly cron that queries the
+  Pro billing endpoint) so we see egress trending toward the
+  250 GB knee before a surprise invoice.
+- Reconsider whether 250 MB is the right per-file ceiling or
+  whether we want a 500 MB tier for premium briefs.
+
+---
+
 ## 9. Roadmap
 
 The post-genericization product expansion. Locked in 2026-04-29 — see
