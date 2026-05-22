@@ -46,14 +46,11 @@ const durationClasses: { value: BriefDurationClass; label: string }[] = [
   { value: "static", label: "Static" },
 ];
 
-// Predefined spec fields available for all formats
-const commonFields = [
-  { key: "captions", label: "Captions", placeholder: "Required, centered" },
-  { key: "music", label: "Music / Audio", placeholder: "Trending audio, original, etc." },
-  { key: "style", label: "Style", placeholder: "Cinematic, vlog, raw, etc." },
-];
-
-// Duration-specific templates with pre-filled defaults
+// Duration-specific templates with pre-filled defaults. The
+// deliverable-specs UI was removed in favour of the prose
+// `deliverables` field, but we still keep the templates so existing
+// drafts (with structured `deliverable_specs` JSON) round-trip
+// through save without losing data.
 const durationTemplates: Record<BriefDurationClass, { fields: Record<string, string> }> = {
   short: {
     fields: {
@@ -85,17 +82,6 @@ const durationTemplates: Record<BriefDurationClass, { fields: Record<string, str
       file_format: "JPG eller PNG",
     },
   },
-};
-
-// All known spec field labels (for display)
-const specFieldLabels: Record<string, string> = {
-  duration: "Duration",
-  aspect_ratio: "Aspect Ratio",
-  captions: "Captions",
-  music: "Music / Audio",
-  style: "Style",
-  resolution: "Resolution",
-  file_format: "File Format",
 };
 
 type SpecEntry = { key: string; value: string };
@@ -133,6 +119,13 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
 
   const [title, setTitle] = useState(brief?.title || "");
   const [description, setDescription] = useState(brief?.description || "");
+  const [objective, setObjective] = useState(brief?.objective || "");
+  const [audience, setAudience] = useState(brief?.audience || "");
+  const [insight, setInsight] = useState(brief?.insight || "");
+  const [message, setMessage] = useState(brief?.message || "");
+  const [tone, setTone] = useState(brief?.tone || "");
+  const [deliverables, setDeliverables] = useState(brief?.deliverables || "");
+  const [mandatories, setMandatories] = useState(brief?.mandatories || "");
   const [category, setCategory] = useState<BriefCategory>(brief?.category || "entertaining");
   const [durationClass, setDurationClass] = useState<BriefDurationClass>(brief?.duration_class || "short");
   const [priceDkk, setPriceDkk] = useState(brief?.price_dkk?.toString() || "");
@@ -142,7 +135,10 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
   const [referenceUrls, setReferenceUrls] = useState<string[]>(
     brief?.reference_urls?.length ? brief.reference_urls : [""]
   );
-  const [usageRights, setUsageRights] = useState(brief?.usage_rights || "");
+  // usage_rights input removed from the form; preserved on the row
+  // for any older briefs that were saved with it, so we keep the
+  // value around and pass it through unchanged on update.
+  const usageRights = brief?.usage_rights || "";
   const [isAdIntended, setIsAdIntended] = useState(brief?.is_ad_intended ?? false);
   const [targetSkills, setTargetSkills] = useState<string[]>(
     brief?.target_skills ?? []
@@ -271,18 +267,6 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
     setSpecEntries([...templateEntries, ...existingCustom]);
   }
 
-  function updateEntry(index: number, field: "key" | "value", val: string) {
-    setSpecEntries((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: val } : e)));
-  }
-
-  function removeEntry(index: number) {
-    setSpecEntries((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function addEntry() {
-    setSpecEntries((prev) => [...prev, { key: "", value: "" }]);
-  }
-
   // When duration class changes, offer to apply template
   const [showTemplatePrompt, setShowTemplatePrompt] = useState(false);
   const [pendingDurationClass, setPendingDurationClass] = useState<BriefDurationClass | null>(null);
@@ -310,6 +294,13 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
     return {
       title: title.trim(),
       description,
+      objective: objective.trim() || null,
+      audience: audience.trim() || null,
+      insight: insight.trim() || null,
+      message: message.trim() || null,
+      tone: tone.trim() || null,
+      deliverables: deliverables.trim() || null,
+      mandatories: mandatories.trim() || null,
       category,
       duration_class: durationClass,
       price_dkk: parseInt(priceDkk) || 0,
@@ -439,6 +430,13 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
     const updatePayload: Record<string, unknown> = {
       title: trimmedTitle,
       description,
+      objective: objective.trim() || null,
+      audience: audience.trim() || null,
+      insight: insight.trim() || null,
+      message: message.trim() || null,
+      tone: tone.trim() || null,
+      deliverables: deliverables.trim() || null,
+      mandatories: mandatories.trim() || null,
       category,
       duration_class: durationClass,
       deadline: deadline || null,
@@ -549,10 +547,21 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
-      {/* Title */}
+      {/* ============================================================
+          Creative brief
+          ============================================================ */}
+      <section className="space-y-6">
+        <div className="border-b border-border pb-2">
+          <h2 className="text-base font-semibold">Creative brief</h2>
+          <p className="text-xs text-muted mt-1">
+            The thinking that anchors the work. Tell creators why this exists, who it talks to, and what it must say.
+          </p>
+        </div>
+
+      {/* Project (formerly Title) */}
       <div>
         <label htmlFor="title" className="block text-sm font-medium mb-2">
-          Title <span className="text-error">*</span>
+          Project <span className="text-error">*</span>
         </label>
         <input
           id="title"
@@ -562,9 +571,12 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
           required
           maxLength={MAX_BRIEF_TITLE_LEN}
           className={inputClass}
-          placeholder="Summer Send Session Reel"
+          placeholder="Boulders Spring Send Season"
           aria-describedby="title-counter"
         />
+        <p className="text-muted text-xs mt-1">
+          Recommended: a short working name your team will recognise at a glance.
+        </p>
         <p
           id="title-counter"
           className={`mt-1.5 text-xs text-right ${
@@ -579,10 +591,148 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
         </p>
       </div>
 
-      {/* Description */}
+      {/* Objective */}
+      <div>
+        <label htmlFor="objective" className="block text-sm font-medium mb-2">
+          Objective
+        </label>
+        <textarea
+          id="objective"
+          value={objective}
+          onChange={(e) => setObjective(e.target.value)}
+          rows={4}
+          className={`${inputClass} resize-y`}
+          placeholder="Drive sign-ups for our new intro climbing course at Boulders Valby. Goal: 80 new memberships by end of June."
+        />
+        <p className="text-muted text-xs mt-1">
+          Recommended: one or two sentences on the business outcome this campaign should deliver.
+        </p>
+      </div>
+
+      {/* Audience */}
+      <div>
+        <label htmlFor="audience" className="block text-sm font-medium mb-2">
+          Audience
+        </label>
+        <textarea
+          id="audience"
+          value={audience}
+          onChange={(e) => setAudience(e.target.value)}
+          rows={4}
+          className={`${inputClass} resize-y`}
+          placeholder="Urban climbers and climb-curious office workers aged 25 to 40 in Copenhagen. Active, social, looking for a third place after work."
+        />
+        <p className="text-muted text-xs mt-1">
+          Recommended: who the content talks to, not who creates it. Demographics, mindset, where they spend time.
+        </p>
+      </div>
+
+      {/* Insight */}
+      <div>
+        <label htmlFor="insight" className="block text-sm font-medium mb-2">
+          Insight
+        </label>
+        <textarea
+          id="insight"
+          value={insight}
+          onChange={(e) => setInsight(e.target.value)}
+          rows={4}
+          className={`${inputClass} resize-y`}
+          placeholder="Most newcomers think bouldering is intimidating and elite. In reality, the gym is the most welcoming room in the city on a Tuesday night."
+        />
+        <p className="text-muted text-xs mt-1">
+          Recommended: the human truth about your audience that the creative should lean into.
+        </p>
+      </div>
+
+      {/* Message */}
+      <div>
+        <label htmlFor="message" className="block text-sm font-medium mb-2">
+          Message
+        </label>
+        <input
+          id="message"
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          maxLength={200}
+          className={inputClass}
+          placeholder="Climbing is for everyone, and Tuesday is the easiest night to start."
+          aria-describedby="message-counter"
+        />
+        <div className="flex items-start justify-between gap-3 mt-1">
+          <p className="text-muted text-xs">
+            Recommended: one sentence the audience should walk away believing. Around 140 characters.
+          </p>
+          <p
+            id="message-counter"
+            className={`shrink-0 text-xs ${
+              message.length > 140 ? "text-warning" : "text-muted/60"
+            }`}
+          >
+            {message.length}/140
+          </p>
+        </div>
+      </div>
+
+      {/* Tone */}
+      <div>
+        <label htmlFor="tone" className="block text-sm font-medium mb-2">
+          Tone
+        </label>
+        <textarea
+          id="tone"
+          value={tone}
+          onChange={(e) => setTone(e.target.value)}
+          rows={3}
+          className={`${inputClass} resize-y`}
+          placeholder="Energetic, warm, slightly playful. Confident without being macho. Think morning espresso, not protein shake."
+        />
+        <p className="text-muted text-xs mt-1">
+          Recommended: a few adjectives plus a reference touchstone. Voice, vibe, feel.
+        </p>
+      </div>
+
+      {/* Deliverables */}
+      <div>
+        <label htmlFor="deliverables" className="block text-sm font-medium mb-2">
+          Deliverables
+        </label>
+        <textarea
+          id="deliverables"
+          value={deliverables}
+          onChange={(e) => setDeliverables(e.target.value)}
+          rows={5}
+          className={`${inputClass} resize-y`}
+          placeholder={"One 30 to 45 second vertical reel for Instagram and TikTok. Hook in the first 2 seconds. Captions burned in.\nOne supporting 9:16 still for the in-feed ad."}
+        />
+        <p className="text-muted text-xs mt-1">
+          Recommended: what to produce, in plain prose. Format, length, aspect, captions.
+        </p>
+      </div>
+
+      {/* Mandatories */}
+      <div>
+        <label htmlFor="mandatories" className="block text-sm font-medium mb-2">
+          Mandatories
+        </label>
+        <textarea
+          id="mandatories"
+          value={mandatories}
+          onChange={(e) => setMandatories(e.target.value)}
+          rows={5}
+          className={`${inputClass} resize-y`}
+          placeholder={"Boulders logo end-frame, 1 second.\nCTA: \"Book your intro at boulders.dk\".\nUse only chalk-friendly safe holds; no climbing without spotters in frame.\nUsage rights: paid social, 12 months, EU."}
+        />
+        <p className="text-muted text-xs mt-1">
+          Recommended: non-negotiables. Logo, CTA, legal, usage rights, anything the creator must include.
+        </p>
+      </div>
+
+      {/* Additional notes (formerly Description) */}
       <div>
         <label htmlFor="description" className="block text-sm font-medium mb-2">
-          Description <span className="text-error">*</span>
+          Additional notes
         </label>
         <div className="border border-border rounded-lg overflow-hidden focus-within:border-accent focus-within:ring-1 focus-within:ring-accent transition-colors">
           <div className="flex items-center gap-1 px-3 py-1.5 bg-surface-raised border-b border-border">
@@ -609,10 +759,9 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             onKeyDown={handleDescriptionKeyDown}
-            required
-            rows={6}
+            rows={5}
             className="w-full px-4 py-3 bg-surface resize-y border-0 focus:ring-0 focus:outline-none"
-            placeholder={"Describe the brief, what you're looking for, and any requirements...\n\n## Krav\n- Ekstern mikrofon\n- Adgang til rutebygger-teamet"}
+            placeholder={"Anything else useful. Logistics quirks, scheduling notes, links to mood boards.\n\n## Access\n- Ask at front desk for Mads, route-setter on Tuesdays"}
           />
         </div>
         <p className="text-muted text-sm mt-1">
@@ -635,6 +784,19 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
           </div>
         )}
       </div>
+
+      </section>
+
+      {/* ============================================================
+          Logistics
+          ============================================================ */}
+      <section className="space-y-6 pt-4">
+        <div className="border-b border-border pb-2">
+          <h2 className="text-base font-semibold">Logistics</h2>
+          <p className="text-xs text-muted mt-1">
+            How the brief runs. Category, budget, deadline, who can claim it.
+          </p>
+        </div>
 
       {/* Category & Duration */}
       <div className="grid grid-cols-2 gap-4">
@@ -823,100 +985,7 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
         </button>
       </div>
 
-      {/* Deliverable Specs */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <label className="block text-sm font-medium">Deliverable Specs</label>
-          <button
-            type="button"
-            onClick={() => applyTemplate(durationClass)}
-            className="text-xs text-accent hover:underline"
-          >
-            Reset to {durationClasses.find((d) => d.value === durationClass)?.label} template
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {specEntries.map((entry, i) => {
-            const isKnown = entry.key in specFieldLabels;
-            return (
-              <div key={i} className="flex items-center gap-2">
-                {isKnown ? (
-                  <span className="w-40 shrink-0 px-3 py-2.5 bg-surface-raised border border-border rounded-lg text-sm text-muted">
-                    {specFieldLabels[entry.key]}
-                  </span>
-                ) : (
-                  <input
-                    type="text"
-                    value={entry.key}
-                    onChange={(e) => updateEntry(i, "key", e.target.value)}
-                    placeholder="Field name"
-                    className="w-40 shrink-0 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-                  />
-                )}
-                <input
-                  type="text"
-                  value={entry.value}
-                  onChange={(e) => updateEntry(i, "value", e.target.value)}
-                  placeholder={isKnown ? (commonFields.find((f) => f.key === entry.key)?.placeholder || "") : "Value"}
-                  className="flex-1 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeEntry(i)}
-                  className="p-2 text-muted hover:text-error transition-colors shrink-0"
-                  aria-label="Remove field"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Add field buttons */}
-        <div className="flex flex-wrap items-center gap-2 mt-3">
-          {/* Quick-add known fields that aren't already present */}
-          {[...Object.entries(specFieldLabels)].filter(
-            ([key]) => !specEntries.some((e) => e.key === key)
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSpecEntries((prev) => [...prev, { key, value: "" }])}
-              className="px-2.5 py-1 text-xs font-medium text-muted border border-border rounded-md hover:border-accent/40 hover:text-accent transition-colors"
-            >
-              + {label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={addEntry}
-            className="px-2.5 py-1 text-xs font-medium text-accent border border-accent/30 rounded-md hover:bg-accent-muted transition-colors"
-          >
-            + Custom field
-          </button>
-        </div>
-      </div>
-
-      {/* Usage Rights */}
-      <div>
-        <label htmlFor="usageRights" className="block text-sm font-medium mb-2">
-          Usage Rights
-        </label>
-        <textarea
-          id="usageRights"
-          value={usageRights}
-          onChange={(e) => setUsageRights(e.target.value)}
-          rows={2}
-          className={`${inputClass} resize-none`}
-          placeholder="e.g. Perpetual usage rights across all brand social channels"
-        />
-      </div>
-
-      {/* Targeting criteria. Soft-match only — these don't hard-filter
+      {/* Targeting criteria. Soft-match only, these don't hard-filter
           creators on /briefs, they just rank matching briefs higher
           on each creator's feed. Empty in any dimension means "no
           preference" for that dimension. */}
@@ -948,8 +1017,9 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
           </p>
         </div>
       </div>
+      </section>
 
-      {/* Upfront cost panel — only on the create flow with a paid
+      {/* Upfront cost panel, only on the create flow with a paid
           brief. Editing keeps the original escrow contract; free
           briefs (price 0) skip the charge entirely. */}
       {isPaidCreate && (

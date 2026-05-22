@@ -133,6 +133,28 @@ export default function EditBriefPage() {
   const activeClaims = claims.filter((c) => c.status === "active");
   const submittedClaims = claims.filter((c) => c.status === "submitted");
 
+  // Canonical creative-brief fields, rendered in the order creators read them.
+  const creativeFields: { label: string; value: string | null | undefined }[] = [
+    { label: "Objective", value: brief.objective },
+    { label: "Audience", value: brief.audience },
+    { label: "Insight", value: brief.insight },
+    { label: "Message", value: brief.message },
+    { label: "Tone", value: brief.tone },
+    { label: "Deliverables", value: brief.deliverables },
+    { label: "Mandatories", value: brief.mandatories },
+  ].filter((f) => typeof f.value === "string" && f.value.trim().length > 0);
+
+  const legacySpecs = brief.deliverable_specs as Record<string, string> | null;
+  const hasLegacySpecs =
+    legacySpecs && typeof legacySpecs === "object" && Object.keys(legacySpecs).length > 0;
+  const hasDescription =
+    typeof brief.description === "string" && brief.description.trim().length > 0;
+  const hasUsageRights =
+    typeof brief.usage_rights === "string" && brief.usage_rights.trim().length > 0;
+
+  const hasCreativeContent =
+    creativeFields.length > 0 || hasDescription || hasLegacySpecs || hasUsageRights;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -169,6 +191,80 @@ export default function EditBriefPage() {
           )}
         </div>
       </div>
+
+      {hasCreativeContent && (
+        <section className="mb-8 bg-surface border border-border rounded-xl p-6">
+          <div className="flex items-baseline justify-between mb-5">
+            <h2 className="font-semibold text-lg">Creative brief</h2>
+            <span className="text-muted text-xs uppercase tracking-wider">
+              Read-only preview
+            </span>
+          </div>
+
+          {creativeFields.length > 0 && (
+            <dl className="grid gap-px bg-border rounded-lg overflow-hidden border border-border">
+              {creativeFields.map((f) => (
+                <div
+                  key={f.label}
+                  className="bg-surface px-4 py-3 sm:grid sm:grid-cols-[140px_1fr] sm:gap-4"
+                >
+                  <dt className="text-muted text-sm font-medium">{f.label}</dt>
+                  <dd className="text-sm text-foreground whitespace-pre-wrap mt-1 sm:mt-0">
+                    {f.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          {(hasDescription || hasLegacySpecs || hasUsageRights) && (
+            <div className="mt-6 space-y-5 opacity-90">
+              {hasDescription && (
+                <div>
+                  <h3 className="text-muted text-xs uppercase tracking-wider mb-2">
+                    Additional notes
+                  </h3>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {brief.description}
+                  </p>
+                </div>
+              )}
+
+              {hasLegacySpecs && legacySpecs && (
+                <div>
+                  <h3 className="text-muted text-xs uppercase tracking-wider mb-2">
+                    Legacy deliverable specs
+                  </h3>
+                  <dl className="grid gap-px bg-border rounded-lg overflow-hidden border border-border">
+                    {Object.entries(legacySpecs).map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="bg-surface px-4 py-2.5 sm:grid sm:grid-cols-[140px_1fr] sm:gap-4"
+                      >
+                        <dt className="text-muted text-sm">{key}</dt>
+                        <dd className="text-sm text-foreground mt-1 sm:mt-0">
+                          {String(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+
+              {hasUsageRights && (
+                <div>
+                  <h3 className="text-muted text-xs uppercase tracking-wider mb-2">
+                    Legacy usage rights
+                  </h3>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {brief.usage_rights}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Brief Form */}

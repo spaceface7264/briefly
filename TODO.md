@@ -13,6 +13,15 @@ preconditions. Work top to bottom within a section.
 
 ---
 
+## Launch Critical Path (Boulders, 2026-06-02)
+
+Mirrors the launch criteria in `PREMORTEM.md`. Only items in this section block June 2. Everything below is post-launch unless explicitly promoted here.
+
+- ❌ Walk Stripe Connect Express onboarding end to end as a Danish private-individual creator (no CVR, personal email, personal bank). Document every screen, friction point, language gap, and time-to-complete. Then have one trusted creator from the pool do the same.
+- ✅ Briefs restructured around the canonical creative-brief template (Project, Objective, Audience, Insight, Message, Tone, Deliverables, Mandatories). Migration 0058 + form refactor (Creative Brief / Logistics sections) + admin detail preview + creator detail rendering.
+
+---
+
 ## Brand Assets MVP ✅
 
 Structured brand kit per org (logos, colors, typography, guidelines,
