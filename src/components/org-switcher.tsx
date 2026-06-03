@@ -153,7 +153,7 @@ export function OrgSwitcher() {
               key={org.id}
               value={org.id}
               closeOnClick
-              className="text-sm"
+              className="text-xs"
             >
               <span className="truncate">{org.name}</span>
             </DropdownMenuRadioItem>

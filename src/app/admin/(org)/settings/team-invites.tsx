@@ -433,7 +433,7 @@ export function TeamInvites({ invites, redeemedInvites, canManage }: Props) {
                       : parseInt(ev.target.value, 10)
                   )
                 }
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors"
               >
                 {EXPIRY_OPTIONS.map((opt) => (
                   <option

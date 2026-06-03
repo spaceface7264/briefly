@@ -54,7 +54,7 @@ const STEPS: { id: StepId; label: string }[] = [
 ];
 
 const INPUT_CLASS =
-  "w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors outline-none";
+  "w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors outline-none";
 
 export function OnboardingClient({ initial, userEmail, initialError }: Props) {
   const router = useRouter();

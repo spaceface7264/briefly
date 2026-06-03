@@ -1,12 +1,12 @@
 # Briefly
 
-Generic, multi-business content creator platform (working title: Briefly). Branding is env-driven via `NEXT_PUBLIC_PLATFORM_NAME`, `NEXT_PUBLIC_LOGO_URL`, etc.
+Generic, multi-business content creator platform (title: Briefly). Branding is env-driven via `NEXT_PUBLIC_PLATFORM_NAME`, `NEXT_PUBLIC_LOGO_URL`, etc.
 
 ## Stack
 
 - Next.js 16 (App Router) + React 19
 - TypeScript
-- Tailwind CSS 4 (dark-first, lime #C8FF00 accent)
+- Tailwind CSS 4 (dark-first, cyan #09D7D7 accent with #0C1618 on-brand ink)
 - shadcn/ui (components in `src/components/ui/`)
 - Supabase (Auth + Postgres + RLS + Storage)
 - Stripe Connect (Express, Marketplace mode) for brief escrow + creator payouts

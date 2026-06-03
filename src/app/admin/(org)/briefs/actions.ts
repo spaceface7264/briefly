@@ -30,6 +30,45 @@ import {
 
 type SimpleResult = { ok: true } | { ok: false; error: string };
 
+/**
+ * Normalise an optional creative-brief text field for the DB.
+ * Treats undefined, null, and whitespace-only strings as null so the
+ * column reflects "missing" rather than carrying empty strings that
+ * would defeat `is null` checks downstream. Trims interior content
+ * lightly (leading/trailing whitespace only) so paragraph formatting
+ * the user typed survives the round trip.
+ */
+function normaliseBriefText(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+/**
+ * Pull the seven canonical creative-brief fields off an input object
+ * into a DB-ready partial. Centralised so create, draft-save, and
+ * draft-update can't drift from each other when the schema grows.
+ */
+function creativeBriefFields(input: {
+  objective?: string | null;
+  audience?: string | null;
+  insight?: string | null;
+  message?: string | null;
+  tone?: string | null;
+  deliverables?: string | null;
+  mandatories?: string | null;
+}) {
+  return {
+    objective: normaliseBriefText(input.objective),
+    audience: normaliseBriefText(input.audience),
+    insight: normaliseBriefText(input.insight),
+    message: normaliseBriefText(input.message),
+    tone: normaliseBriefText(input.tone),
+    deliverables: normaliseBriefText(input.deliverables),
+    mandatories: normaliseBriefText(input.mandatories),
+  };
+}
+
 // For actions that redirect on success — the only value the client
 // ever observes is the failure case, so the return type narrows to
 // the error variant. Same shape as createBriefWithEscrow's return.
@@ -335,6 +374,20 @@ interface NewBriefInput {
   usage_rights: string | null;
   deliverable_specs: Json;
   is_ad_intended: boolean;
+  /**
+   * Canonical creative-brief fields (migration 0058). All optional;
+   * drafts can be saved with any subset and publishing does not require
+   * them. Stored as nullable text on `briefs`. The form may submit
+   * empty strings; we normalise empties to null at the DB boundary so
+   * downstream consumers can rely on a single "missing" sentinel.
+   */
+  objective?: string | null;
+  audience?: string | null;
+  insight?: string | null;
+  message?: string | null;
+  tone?: string | null;
+  deliverables?: string | null;
+  mandatories?: string | null;
   /** Soft-match targeting. Empty arrays mean "no filter on this
    *  dimension". Values are sanitised server-side against the
    *  controlled vocabularies in src/lib/creator-profile.ts. */
@@ -471,6 +524,7 @@ export async function createBriefWithEscrow(
       target_skills: sanitizeSkills(input.target_skills),
       target_languages: sanitizeLanguages(input.target_languages),
       target_countries: sanitizeCountries(input.target_countries),
+      ...creativeBriefFields(input),
       created_by: userId,
       org_id: orgId,
       status: "open",
@@ -585,6 +639,7 @@ export async function saveBriefDraft(
       target_skills: sanitizeSkills(input.target_skills),
       target_languages: sanitizeLanguages(input.target_languages),
       target_countries: sanitizeCountries(input.target_countries),
+      ...creativeBriefFields(input),
       created_by: userId,
       org_id: orgId,
       status: "draft",
@@ -797,6 +852,7 @@ export async function updateBriefDraft(
       target_skills: sanitizeSkills(input.target_skills),
       target_languages: sanitizeLanguages(input.target_languages),
       target_countries: sanitizeCountries(input.target_countries),
+      ...creativeBriefFields(input),
     })
     .eq("id", briefId);
 

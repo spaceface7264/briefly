@@ -294,7 +294,7 @@ export function AdminTeam({
               id="creator"
               value={selectedCreator}
               onChange={(e) => setSelectedCreator(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors"
             >
               <option value="">Pick a creator…</option>
               {creators.map((creator) => (

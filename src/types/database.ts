@@ -63,20 +63,26 @@ export type Database = {
       }
       briefs: {
         Row: {
+          audience: string | null
           category: Database["public"]["Enums"]["brief_category"]
           claim_limit: number
           created_at: string
           created_by: string | null
           deadline: string | null
           deliverable_specs: Json | null
+          deliverables: string | null
           description: string
           duration_class: Database["public"]["Enums"]["brief_duration_class"]
           escrow_amount_dkk: number | null
           escrow_held_dkk: number | null
           funded_status: Database["public"]["Enums"]["brief_funded_status"]
           id: string
+          insight: string | null
           is_ad_intended: boolean
           location: string | null
+          mandatories: string | null
+          message: string | null
+          objective: string | null
           org_id: string
           overage_charge_dkk: number | null
           overage_payment_intent_id: string | null
@@ -89,24 +95,31 @@ export type Database = {
           target_languages: string[]
           target_skills: string[]
           title: string
+          tone: string | null
           updated_at: string
           usage_rights: string | null
         }
         Insert: {
+          audience?: string | null
           category: Database["public"]["Enums"]["brief_category"]
           claim_limit?: number
           created_at?: string
           created_by?: string | null
           deadline?: string | null
           deliverable_specs?: Json | null
+          deliverables?: string | null
           description: string
           duration_class?: Database["public"]["Enums"]["brief_duration_class"]
           escrow_amount_dkk?: number | null
           escrow_held_dkk?: number | null
           funded_status?: Database["public"]["Enums"]["brief_funded_status"]
           id?: string
+          insight?: string | null
           is_ad_intended?: boolean
           location?: string | null
+          mandatories?: string | null
+          message?: string | null
+          objective?: string | null
           org_id: string
           overage_charge_dkk?: number | null
           overage_payment_intent_id?: string | null
@@ -119,24 +132,31 @@ export type Database = {
           target_languages?: string[]
           target_skills?: string[]
           title: string
+          tone?: string | null
           updated_at?: string
           usage_rights?: string | null
         }
         Update: {
+          audience?: string | null
           category?: Database["public"]["Enums"]["brief_category"]
           claim_limit?: number
           created_at?: string
           created_by?: string | null
           deadline?: string | null
           deliverable_specs?: Json | null
+          deliverables?: string | null
           description?: string
           duration_class?: Database["public"]["Enums"]["brief_duration_class"]
           escrow_amount_dkk?: number | null
           escrow_held_dkk?: number | null
           funded_status?: Database["public"]["Enums"]["brief_funded_status"]
           id?: string
+          insight?: string | null
           is_ad_intended?: boolean
           location?: string | null
+          mandatories?: string | null
+          message?: string | null
+          objective?: string | null
           org_id?: string
           overage_charge_dkk?: number | null
           overage_payment_intent_id?: string | null
@@ -149,6 +169,7 @@ export type Database = {
           target_languages?: string[]
           target_skills?: string[]
           title?: string
+          tone?: string | null
           updated_at?: string
           usage_rights?: string | null
         }

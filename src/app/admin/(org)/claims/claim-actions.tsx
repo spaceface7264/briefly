@@ -545,7 +545,7 @@ function ReviewModal({
             rows={5}
             autoFocus
             placeholder="Be specific. Reference the asset and what to change."
-            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent resize-none"
           />
         </div>
       </Modal>
@@ -588,7 +588,7 @@ function ReviewModal({
             onChange={(e) => setRejectBody(e.target.value)}
             rows={3}
             placeholder="Leave blank to reject without a note."
-            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent resize-none"
           />
         </div>
       </Modal>

@@ -13,6 +13,17 @@ preconditions. Work top to bottom within a section.
 
 ---
 
+## Launch Critical Path (Boulders, 2026-06-02)
+
+Mirrors the launch criteria in `PREMORTEM.md`. Only items in this section block June 2. Everything below is post-launch unless explicitly promoted here.
+
+- ❌ Walk Stripe Connect Express onboarding end to end as a Danish private-individual creator (no CVR, personal email, personal bank). Document every screen, friction point, language gap, and time-to-complete. Then have one trusted creator from the pool do the same.
+- ❌ Set `FUNCTIONS_INVOKE_SECRET` on the production Cloudflare Worker (`npx wrangler secret put FUNCTIONS_INVOKE_SECRET`, same value as the Supabase function secret and local `.env.local`). Without it, org creation in prod silently skips the org-admin invite email (org + code still created, `emailSent=false`). The `notify-org-invite` function and `createOrg` invite-email flow are already built and deployed (Resend delivery verified end to end 2026-06-03); this is the only remaining prod wiring.
+- ❌ Set `NEXT_PUBLIC_APP_URL` on the production Cloudflare Worker to the real domain (e.g. `https://briefly.dk`). The org-admin invite email builds its signup link from this var, so a wrong/missing value ships unusable `localhost` links. Also used by Stripe onboarding return/refresh links.
+- ✅ Briefs restructured around the canonical creative-brief template (Project, Objective, Audience, Insight, Message, Tone, Deliverables, Mandatories). Migration 0058 + form refactor (Creative Brief / Logistics sections) + admin detail preview + creator detail rendering.
+
+---
+
 ## Brand Assets MVP ✅
 
 Structured brand kit per org (logos, colors, typography, guidelines,
@@ -795,6 +806,58 @@ stays trapped. The native `<dialog>`-based modals use `showModal()`
 which is well-supported but worth confirming on Safari/Firefox/Chrome.
 - **Footer**: renders on every route (landing, login, admin, legal)
 and the platform name/contact email reflect the env vars from §4.
+- **Claim review workflow (migration 0054, status: never tested
+end-to-end)**. The `revision_requested` state plus threaded
+`claim_comments` shipped in code but the loop has not been
+exercised against a real Supabase project. Run all of these
+against staging (or a throwaway org/creator pair in prod) before
+trusting it:
+  - **DB sanity**: confirm 0054 is applied on the target project.
+    `select unnest(enum_range(null::notification_event_type))`
+    includes `claim_revision_requested`; `\d+ claims` shows the
+    extended `claims_status_check`; `\d+ claim_comments` exists
+    with RLS enabled; `select polname, qual from pg_policies where
+    tablename = 'claim_comments'` returns the expected SELECT /
+    INSERT policies for org members and the claim's creator.
+  - **Happy path (single round)**: creator submits work, org admin
+    clicks "Request revision" with a comment, status flips to
+    `revision_requested`, creator sees the "Changes requested"
+    callout on the brief detail page, opens the thread, reads the
+    comment, replies, re-uploads, resubmits, org approves, escrow
+    transfer fires. Verify each transition writes a row to
+    `notifications` with the right type, and that
+    `claim_revision_requested` triggers a Resend email if that
+    webhook is wired (check `net._http_response`).
+  - **Multi-round**: do at least two `submitted → revision_requested
+    → submitted` cycles before approving. Comment ordering stays
+    chronological, no duplicate notifications, no orphaned escrow
+    state, the brand kit panel stays visible to the creator the
+    whole time (RLS extension from 0054 §3).
+  - **Cancellation from revision_requested**: org cancels the
+    claim while it's in `revision_requested`. Confirm the state
+    transitions to `cancelled`, the slot reopens, escrow accounting
+    is correct, and the creator gets the cancellation notification,
+    not a stuck `revision_requested` row.
+  - **RLS isolation**: log in as a second org's admin and confirm
+    they cannot read or insert into `claim_comments` for the first
+    org's claim (direct table query via Supabase JS, not just the
+    UI). Same check for a different creator's account against the
+    same claim. Both reads must return zero rows; both writes must
+    error.
+  - **State machine guardrails**: try to push invalid transitions
+    via the server actions (e.g. `approved → revision_requested`,
+    `revision_requested → approved` without a fresh submission).
+    Each should fail loudly, not silently no-op, and surface as a
+    user-facing error rather than a 500.
+  - **UI polish**: claim list badge tone for `revision_requested`
+    (admin-badge-tones), creator's `/my-briefs` row state, empty
+    thread state, long-thread scroll, timestamp formatting,
+    keyboard focus management on the "Request revision" modal,
+    optimistic-update behavior if the action is slow.
+  - **Email content**: if `notify-revision-requested` (or whatever
+    the trigger is named) is wired, send a real Resend test and
+    eyeball it in Gmail, Outlook web, and Apple Mail. Otherwise
+    log this as a follow-up.
 
 ---
 
@@ -842,6 +905,185 @@ the Backlog entry below for the visual polish that came out of the
 same discussion.
 
 ### Backlog
+
+- ❌ **Brief slot-open watch list ("Notify me when available").**
+  Today a creator who lands on a fully-claimed brief has no way to
+  hear about it again. Slots reopen all the time (claim cancellation,
+  expiry, rejection, revision-requested then cancelled), so there's
+  a meaningful matching problem we're leaving on the floor. Build
+  an opt-in watch list per (brief, creator) plus a slot-reopen
+  notification that flows through the existing email rails.
+  Design:
+  1. **Schema** (one migration):
+    `CREATE TABLE brief_watchers (
+       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+       brief_id uuid NOT NULL REFERENCES briefs(id) ON DELETE CASCADE,
+       user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+       created_at timestamptz NOT NULL DEFAULT now(),
+       notified_at timestamptz,
+       UNIQUE (brief_id, user_id)
+     );`
+    RLS: creator can SELECT/INSERT/DELETE their own rows; no other
+    access for v1. Index on `(brief_id) WHERE notified_at IS NULL`
+    so the slot-reopen trigger is fast.
+  2. **Enum**: add `brief_slot_available` to
+    `notification_event_type`.
+  3. **Preference column**: reuse `notify_new_briefs` (same intent:
+    "tell me about claimable briefs"). Wire it in
+    `preferenceColumnFor()` at
+    `supabase/functions/process-notification-outbox/index.ts:37`.
+  4. **Slot-reopen trigger** on `claims` UPDATE:
+    Fire when `OLD.status IN ('active','submitted','revision_requested')`
+    AND `NEW.status = 'cancelled'`. After the flip:
+      a. Check if the brief now has at least one open slot
+       (`claim_limit > count of non-cancelled claims`) AND the
+       brief is still in an open/active status.
+      b. If yes, select all `brief_watchers` rows for this brief
+       where `notified_at IS NULL`.
+      c. For each watcher, re-check eligibility against the
+       targeting rules from migration 0057 (same filter used to
+       decide whether they can see/claim the brief in the first
+       place). Skip ineligible watchers without setting
+       `notified_at` so they remain queued for a future reopen.
+      d. For eligible watchers, call
+       `create_notification_for_user(...)` with title
+       "A slot just opened" and a body referencing the brief
+       title, then set `notified_at = NOW()` on the watcher row
+       in the same statement. Outbox + Resend deliver via the
+       shared `renderEmail()` helper.
+    Race handling: emailing all watchers is fine. First click
+    wins via the existing slot-count check at claim-insert time;
+    losers see the normal "fully claimed" UX. No pessimistic
+    reservation.
+  5. **Auto-unwatch on self-claim**: when a creator successfully
+    claims a brief, DELETE their `brief_watchers` row for that
+    brief (in the same server action). Avoids the "I claimed it,
+    why did I get the slot-open email later" footgun.
+  6. **UI**:
+    - Brief detail (`briefs/[id]/brief-detail-client.tsx`) when
+      brief is fully claimed AND viewer is eligible AND has no
+      claim: render a "Notify me when a slot opens" button.
+      Flipped state shows "We'll email you" with an undo.
+    - Creator profile (`/profile` or `/my-briefs`): list active
+      watches with unwatch action. Mostly for transparency and
+      easy GDPR-style "what do you know about me" answers.
+  Edge cases to handle in v1:
+  - Creator already has a non-cancelled claim on the brief → hide
+    the watch button (no-op the action server-side as a backstop).
+  - Brief moves to `closed`/`archived` → silently delete watch
+    rows (CASCADE handles brief deletion; status change needs an
+    explicit cleanup in whichever action flips the brief).
+  - Watcher becomes ineligible between subscribing and the slot
+    opening (org membership change, targeting rule change) → step
+    4c above suppresses the email without burning their slot.
+  - Duplicate watch attempt → UNIQUE constraint, server action
+    returns success idempotently.
+  Worth deciding before writing the migration:
+  - **Notify once or every reopen?** Current design is once
+    (notified_at as a one-shot flag). If we want recurring notifies
+    we'd swap `notified_at` for a `notification_count` int and gate
+    on a cooldown. Start with once; a creator who really wants
+    repeated alerts can re-subscribe after each slot opens.
+  - **Email all watchers vs first-N?** Email all. If a brief has
+    20 watchers and 1 slot, we're not gating; the UX message is
+    explicit ("a slot opened, first to claim wins").
+  Verify after shipping: synthetic flow with a 1-slot brief,
+  watcher A and B both subscribe, claim it as user C, cancel as C,
+  confirm A and B both get an email + a notification row, A claims
+  the slot, B sees "fully claimed" on retry, B's watch row is
+  consumed (`notified_at` set so they don't get a second email if
+  the slot re-opens later).
+
+- ❌ **Pre-expiry claim reminder email.** Today the only expiry
+  email creators get is the post-mortem `claim_expired` notification
+  fired by the trigger in `0018_org_scoped_triggers.sql:196` once
+  the claim has already flipped to `cancelled`. By then the slot is
+  gone. Need a "your claim expires in ~24h, submit before [date]"
+  nudge while they can still act. All the delivery rails exist; this
+  is just a new trigger source.
+  Design (cleanest path on existing infra):
+  1. **Enum**: add `claim_expiring_soon` to `notification_event_type`
+    via a one-line migration (mirrors the `claim_revision_requested`
+    add in 0054).
+  2. **Idempotency column**: `claims.expiry_reminded_at TIMESTAMPTZ`
+    so the cron can't double-send. Single-reminder model. If we
+    later want two stages (72h + 24h), swap for a `reminder_stage`
+    smallint.
+  3. **SQL function + `pg_cron`** scheduled hourly: select claims
+    where `status IN ('active', 'revision_requested')`,
+    `expires_at BETWEEN NOW() AND NOW() + interval '24 hours'`,
+    `expiry_reminded_at IS NULL`. For each, call
+    `create_notification_for_user(...)` with title "Claim expires
+    soon" and a body that interpolates the brief title + remaining
+    hours, then set `expiry_reminded_at = NOW()` in the same
+    statement.
+  4. **Delivery**: nothing new needed. The notification row flows
+    through `notification_outbox`, gets picked up by
+    `process-notification-outbox`, and rendered via the shared
+    `renderEmail()` helper (committed bc0ed44). Honour the existing
+    `notify_claim_updates` preference column so we don't add a new
+    user-facing toggle.
+  5. **Preference column wiring**: confirm `preferenceColumnFor()`
+    in `process-notification-outbox/index.ts:37` returns
+    `notify_claim_updates` for `claim_expiring_soon` (it currently
+    falls through to that default, which is correct; verify).
+  Open decisions before writing the migration:
+  - **Threshold value.** 24h is the default. If typical `expires_at`
+    is 48h after claim, that's half-life and probably right. If it's
+    7 days, a 72h reminder may be friendlier. Sample real claim
+    `expires_at - claimed_at` deltas before locking this in.
+  - **One reminder or two.** Single 24h reminder is one column and
+    one cron tick. Two-stage (72h + 24h) needs `reminder_stage` and
+    two passes per tick. Start with one; second can be added later
+    without schema churn.
+  Verify after shipping: backfill a synthetic claim with
+  `expires_at = NOW() + interval '23 hours'`, wait for the next
+  cron tick, confirm a notification row exists, the outbox sends,
+  and the email lands. Then confirm a second cron tick does not
+  re-send.
+
+- ❌ **Submissions storage lifecycle (`submissions` bucket cleanup).**
+  Traced 2026-05-21: every video uploaded to a claim lives in the
+  `submissions` bucket forever. No cleanup anywhere in code (verified
+  via `grep -rn '\.remove(' src`, every hit is for `org-logos`,
+  `avatars`, or `brand-assets`; nothing for `submissions`). Two
+  code-comment "future cleanup jobs" exist as TODOs (actions.ts:191
+  and migration 0036 header) but were never built. Consequences:
+  storage bloats every revision round, cancelled claims orphan their
+  bytes (FK cascades the rows but not the objects), aborted uploads
+  orphan their bytes, and Free-tier ceiling (1 GB) fills fast at the
+  current 50 MB per-file cap. Three coordinated fixes, in order:
+  1. **On approval, prune prior versions.** In the approve server
+    action, after the status flip to `approved`, list all
+    `claim_attachments` for the claim, keep the most recent row by
+    `created_at`, and delete the older rows + their storage objects
+    (`admin.storage.from('submissions').remove([...paths])`). During
+    review the org keeps the full version history visible (vid1,
+    vid2, vid3) so they can confirm feedback was addressed; the
+    moment they click Approve, only the approved take survives. This
+    is the smallest fix and the biggest UX win.
+  2. **On cancel or reject, delete all attachments.** In
+    `rejectClaim` (review-actions.ts:98) and any creator-side
+    cancellation path, before/after the status flip to `cancelled`,
+    list `claim_attachments` for the claim and call
+    `admin.storage.from('submissions').remove([...paths])`. The FK
+    on `claim_attachments → claims` already cascades the rows on
+    claim delete; this just stops orphaning the bytes when a claim
+    ends without approval.
+  3. **Nightly orphan janitor.** A scheduled Edge Function (or
+    `pg_cron` + a Supabase function) that runs once a day, lists
+    every object in `submissions/` older than 24 h whose
+    `{user_id}/{claim_id}/…` path has no matching row in
+    `claim_attachments.storage_path`, and removes them. Catches
+    aborted uploads, drift from #1 / #2, and anything cancelled
+    before the new actions shipped. The spec is essentially the
+    comment block at actions.ts:189-193; implement it.
+
+  Out of scope here but worth flagging for later: a retention
+  policy on `paid` claims (e.g. delete the approved deliverable 90
+  days post-payout), and a GDPR delete cascade so removing an
+  `auth.users` row also wipes their `submissions/{user_id}/…`
+  prefix.
 
 - ✅ **Split `/admin/settings` into Personal vs Org IA** — moved to
 Decided above 2026-04-29 (shipped with opposite naming convention
@@ -1033,6 +1275,56 @@ Optional but good-practice once domain lands:
 - DMARC record (`_dmarc.<domain>`) starting at `p=none` for
 visibility, tightening to `p=quarantine` later
 - BIMI record (logo in inbox) — needs a VMC, mostly nice-to-have
+
+---
+
+## 8a. Upgrade Supabase to Pro (pre-launch)
+
+🚫 **Pre-launch blocker.** Free tier has a hard 50 MB per-file
+upload cap, which clips the `submissions` bucket's configured
+250 MB ceiling and makes "pro-grade video deliverables" undeliverable
+for anything past ~30s of 1080p. Pro ($25/mo) unlocks the 250 MB
+already configured on the bucket and lifts the global cap to
+500 GB if we ever need more.
+
+What we get for $25/mo:
+
+- 100 GB file storage included (then $0.021/GB). At ~100 MB per
+  approved claim with the cleanup TODO shipped, that's room for
+  ~1,000 claims before any storage overage. Storage is not the
+  near-term cost pressure.
+- 250 GB egress included (then $0.09/GB). This is the more likely
+  cost knee once orgs start downloading deliverables; ~1,250 plays
+  of a 200 MB video fills it. Worth instrumenting once we have
+  live traffic.
+- 8 GB disk per project (Postgres data), 100k MAU included.
+- 7-day daily backups + 7-day log retention. Both are meaningful
+  upgrades over Free; backups especially.
+- Image transformations toggle (useful for serving thumbnails of
+  the `submissions` bucket without round-tripping originals).
+
+To do, in order:
+
+1. Upgrade the project to Pro from the Supabase dashboard.
+2. Verify the bucket's 250 MB limit is now effective (the
+   `Free Plan has a fixed upload file size limit of 50 MB`
+   banner in Storage → Settings should disappear).
+3. Bump `MAX_FILE_BYTES` in `src/app/briefs/[id]/actions.ts`
+   from 50 MB to 250 MB so the server action's pre-flight
+   check matches the bucket. Search the file for the literal
+   `50 MB` in user-facing error strings and update those too.
+4. Enable image transformations in Storage → Settings if we
+   plan to use them for submission previews; otherwise leave off.
+5. Sanity-test a >50 MB video upload end-to-end on production
+   before announcing the change to creators.
+
+Out of scope here but follow-ups once Pro lands:
+
+- Add a Supabase usage alert (or a weekly cron that queries the
+  Pro billing endpoint) so we see egress trending toward the
+  250 GB knee before a surprise invoice.
+- Reconsider whether 250 MB is the right per-file ceiling or
+  whether we want a 500 MB tier for premium briefs.
 
 ---
 
@@ -2025,17 +2317,14 @@ re-examine when the related surface comes up.
   aged out before query. Confirm with a fresh trigger after this
   TODO is picked up, and verify the webhook is enabled + scoped
   to schema `public`.
-- ❌ Add a Cloudflare Redirect Rule sending `www.briefly.dk` →
-  `briefly.dk` so we have one canonical marketing URL. Dashboard
-  path: briefly.dk zone → Rules → Redirect Rules → Create rule.
-  Filter: `(http.host eq "www.briefly.dk")`. Then: Dynamic
-  redirect, expression `concat("https://briefly.dk",
-  http.request.uri.path)`, status 301, preserve query string on.
-  Both `briefly.dk` and `www.briefly.dk` already resolve as Worker
-  Custom Domains (added 2026-05-21), so this is purely an SEO /
-  canonicalisation cleanup, not a routing fix. Verify with
-  `curl -sI https://www.briefly.dk/for-brands` — expect HTTP/2 301
-  and `location: https://briefly.dk/for-brands`.
+- ✅ `www.briefly.dk` and `briefly.dk` both resolve as Worker
+  Custom Domains and serve the app. Apex initially appeared to
+  show a one.com placeholder, but that was stale local DNS / HSTS
+  cache; verified globally via `dig @1.1.1.1` and `curl -sI`
+  returning `server: cloudflare` + `x-opennext: 1` on both hosts.
+  Canonicalisation redirect (www → apex) deferred, not needed
+  for routing; revisit only if SEO/duplicate-content becomes an
+  issue.
 - ❌ Fix `notify-new-brief` BCC-only Resend payload was patched
   in-session (added a `to: SENDER_EMAIL` so Resend stops 422'ing
   on "Missing `to` field"). Worth a real review: blind-list BCC
@@ -2044,3 +2333,11 @@ re-examine when the related surface comes up.
   appear in each other's headers via the From only. Reconsider
   fan-out as N-of-1 sends (one email per creator) once we have
   more than a handful of creators per org.
+
+
+
+
+
+
+  Feature idea: Request/Suggest orgs. "Is the business you love not on Briefly? Let us know, we will get in touch with them!"
+  

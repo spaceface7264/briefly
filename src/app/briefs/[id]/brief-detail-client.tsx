@@ -263,49 +263,56 @@ export function BriefDetailClient({
           <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
             {/* Main content */}
             <div className="space-y-8 min-w-0">
-              {/* Description */}
-              <section>
-                <SectionLabel>Description</SectionLabel>
-                <div className="prose-brief">
-                  <ReactMarkdown
-                    components={{
-                      a: ({ children, href, ...props }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
-                      ),
-                    }}
-                  >
-                    {brief.description}
-                  </ReactMarkdown>
-                </div>
-              </section>
+              {/* Creative brief: the canonical block creators read to do the work. */}
+              <CreativeBriefBlock brief={brief} />
+
+              {/* Additional notes (legacy freeform description). */}
+              {brief.description && brief.description.trim().length > 0 && (
+                <section>
+                  <SectionLabel>Additional notes</SectionLabel>
+                  <div className="prose-brief">
+                    <ReactMarkdown
+                      components={{
+                        a: ({ children, href, ...props }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>
+                        ),
+                      }}
+                    >
+                      {brief.description}
+                    </ReactMarkdown>
+                  </div>
+                </section>
+              )}
 
               {/* Brand kit (claimed creators only). Server-side gate
                   in page.tsx decides whether to fetch + sign URLs;
                   brandKit is null when the viewer has no live claim. */}
               {brandKit && <BrandKitPanel brandKit={brandKit} />}
 
-              {/* Deliverable Specs */}
+              {/* Legacy deliverable specs (JSONB). Kept for older briefs
+                  authored before the canonical creative-brief template;
+                  deprioritised visually. */}
               {specs && Object.keys(specs).length > 0 && (
-                <section>
-                  <SectionLabel>Specs</SectionLabel>
+                <section className="opacity-90">
+                  <SectionLabel>Legacy specs</SectionLabel>
                   <div className="grid gap-px bg-border rounded-lg overflow-hidden border border-border">
                     {Object.entries(specs).map(([key, value]) => (
                       <div key={key} className="flex items-baseline gap-4 bg-surface px-4 py-3">
                         <dt className="text-muted text-sm w-32 shrink-0">
                           {humanizeKey(key)}
                         </dt>
-                        <dd className="text-base text-foreground">{value}</dd>
+                        <dd className="text-sm text-text-secondary">{value}</dd>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
 
-              {/* Usage Rights */}
+              {/* Legacy usage rights (older briefs). New briefs use Mandatories. */}
               {brief.usage_rights && (
-                <section>
-                  <SectionLabel>Usage Rights</SectionLabel>
-                  <p className="text-text-secondary text-base leading-relaxed">{brief.usage_rights}</p>
+                <section className="opacity-90">
+                  <SectionLabel>Usage rights</SectionLabel>
+                  <p className="text-text-secondary text-sm leading-relaxed">{brief.usage_rights}</p>
                 </section>
               )}
 
@@ -422,6 +429,114 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <h2 className="text-xs font-semibold text-muted uppercase tracking-[0.12em] mb-3">
       {children}
     </h2>
+  );
+}
+
+// Canonical creative-brief block. Each field renders only when the org
+// filled it in; nothing is forced. The visual order matches the
+// template: Objective, Audience, Insight, Message, Tone, Deliverables,
+// Mandatories. This is the primary content creators read, so it's
+// styled to be calm, scannable, and forgiving of long-form copy.
+function CreativeBriefBlock({ brief }: { brief: Brief }) {
+  const fields: Array<{
+    key: string;
+    label: string;
+    value: string | null | undefined;
+    helper?: string;
+    emphasis?: boolean;
+  }> = [
+    {
+      key: "objective",
+      label: "Objective",
+      value: brief.objective,
+      helper: "The business goal of this campaign.",
+    },
+    {
+      key: "audience",
+      label: "Audience",
+      value: brief.audience,
+      helper: "Who this content is for.",
+    },
+    {
+      key: "insight",
+      label: "Insight",
+      value: brief.insight,
+      helper: "The audience truth that anchors the creative.",
+    },
+    {
+      key: "message",
+      label: "Message",
+      value: brief.message,
+      helper: "The single thing they should take away.",
+      emphasis: true,
+    },
+    {
+      key: "tone",
+      label: "Tone",
+      value: brief.tone,
+      helper: "Voice, vibe, feel.",
+    },
+    {
+      key: "deliverables",
+      label: "Deliverables",
+      value: brief.deliverables,
+      helper: "What to produce.",
+    },
+    {
+      key: "mandatories",
+      label: "Mandatories",
+      value: brief.mandatories,
+      helper: "Non-negotiables. Must be honoured.",
+    },
+  ];
+
+  const visible = fields.filter(
+    (f) => typeof f.value === "string" && f.value.trim().length > 0
+  );
+
+  if (visible.length === 0) return null;
+
+  return (
+    <section
+      aria-labelledby="creative-brief-heading"
+      className="rounded-xl border border-border bg-surface/60 p-6 sm:p-7"
+    >
+      <div className="mb-5 flex items-baseline justify-between gap-3 border-b border-border/70 pb-4">
+        <h2
+          id="creative-brief-heading"
+          className="font-display text-base font-semibold tracking-tight text-foreground"
+        >
+          Creative brief
+        </h2>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+          Read first
+        </span>
+      </div>
+
+      <dl className="space-y-6">
+        {visible.map((field) => (
+          <div key={field.key}>
+            <dt className="mb-1.5 flex items-baseline gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-accent-ink">
+                {field.label}
+              </span>
+              {field.helper && (
+                <span className="text-[11px] text-muted">{field.helper}</span>
+              )}
+            </dt>
+            <dd
+              className={
+                field.emphasis
+                  ? "text-lg sm:text-xl font-medium leading-snug text-foreground whitespace-pre-wrap"
+                  : "text-base leading-relaxed text-text-secondary whitespace-pre-wrap"
+              }
+            >
+              {field.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -732,7 +847,7 @@ function ClaimedState({
               value={submissionUrl}
               onChange={(e) => setSubmissionUrl(e.target.value)}
               placeholder="https://instagram.com/reel/..."
-              className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent"
             />
             <p className="text-xs text-muted mt-1">
               Optional if you upload files below.
@@ -788,7 +903,7 @@ function ClaimedState({
               onChange={(e) => setSubmissionNotes(e.target.value)}
               placeholder="Optional context..."
               rows={2}
-              className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent resize-none"
             />
           </div>
 
@@ -849,7 +964,7 @@ function SubmissionChecklist() {
               type="checkbox"
               checked={checks[item.key]}
               onChange={(e) => setChecks({ ...checks, [item.key]: e.target.checked })}
-              className="w-3.5 h-3.5 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
+              className="w-3.5 h-3.5 rounded border-border bg-surface text-accent"
             />
             <span className="text-xs text-text-secondary leading-tight">
               {item.label}

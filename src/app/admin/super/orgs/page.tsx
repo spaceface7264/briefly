@@ -10,6 +10,7 @@ interface OrgListRow {
   slug: string;
   discoverable: boolean;
   status: string;
+  pendingAdmin: boolean;
   fee_bp: number;
   plan_name: string;
   override_count: number;
@@ -20,7 +21,7 @@ export default async function SuperOrgsPage() {
   const supabase = await createClient();
   const { data: orgs } = await supabase
     .from("organizations")
-    .select("id, name, slug, discoverable, status")
+    .select("id, name, slug, discoverable, status, owner_id")
     .order("name", { ascending: true });
 
   const rows: OrgListRow[] = await Promise.all(
@@ -32,6 +33,7 @@ export default async function SuperOrgsPage() {
         slug: org.slug,
         discoverable: org.discoverable ?? false,
         status: org.status ?? "active",
+        pendingAdmin: org.owner_id == null,
         fee_bp: pricing.fee_bp,
         plan_name: pricing.plan?.name ?? "-",
         override_count: pricing.applied_overrides.length,
@@ -79,7 +81,14 @@ export default async function SuperOrgsPage() {
                   <p className="font-mono text-xs text-muted">{row.slug}</p>
                 </Td>
                 <Td>
-                  <StatusPill status={row.status} />
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    <StatusPill status={row.status} />
+                    {row.pendingAdmin && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-amber-400/15 text-amber-300">
+                        Pending admin
+                      </span>
+                    )}
+                  </span>
                 </Td>
                 <Td>{row.plan_name}</Td>
                 <Td>

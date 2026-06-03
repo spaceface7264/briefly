@@ -64,12 +64,32 @@ export default async function SuperOrgDetailPage({
   const { data: org } = await supabase
     .from("organizations")
     .select(
-      "id, name, slug, description, discoverable, industry, logo_url, accent_color, contact_email, default_payment_method_id, created_at, status, suspended_at, suspended_reason, archived_at"
+      "id, name, slug, description, discoverable, industry, logo_url, accent_color, contact_email, default_payment_method_id, created_at, status, suspended_at, suspended_reason, archived_at, owner_id"
     )
     .eq("id", id)
     .single();
 
   if (!org) notFound();
+
+  // "Pending first admin": the org was created via the invite flow and
+  // nobody has redeemed the admin invite yet, so it has no owner. Surface
+  // the outstanding code so the operator can re-share the signup link.
+  const pendingAdmin = org.owner_id == null;
+  const { data: pendingInvite } = pendingAdmin
+    ? await supabase
+        .from("invite_codes")
+        .select("code, expires_at")
+        .eq("org_id", org.id)
+        .eq("role", "admin")
+        .is("used_by", null)
+        .or("expires_at.is.null,expires_at.gt.now()")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const pendingInviteUrl = pendingInvite
+    ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/login?mode=signup&code=${pendingInvite.code}`
+    : null;
 
   const [
     pricing,
@@ -238,7 +258,7 @@ export default async function SuperOrgDetailPage({
             name="reason"
             placeholder="Reason (optional). e.g. customer reported stuck claim"
             maxLength={500}
-            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           />
           <button
             type="submit"
@@ -291,6 +311,43 @@ export default async function SuperOrgDetailPage({
           />
         </div>
       </section>
+
+      {pendingAdmin && (
+        <section>
+          <div className="bg-amber-400/10 border border-amber-400/30 rounded-xl p-5">
+            <h2 className="text-base font-semibold text-amber-200">
+              Awaiting first admin
+            </h2>
+            <p className="text-sm text-muted mt-1">
+              An invite was sent when this org was created. It has no owner
+              until the admin accepts and signs up.
+            </p>
+            {pendingInvite ? (
+              <div className="mt-4 bg-surface-raised border border-border rounded-lg p-4">
+                <p className="text-xs text-muted mb-2">
+                  Outstanding admin invite
+                </p>
+                <p className="font-mono text-xl tracking-[0.25em] text-accent">
+                  {pendingInvite.code}
+                </p>
+                {pendingInviteUrl && (
+                  <a
+                    href={pendingInviteUrl}
+                    className="block text-xs text-muted mt-3 break-all font-mono hover:text-foreground transition-colors"
+                  >
+                    {pendingInviteUrl}
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted mt-3">
+                No active invite found, it may have expired. Create a new org
+                or issue a fresh admin invite.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-xl font-semibold mb-4">People</h2>
@@ -595,7 +652,7 @@ function LifecycleSection({
                 required
                 placeholder="e.g. card chargeback under investigation"
                 maxLength={500}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
               />
             </label>
             <button
@@ -616,7 +673,7 @@ function LifecycleSection({
                 name="reason"
                 placeholder="e.g. churned, owner requested deletion"
                 maxLength={500}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
               />
             </label>
             <button
@@ -638,7 +695,7 @@ function LifecycleSection({
               name="reason"
               placeholder="Restore reason (optional)"
               maxLength={500}
-              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
             />
             <button
               type="submit"

@@ -13,6 +13,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDownIcon } from "lucide-react";
 import type { BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
 
 const categories: { value: BriefCategory | "all"; label: string }[] = [
@@ -220,18 +228,39 @@ export function BriefsClient({
               {locations.length > 1 && (
                 <>
                   <span className="hidden sm:block w-px h-4 bg-border" />
-                  <select
-                    value={locationFilter}
-                    onChange={(e) => setLocationFilter(e.target.value)}
-                    className="no-global-focus-ring px-2.5 py-1 bg-transparent border border-border rounded-md text-xs text-muted hover:text-foreground hover:border-border-strong focus-visible:outline-none focus:border-accent transition-colors cursor-pointer"
-                  >
-                    <option value="">Location</option>
-                    {locations.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label="Filter by location"
+                      className="no-global-focus-ring inline-flex items-center gap-1.5 rounded-md border border-border bg-transparent px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:border-border-strong hover:text-foreground focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 data-popup-open:border-border-strong data-popup-open:text-foreground"
+                    >
+                      <span className="max-w-[160px] truncate">
+                        {locationFilter || "Location"}
+                      </span>
+                      <ChevronDownIcon className="size-3.5 opacity-60" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                      <DropdownMenuRadioGroup
+                        value={locationFilter}
+                        onValueChange={(v) =>
+                          setLocationFilter(typeof v === "string" ? v : "")
+                        }
+                      >
+                        <DropdownMenuRadioItem value="" closeOnClick className="text-xs">
+                          All locations
+                        </DropdownMenuRadioItem>
+                        {locations.map((loc) => (
+                          <DropdownMenuRadioItem
+                            key={loc}
+                            value={loc}
+                            closeOnClick
+                            className="text-xs"
+                          >
+                            {loc}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>
               )}
             </div>

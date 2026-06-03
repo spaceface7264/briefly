@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createOrg } from "./actions";
+import Link from "next/link";
+import { createOrg, type CreateOrgResult } from "./actions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function slugify(input: string): string {
   return input
@@ -21,8 +29,11 @@ export function CreateOrgForm() {
   const [country, setCountry] = useState("DK");
   const [discoverable, setDiscoverable] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
-  const [setActiveOrg, setSetActiveOrg] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<
+    Extract<CreateOrgResult, { ok: true }> | null
+  >(null);
+  const [copied, setCopied] = useState(false);
   const [pending, start] = useTransition();
 
   const effectiveSlug = slugTouched ? slug : slugify(name);
@@ -39,15 +50,70 @@ export function CreateOrgForm() {
         country,
         discoverable,
         adminEmail,
-        setActiveOrg,
       });
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      router.push(`/admin/super/orgs/${result.orgId}`);
-      router.refresh();
+      setCreated(result);
     });
+  }
+
+  function copyLink() {
+    if (!created) return;
+    navigator.clipboard.writeText(created.inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (created) {
+    return (
+      <div className="bg-surface border border-border rounded-xl p-6 space-y-5 max-w-2xl">
+        <div>
+          <h2 className="text-lg font-semibold">Organisation created</h2>
+          <p className="text-sm text-muted mt-1">
+            {created.emailSent ? (
+              <>
+                We emailed an invite to <strong>{adminEmail}</strong>. They sign
+                up from the link and become the org admin.
+              </>
+            ) : (
+              <>
+                The invite email could not be sent. Share the link below with{" "}
+                <strong>{adminEmail}</strong> manually so they can sign up and
+                become the org admin.
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="bg-surface-raised border border-border rounded-lg p-4">
+          <p className="text-xs text-muted mb-2">Single-use invite code</p>
+          <p className="font-mono text-2xl tracking-[0.25em] text-accent">
+            {created.inviteCode}
+          </p>
+          <p className="text-xs text-muted mt-3 break-all font-mono">
+            {created.inviteUrl}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={copyLink}
+            className="px-4 py-2 border border-border-strong hover:bg-surface-hover text-sm font-medium rounded-lg transition-colors"
+          >
+            {copied ? "Copied" : "Copy invite link"}
+          </button>
+          <Link
+            href={`/admin/super/orgs/${created.orgId}`}
+            className="px-4 py-2 bg-accent text-background font-semibold rounded-lg hover:bg-accent-hover transition-colors text-sm"
+          >
+            Go to organisation →
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -82,30 +148,48 @@ export function CreateOrgForm() {
           />
         </Labelled>
 
-        <Labelled label="Currency">
-          <input
-            type="text"
-            required
-            maxLength={3}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-            className="input font-mono"
-          />
-        </Labelled>
+        <div>
+          <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+            Currency
+          </span>
+          <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
+            <SelectTrigger className="w-full font-mono">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DKK">DKK</SelectItem>
+              <SelectItem value="EUR">EUR</SelectItem>
+              <SelectItem value="USD">USD</SelectItem>
+              <SelectItem value="GBP">GBP</SelectItem>
+              <SelectItem value="SEK">SEK</SelectItem>
+              <SelectItem value="NOK">NOK</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Labelled label="Country (ISO-2)">
-          <input
-            type="text"
-            required
-            maxLength={2}
-            value={country}
-            onChange={(e) => setCountry(e.target.value.toUpperCase())}
-            className="input font-mono"
-          />
-        </Labelled>
+        <div>
+          <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+            Country
+          </span>
+          <Select value={country} onValueChange={(v) => v && setCountry(v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DK">Denmark</SelectItem>
+              <SelectItem value="SE">Sweden</SelectItem>
+              <SelectItem value="NO">Norway</SelectItem>
+              <SelectItem value="FI">Finland</SelectItem>
+              <SelectItem value="DE">Germany</SelectItem>
+              <SelectItem value="NL">Netherlands</SelectItem>
+              <SelectItem value="GB">United Kingdom</SelectItem>
+              <SelectItem value="US">United States</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <Labelled label="Initial admin email (must already have an account)">
+      <Labelled label="Org admin email">
         <input
           type="email"
           required
@@ -114,6 +198,10 @@ export function CreateOrgForm() {
           placeholder="founder@acme.com"
           className="input"
         />
+        <span className="block text-xs text-muted mt-1.5">
+          They don&apos;t need an account yet. We&apos;ll email a signup link
+          that sets them up as the org admin.
+        </span>
       </Labelled>
 
       <div className="space-y-3 border-t border-border pt-5">
@@ -122,12 +210,6 @@ export function CreateOrgForm() {
           onChange={setDiscoverable}
           label="Show on /discover"
           hint="Creators without an invite can apply to join. Toggle later in /admin/settings."
-        />
-        <Checkbox
-          checked={setActiveOrg}
-          onChange={setSetActiveOrg}
-          label="Set as the new admin's active org (if they have none)"
-          hint="Recommended. The user will land here after their next sign-in."
         />
       </div>
 
