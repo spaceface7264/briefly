@@ -2331,3 +2331,11 @@ re-examine when the related surface comes up.
   appear in each other's headers via the From only. Reconsider
   fan-out as N-of-1 sends (one email per creator) once we have
   more than a handful of creators per org.
+
+
+
+
+
+
+  Feature idea: Request/Suggest orgs. "Is the business you love not on Briefly? Let us know, we will get in touch with them!"
+  
