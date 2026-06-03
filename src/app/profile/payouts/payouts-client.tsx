@@ -22,7 +22,7 @@ interface Props {
 }
 
 const INPUT_CLASS =
-  "w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors outline-none";
+  "w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors outline-none";
 
 export function PayoutsClient({ profile }: Props) {
   const payoutsEnabled = profile?.stripe_payouts_enabled ?? false;

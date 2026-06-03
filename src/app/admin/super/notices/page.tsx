@@ -121,7 +121,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
             required
             maxLength={200}
             placeholder="e.g. Read-only window: Sunday 02:00 to 02:30 UTC"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           />
         </Field>
         <Field label="Severity" htmlFor="notice-severity" required>
@@ -129,7 +129,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
             id="notice-severity"
             name="severity"
             defaultValue="info"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           >
             <option value="info">Info (muted)</option>
             <option value="warning">Warning (amber)</option>
@@ -146,7 +146,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
           maxLength={4000}
           rows={3}
           placeholder="One paragraph. Plain text. No markdown rendering yet."
-          className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm font-sans"
+          className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm font-sans"
         />
       </Field>
 
@@ -156,7 +156,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
             id="notice-audience"
             name="audience"
             defaultValue="all"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           >
             <option value="all">All organisations</option>
             <option value="one">One organisation</option>
@@ -172,7 +172,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
             id="notice-target-org"
             name="target_org_id"
             defaultValue=""
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           >
             <option value="">Pick an org...</option>
             {orgs.map((o) => (
@@ -190,7 +190,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
             id="notice-starts-at"
             name="starts_at"
             type="datetime-local"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           />
         </Field>
         <Field label="Ends at (optional, blank = open-ended)" htmlFor="notice-ends-at">
@@ -198,7 +198,7 @@ function CreateNoticeForm({ orgs }: { orgs: OrgOption[] }) {
             id="notice-ends-at"
             name="ends_at"
             type="datetime-local"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           />
         </Field>
       </div>

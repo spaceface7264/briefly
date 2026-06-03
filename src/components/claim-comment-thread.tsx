@@ -105,7 +105,7 @@ export function ClaimCommentThread({
               ? "Add a note for the creator…"
               : "Reply to the org…"
           }
-          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+          className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent resize-none"
         />
         <div className="flex justify-end">
           <button

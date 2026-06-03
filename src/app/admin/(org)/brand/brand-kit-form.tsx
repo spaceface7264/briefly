@@ -674,7 +674,7 @@ function NotesSection({
         placeholder="e.g. Direct and warm. Avoid jargon. Use sentence case for headings."
         rows={5}
         disabled={!canEdit}
-        className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-50 focus-visible:outline-none focus-visible:border-ring"
       />
       <p className="text-xs text-muted text-right">
         {notes.length}/{NOTES_MAX}

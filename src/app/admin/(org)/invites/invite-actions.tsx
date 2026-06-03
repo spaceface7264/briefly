@@ -194,7 +194,7 @@ export function InviteActions() {
                 onChange={(e) => setCount(parseInt(e.target.value) || 1)}
                 min={1}
                 max={50}
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors font-mono"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors font-mono"
               />
             </div>
 
@@ -208,7 +208,7 @@ export function InviteActions() {
                 onChange={(e) =>
                   setExpiresInDays(e.target.value === "never" ? null : parseInt(e.target.value))
                 }
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors"
               >
                 <option value={7}>7 days</option>
                 <option value={30}>30 days</option>

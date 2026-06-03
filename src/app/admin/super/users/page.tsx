@@ -116,7 +116,7 @@ export default async function SuperUsersPage({
             name="q"
             defaultValue={q}
             placeholder="Search by email or name"
-            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           />
           <button
             type="submit"

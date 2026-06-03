@@ -98,7 +98,7 @@ export function LanguagePicker({
         disabled={atCap}
         className={
           inputClassName ??
-          "w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors outline-none disabled:opacity-50"
+          "w-full px-4 py-3 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors outline-none disabled:opacity-50"
         }
         aria-label="Search languages"
       />

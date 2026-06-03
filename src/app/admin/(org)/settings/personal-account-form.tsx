@@ -220,7 +220,7 @@ export function PersonalAccountForm({
                 type="text"
                 value={name}
                 onChange={(ev) => setName(ev.target.value)}
-                className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors"
                 placeholder="Your name"
                 autoComplete="name"
                 autoFocus
@@ -371,7 +371,7 @@ function ChangePasswordDialog({
               minLength={PASSWORD_MIN_LEN}
               autoComplete="new-password"
               placeholder={`Min ${PASSWORD_MIN_LEN} characters`}
-              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors"
               autoFocus
             />
           </div>
@@ -391,7 +391,7 @@ function ChangePasswordDialog({
               minLength={PASSWORD_MIN_LEN}
               autoComplete="new-password"
               placeholder="Repeat new password"
-              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors"
             />
           </div>
 

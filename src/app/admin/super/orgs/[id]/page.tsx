@@ -238,7 +238,7 @@ export default async function SuperOrgDetailPage({
             name="reason"
             placeholder="Reason (optional). e.g. customer reported stuck claim"
             maxLength={500}
-            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
           />
           <button
             type="submit"
@@ -595,7 +595,7 @@ function LifecycleSection({
                 required
                 placeholder="e.g. card chargeback under investigation"
                 maxLength={500}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
               />
             </label>
             <button
@@ -616,7 +616,7 @@ function LifecycleSection({
                 name="reason"
                 placeholder="e.g. churned, owner requested deletion"
                 maxLength={500}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
               />
             </label>
             <button
@@ -638,7 +638,7 @@ function LifecycleSection({
               name="reason"
               placeholder="Restore reason (optional)"
               maxLength={500}
-              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
             />
             <button
               type="submit"

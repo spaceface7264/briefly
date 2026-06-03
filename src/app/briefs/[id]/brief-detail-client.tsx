@@ -847,7 +847,7 @@ function ClaimedState({
               value={submissionUrl}
               onChange={(e) => setSubmissionUrl(e.target.value)}
               placeholder="https://instagram.com/reel/..."
-              className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent"
+              className="w-full min-h-11 px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent"
             />
             <p className="text-xs text-muted mt-1">
               Optional if you upload files below.
@@ -903,7 +903,7 @@ function ClaimedState({
               onChange={(e) => setSubmissionNotes(e.target.value)}
               placeholder="Optional context..."
               rows={2}
-              className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+              className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:border-accent resize-none"
             />
           </div>
 
@@ -964,7 +964,7 @@ function SubmissionChecklist() {
               type="checkbox"
               checked={checks[item.key]}
               onChange={(e) => setChecks({ ...checks, [item.key]: e.target.checked })}
-              className="w-3.5 h-3.5 rounded border-border bg-surface text-accent focus:ring-accent focus:ring-offset-0"
+              className="w-3.5 h-3.5 rounded border-border bg-surface text-accent"
             />
             <span className="text-xs text-text-secondary leading-tight">
               {item.label}

@@ -543,7 +543,7 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
     publishHint = publishDecision.reason;
   }
 
-  const inputClass = "w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:ring-1 focus:ring-accent transition-colors";
+  const inputClass = "w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent transition-colors";
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
@@ -958,7 +958,7 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
                   updated[i] = e.target.value;
                   setReferenceUrls(updated);
                 }}
-                className="flex-1 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm font-mono focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+                className="flex-1 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm font-mono focus:border-accent transition-colors"
                 placeholder="https://instagram.com/reel/..."
               />
               {referenceUrls.length > 1 && (
@@ -1006,7 +1006,7 @@ export function BriefForm({ brief, hasPaymentMethod = true, allowance }: BriefFo
           type="checkbox"
           checked={isAdIntended}
           onChange={(e) => setIsAdIntended(e.target.checked)}
-          className="mt-0.5 w-5 h-5 rounded border-border bg-background text-accent focus:ring-accent focus:ring-offset-0"
+          className="mt-0.5 w-5 h-5 rounded border-border bg-background text-accent"
         />
         <div>
           <label htmlFor="isAdIntended" className="block text-sm font-medium cursor-pointer">

@@ -483,7 +483,7 @@ function LoginFormInner() {
                   rounded-xl border border-border bg-background/60
                   text-foreground placeholder:text-muted/70
                   hover:border-border-strong
-                  focus:border-brand focus:ring-2 focus:ring-brand/30
+                  focus:border-brand
                   outline-none transition-colors
                 "
                 placeholder="you@example.com"
@@ -517,7 +517,7 @@ function LoginFormInner() {
                   rounded-xl border border-border bg-background/60
                   text-foreground placeholder:text-muted/70
                   hover:border-border-strong
-                  focus:border-brand focus:ring-2 focus:ring-brand/30
+                  focus:border-brand
                   outline-none transition-colors
                 "
                 placeholder={isSignup ? "Pick something memorable" : "Your password"}
@@ -576,7 +576,7 @@ function LoginFormInner() {
                         text-foreground placeholder:text-muted/60
                         font-mono tracking-[0.18em] uppercase
                         hover:border-border-strong
-                        focus:border-brand focus:ring-2 focus:ring-brand/30
+                        focus:border-brand
                         outline-none transition-colors
                       "
                       placeholder="XXXX-XXXX"

@@ -3,6 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createOrg } from "./actions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function slugify(input: string): string {
   return input
@@ -82,27 +89,45 @@ export function CreateOrgForm() {
           />
         </Labelled>
 
-        <Labelled label="Currency">
-          <input
-            type="text"
-            required
-            maxLength={3}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-            className="input font-mono"
-          />
-        </Labelled>
+        <div>
+          <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+            Currency
+          </span>
+          <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
+            <SelectTrigger className="w-full font-mono">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DKK">DKK</SelectItem>
+              <SelectItem value="EUR">EUR</SelectItem>
+              <SelectItem value="USD">USD</SelectItem>
+              <SelectItem value="GBP">GBP</SelectItem>
+              <SelectItem value="SEK">SEK</SelectItem>
+              <SelectItem value="NOK">NOK</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Labelled label="Country (ISO-2)">
-          <input
-            type="text"
-            required
-            maxLength={2}
-            value={country}
-            onChange={(e) => setCountry(e.target.value.toUpperCase())}
-            className="input font-mono"
-          />
-        </Labelled>
+        <div>
+          <span className="block text-xs uppercase tracking-wider text-muted mb-1.5">
+            Country
+          </span>
+          <Select value={country} onValueChange={(v) => v && setCountry(v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DK">Denmark</SelectItem>
+              <SelectItem value="SE">Sweden</SelectItem>
+              <SelectItem value="NO">Norway</SelectItem>
+              <SelectItem value="FI">Finland</SelectItem>
+              <SelectItem value="DE">Germany</SelectItem>
+              <SelectItem value="NL">Netherlands</SelectItem>
+              <SelectItem value="GB">United Kingdom</SelectItem>
+              <SelectItem value="US">United States</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Labelled label="Initial admin email (must already have an account)">

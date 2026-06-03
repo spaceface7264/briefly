@@ -249,7 +249,7 @@ function RefundSection({
           defaultValue={paymentId}
           required
           placeholder="payments.id (UUID)"
-          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm font-mono"
+          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm font-mono"
         />
         <button
           type="submit"
@@ -328,7 +328,7 @@ function RefundSection({
                     max={remainingDkk}
                     defaultValue={remainingDkk}
                     required
-                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm font-mono"
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm font-mono"
                   />
                 </label>
                 <label className="block">
@@ -342,7 +342,7 @@ function RefundSection({
                     maxLength={500}
                     required
                     placeholder="e.g. creator submission rejected after archive window, manual goodwill refund"
-                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
                   />
                 </label>
               </div>
@@ -420,7 +420,7 @@ function RetrySection({
           defaultValue={claimId}
           required
           placeholder="claims.id (UUID)"
-          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm font-mono"
+          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm font-mono"
         />
         <button
           type="submit"
@@ -516,7 +516,7 @@ function RetrySection({
                   maxLength={500}
                   required
                   placeholder="e.g. retry after Stripe outage on 2026-05-04, original transfer never landed"
-                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent focus:ring-1 focus:ring-accent transition-colors text-sm"
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-lg hover:border-border-strong focus:border-accent transition-colors text-sm"
                 />
               </label>
               <button

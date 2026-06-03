@@ -131,8 +131,9 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Focus ring — uses brand cyan in both themes (theme-aware via tokens) */
-*:focus-visible {
+/* Focus ring — uses brand cyan in both themes (theme-aware via tokens).
+   Excludes form elements that define their own focus style (border color). */
+*:focus-visible:not(input):not(select):not(textarea):not(button):not([role="combobox"]):not([data-slot="select-trigger"]) {
   outline: 2px solid var(--color-brand-pure);
   outline-offset: 2px;
   border-radius: 4px;
