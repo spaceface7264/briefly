@@ -177,6 +177,33 @@ function LoginFormInner() {
       return;
     }
 
+    // Redeem an invite code supplied on the way in (e.g. an org-admin
+    // invite emailed to someone who already has an account). Sign-up
+    // redeems inline; sign-in must too, or the emailed link is a dead
+    // end for existing accounts. A false return means the code is
+    // stale/used, which is harmless on login, so we only surface real
+    // exceptions (account-type mismatch, plan cap).
+    const trimmedCode = inviteCode.trim();
+    if (trimmedCode && signInData.user) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: redeemError } = await (supabase as any).rpc(
+        "use_invite_code",
+        { invite_code: trimmedCode, user_uuid: signInData.user.id }
+      );
+      if (redeemError) {
+        if (redeemError.message?.startsWith("PLAN_LIMIT_EXCEEDED:")) {
+          setError(
+            redeemError.message.replace(/^PLAN_LIMIT_EXCEEDED:\s*/, "") +
+              " Ask the org admin to upgrade their plan."
+          );
+        } else {
+          setError(`Signed in but invite redemption failed: ${redeemError.message}`);
+        }
+        setLoading(false);
+        return;
+      }
+    }
+
     let nextPath = "/briefs";
     if (signInData.user) {
       const { data: profile } = await supabase

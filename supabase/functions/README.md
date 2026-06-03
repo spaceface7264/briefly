@@ -7,6 +7,7 @@ This project includes Supabase Edge Functions for email notifications via Resend
 1. **notify-submission** - Legacy webhook notifier for submission events
 2. **notify-new-brief** - Legacy webhook notifier for newly published briefs
 3. **process-notification-outbox** - Processes queued notification emails from `notification_outbox`
+4. **notify-org-invite** - Emails the org-admin invite link when a platform admin creates an org. Invoked server-side from the `createOrg` action (not a webhook); gated on a dedicated `FUNCTIONS_INVOKE_SECRET` bearer. Deploy with `--no-verify-jwt` (the project uses `sb_secret_*` API keys, which the JWT gateway rejects). Set `FUNCTIONS_INVOKE_SECRET` as both a Supabase function secret and an app env var (so `createOrg` can send it); the two must match.
 
 ## Setup Instructions
 
@@ -28,6 +29,7 @@ npx supabase link --project-ref bncuqifjcsrjkohxkwez
 npx supabase functions deploy notify-submission
 npx supabase functions deploy notify-new-brief
 npx supabase functions deploy process-notification-outbox
+npx supabase functions deploy notify-org-invite
 ### 3b. Configure outbox processing
 
 Set up a Supabase Function schedule (or external cron) to run every minute:
