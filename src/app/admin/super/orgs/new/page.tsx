@@ -15,9 +15,10 @@ export default function NewOrgPage() {
         </Link>
         <h1 className="text-3xl font-bold mt-2 mb-1">New organisation</h1>
         <p className="text-muted">
-          Creates the org, attaches one initial admin, and auto-provisions a
-          Free subscription via the <code className="font-mono text-xs">create_default_subscription</code> trigger.
-          The named user must already have an account.
+          Creates the org and auto-provisions a Free subscription via the{" "}
+          <code className="font-mono text-xs">create_default_subscription</code>{" "}
+          trigger. We email the admin a signup link, so they don&apos;t need an
+          account first. The org has no owner until they accept.
         </p>
       </div>
 

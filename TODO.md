@@ -18,6 +18,8 @@ preconditions. Work top to bottom within a section.
 Mirrors the launch criteria in `PREMORTEM.md`. Only items in this section block June 2. Everything below is post-launch unless explicitly promoted here.
 
 - ❌ Walk Stripe Connect Express onboarding end to end as a Danish private-individual creator (no CVR, personal email, personal bank). Document every screen, friction point, language gap, and time-to-complete. Then have one trusted creator from the pool do the same.
+- ❌ Set `FUNCTIONS_INVOKE_SECRET` on the production Cloudflare Worker (`npx wrangler secret put FUNCTIONS_INVOKE_SECRET`, same value as the Supabase function secret and local `.env.local`). Without it, org creation in prod silently skips the org-admin invite email (org + code still created, `emailSent=false`). The `notify-org-invite` function and `createOrg` invite-email flow are already built and deployed (Resend delivery verified end to end 2026-06-03); this is the only remaining prod wiring.
+- ❌ Set `NEXT_PUBLIC_APP_URL` on the production Cloudflare Worker to the real domain (e.g. `https://briefly.dk`). The org-admin invite email builds its signup link from this var, so a wrong/missing value ships unusable `localhost` links. Also used by Stripe onboarding return/refresh links.
 - ✅ Briefs restructured around the canonical creative-brief template (Project, Objective, Audience, Insight, Message, Tone, Deliverables, Mandatories). Migration 0058 + form refactor (Creative Brief / Logistics sections) + admin detail preview + creator detail rendering.
 
 ---
