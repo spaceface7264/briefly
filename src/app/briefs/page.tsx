@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { getActiveOrg } from "@/lib/org";
 import { requireOnboardedCreator } from "@/lib/account";
 import { BriefsClient } from "./briefs-client";
+import { NoOrgState } from "@/components/no-org-state";
 import { rankBriefsForCreator } from "@/lib/brief-matching";
 import type { Brief, BriefWithClaims, BriefCategory, BriefDurationClass } from "@/types/database";
 
@@ -16,7 +17,16 @@ export default async function BriefsPage({ searchParams }: Props) {
   const { category, duration } = await searchParams;
   const supabase = await createClient();
   await requireOnboardedCreator(supabase);
-  const orgId = await requireActiveOrg(supabase);
+  const orgId = await getActiveOrg(supabase);
+  if (!orgId) {
+    return (
+      <NoOrgState
+        heading="Briefs"
+        subheading="Browse and claim briefs from your organizations"
+        body="Join an organization to see and claim its briefs. Find one to apply to on Discover."
+      />
+    );
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
 

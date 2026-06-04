@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireActiveOrg } from "@/lib/org";
+import { getActiveOrg } from "@/lib/org";
 import { requireOnboardedCreator } from "@/lib/account";
 import { redirect } from "next/navigation";
 import { MyBriefsClient } from "./my-briefs-client";
+import { NoOrgState } from "@/components/no-org-state";
 import type { Brief, Claim } from "@/types/database";
 
 export type ClaimInvoice = {
@@ -25,7 +26,16 @@ export default async function MyBriefsPage() {
   }
 
   await requireOnboardedCreator(supabase);
-  const orgId = await requireActiveOrg(supabase);
+  const orgId = await getActiveOrg(supabase);
+  if (!orgId) {
+    return (
+      <NoOrgState
+        heading="My Briefs"
+        subheading="Track your claimed briefs and submissions"
+        body="Join an organization to start claiming briefs. Your claimed work and payouts will show up here."
+      />
+    );
+  }
 
   // Fetch claims with brief info
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
